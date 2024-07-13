@@ -20,3 +20,8 @@ Parch Linux Store (Pastor) is a GUI front-end for pacman written in Rust and Sli
 - [ ] Connect GUI to the CLI
 - [ ] Make a Beta Release
 
+
+
+## ScreenShot
+
+![initial ui of parch store](./images/explorer.png)
