@@ -10,7 +10,7 @@ pub struct Application {
 impl Application {
     pub fn new() -> Self {
         let app = adw::Application::builder()
-            .application_id("org.parchlinux.Pastor")
+            .application_id("com.parchlinux.pastor")
             .build();
 
         app.connect_startup(|_| {
