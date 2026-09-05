@@ -56,6 +56,12 @@ package() {
     install -Dm644 "data/com.parchlinux.pastor.desktop" \
         "${pkgdir}/usr/share/applications/com.parchlinux.pastor.desktop"
 
+    # Install icon
+    install -Dm644 "data/icons/com.parchlinux.pastor.svg" \
+        "${pkgdir}/usr/share/icons/hicolor/scalable/apps/com.parchlinux.pastor.svg"
+    install -Dm644 "data/icons/com.parchlinux.pastor.svg" \
+        "${pkgdir}/usr/share/pixmaps/com.parchlinux.pastor.svg"
+
     # Install license
     install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 }

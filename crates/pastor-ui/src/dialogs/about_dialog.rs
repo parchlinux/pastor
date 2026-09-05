@@ -3,7 +3,7 @@ use adw::prelude::*;
 pub fn show_about_dialog(parent: &impl IsA<gtk4::Widget>) {
     let about = adw::AboutDialog::builder()
         .application_name("Parch Store (Pastor)")
-        .application_icon("system-software-install")
+        .application_icon("com.parchlinux.pastor")
         .developer_name("ParchLinux Team")
         .version("0.1.0")
         .copyright("© 2026 ParchLinux Team")
