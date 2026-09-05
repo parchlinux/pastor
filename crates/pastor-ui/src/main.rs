@@ -1,7 +1,10 @@
 mod app;
 mod dialogs;
 mod icons;
+mod indicator;
+mod notifications;
 mod styles;
+mod update_checker;
 mod views;
 mod window;
 

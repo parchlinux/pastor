@@ -16,8 +16,10 @@ use crate::{
     },
 };
 
+#[derive(Clone)]
 pub struct MainWindow {
     window: adw::ApplicationWindow,
+    show_updates_fn: Rc<dyn Fn()>,
 }
 
 impl MainWindow {
@@ -28,6 +30,12 @@ impl MainWindow {
             .default_width(1080)
             .default_height(720)
             .build();
+
+        // Minimize / hide to tray on close request rather than terminating
+        window.connect_close_request(|w| {
+            w.set_visible(false);
+            glib::Propagation::Stop
+        });
 
         let split_view = adw::OverlaySplitView::builder()
             .min_sidebar_width(240.0)
@@ -905,6 +913,25 @@ impl MainWindow {
             });
         }
 
+        let show_updates_fn: Rc<dyn Fn()> = {
+            let nav = navigate_to_view.clone();
+            let store = store_rc.clone();
+            let on_sel = on_select_pkg.clone();
+            let on_tx = on_tx_start.clone();
+            let nav_list = nav_list.clone();
+            Rc::new(move || {
+                if let Some(row) = nav_list.row_at_index(2) {
+                    nav_list.select_row(Some(&row));
+                }
+                let updates_view = create_updates_view(
+                    store.clone(),
+                    on_sel.clone(),
+                    on_tx.clone(),
+                );
+                nav("updates", updates_view);
+            })
+        };
+
         // Categories list selection
         {
             let nav = navigate_to_view.clone();
@@ -1093,11 +1120,19 @@ impl MainWindow {
             app.add_action(&action_mirrors);
         }
 
-        Self { window }
+        Self {
+            window,
+            show_updates_fn,
+        }
     }
 
     pub fn present(&self) {
         self.window.present();
+    }
+
+    pub fn show_updates(&self) {
+        self.window.present();
+        (self.show_updates_fn)();
     }
 }
 
