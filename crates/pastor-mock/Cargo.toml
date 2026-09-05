@@ -1,0 +1,11 @@
+[package]
+name = "pastor-mock"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pastor-core.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true

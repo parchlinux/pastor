@@ -1,0 +1,16 @@
+[package]
+name = "pastor-ui"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pastor-core.workspace = true
+pastor-store.workspace = true
+adw.workspace = true
+gtk4.workspace = true
+glib.workspace = true
+tokio.workspace = true
+futures.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+ureq.workspace = true

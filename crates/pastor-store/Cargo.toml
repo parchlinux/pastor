@@ -1,0 +1,21 @@
+[package]
+name = "pastor-store"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pastor-core.workspace = true
+pastor-flatpak.workspace = true
+pastor-mock = { workspace = true, optional = true }
+async-trait.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[features]
+default = []
+mock = ["dep:pastor-mock"]
+
+[dev-dependencies]
+pastor-mock.workspace = true
+

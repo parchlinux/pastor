@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/pastor-core",
+    "crates/pastor-flatpak",
+    "crates/pastor-mock",
+    "crates/pastor-store",
+    "crates/pastor-ui",
+]
+
+[workspace.package]
+version = "0.1.0"
+authors = ["ParchLinux Team"]
+edition = "2021"
+license = "GPL-3.0-only"
+repository = "https://github.com/parchlinux/pastor"
+
+[workspace.dependencies]
+pastor-core = { path = "crates/pastor-core" }
+pastor-flatpak = { path = "crates/pastor-flatpak" }
+pastor-mock = { path = "crates/pastor-mock" }
+pastor-store = { path = "crates/pastor-store" }
+
+tokio = { version = "1.40", features = ["full"] }
+async-trait = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+futures = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+gtk4 = "0.11"
+adw = { version = "0.9", package = "libadwaita", features = ["v1_5"] }
+glib = "0.22"
+gio = "0.22"
+libflatpak = "0.7"
+flate2 = "1.0"
+quick-xml = "0.37"
+ureq = { version = "2.10", features = ["json"] }

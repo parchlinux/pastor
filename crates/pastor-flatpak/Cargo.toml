@@ -1,0 +1,22 @@
+[package]
+name = "pastor-flatpak"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+pastor-core.workspace = true
+
+async-trait.workspace = true
+chrono.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+glib.workspace = true
+gio.workspace = true
+libflatpak.workspace = true
+flate2.workspace = true
+quick-xml = "0.37"
+ureq.workspace = true
