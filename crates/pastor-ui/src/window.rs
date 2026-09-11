@@ -818,12 +818,20 @@ impl MainWindow {
             let reload_on_tx = reload_installed.clone();
             let page_chk = current_page_name.clone();
             glib::spawn_future_local(async move {
-                while let Ok(evt) = sub.recv().await {
-                    update_ops();
-                    if let ActiveTransactionEvent::Completed(_) = evt {
-                        if *page_chk.borrow() == "installed" {
-                            reload_on_tx();
+                loop {
+                    match sub.recv().await {
+                        Ok(evt) => {
+                            update_ops();
+                            if let ActiveTransactionEvent::Completed(_) = evt {
+                                if *page_chk.borrow() == "installed" {
+                                    reload_on_tx();
+                                }
+                            }
                         }
+                        // A lagged receiver just means we missed events; keep listening
+                        // instead of exiting the loop forever.
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                     }
                 }
             });

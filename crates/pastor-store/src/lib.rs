@@ -461,8 +461,27 @@ impl Store {
 
         tokio::spawn(async move {
             let (backend_tx, mut backend_rx) = mpsc::channel::<TransactionEvent>(100);
-            let b_clone = backends.clone();
+            let b_clone = backends.iter().filter(|b| b.handles(&id)).cloned().collect::<Vec<_>>();
             let id_clone = id.clone();
+
+            if b_clone.is_empty() {
+                let failed_msg = format!(
+                    "No package backend handles '{}' ({})",
+                    id_clone.name,
+                    id_clone.source.display_badge(),
+                );
+                let failed = TransactionEvent {
+                    step: TransactionStep::Failed(failed_msg.clone()),
+                    progress_fraction: 1.0,
+                    log_message: format!("No package backend handles '{}'", id_clone.name),
+                };
+                if let Ok(mut guard) = active_map.write() {
+                    guard.remove(&id_clone);
+                }
+                let _ = broadcaster.send(ActiveTransactionEvent::Failed(id_clone.clone(), failed_msg));
+                let _ = tx.send(failed).await;
+                return;
+            }
 
             let join_handle = tokio::spawn(async move {
                 for b in b_clone {
@@ -553,8 +572,27 @@ impl Store {
 
         tokio::spawn(async move {
             let (backend_tx, mut backend_rx) = mpsc::channel::<TransactionEvent>(100);
-            let b_clone = backends.clone();
+            let b_clone = backends.iter().filter(|b| b.handles(&id)).cloned().collect::<Vec<_>>();
             let id_clone = id.clone();
+
+            if b_clone.is_empty() {
+                let failed_msg = format!(
+                    "No package backend handles '{}' ({})",
+                    id_clone.name,
+                    id_clone.source.display_badge(),
+                );
+                let failed = TransactionEvent {
+                    step: TransactionStep::Failed(failed_msg.clone()),
+                    progress_fraction: 1.0,
+                    log_message: format!("No package backend handles '{}'", id_clone.name),
+                };
+                if let Ok(mut guard) = active_map.write() {
+                    guard.remove(&id_clone);
+                }
+                let _ = broadcaster.send(ActiveTransactionEvent::Failed(id_clone.clone(), failed_msg));
+                let _ = tx.send(failed).await;
+                return;
+            }
 
             let join_handle = tokio::spawn(async move {
                 for b in b_clone {
@@ -636,7 +674,7 @@ impl Store {
         let backends = self.backends.clone();
 
         tokio::spawn(async move {
-            for b in backends {
+            for b in backends.iter().filter(|b| b.handles(&id)) {
                 if let Err(e) = b.downgrade(&id, &target_version, tx.clone()).await {
                     let _ = tx
                         .send(TransactionEvent {

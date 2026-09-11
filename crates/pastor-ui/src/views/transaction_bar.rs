@@ -1,4 +1,7 @@
 
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+
 use adw::prelude::*;
 use gtk4::{glib, pango};
 use pastor_core::{TransactionEvent, TransactionStep};
@@ -16,6 +19,7 @@ pub struct TransactionBar {
     expander: gtk4::Revealer,
     expand_btn: gtk4::ToggleButton,
     cancel_btn: gtk4::Button,
+    active_ops: Arc<AtomicU32>,
 }
 
 impl TransactionBar {
@@ -133,6 +137,7 @@ impl TransactionBar {
             expander,
             expand_btn,
             cancel_btn,
+            active_ops: Arc::new(AtomicU32::new(0)),
         }
     }
 
@@ -179,9 +184,12 @@ impl TransactionBar {
         let scrolled = self.scrolled.clone();
         let container = self.container.clone();
         let expander = self.expander.clone();
+        let active_ops = self.active_ops.clone();
+        active_ops.fetch_add(1, Ordering::SeqCst);
 
         glib::spawn_future_local(async move {
             let mut last_message = String::new();
+            let mut terminal_hit = false;
             while let Some(evt) = rx.recv().await {
                 let log_text = evt.log_message.trim();
 
@@ -206,17 +214,25 @@ impl TransactionBar {
                 }
 
                 if matches!(evt.step, TransactionStep::Completed | TransactionStep::Cancelled | TransactionStep::Failed(_)) {
-                    spinner.stop();
-                    cancel_btn.set_visible(false);
-                    let container_weak = container.clone();
-                    let expander_weak = expander.clone();
-                    // Keep visible for at least 15 seconds unless user expanded console, in which case keep until dismissed
+                    terminal_hit = true;
+                    break;
+                }
+            }
+
+            // Decrement the counter; only hide the bar when no transactions remain
+            let remaining = active_ops.fetch_sub(1, Ordering::SeqCst) - 1;
+            if remaining == 0 {
+                spinner.stop();
+                cancel_btn.set_visible(false);
+                // Hide after 15 seconds unless the user has the console open
+                if terminal_hit {
+                    let container_weak = container;
+                    let expander_weak = expander;
                     glib::timeout_add_seconds_local_once(15, move || {
                         if !expander_weak.reveals_child() {
                             container_weak.set_visible(false);
                         }
                     });
-                    break;
                 }
             }
         });

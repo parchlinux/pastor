@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    path::PathBuf,
     sync::{Arc, RwLock},
 };
 
@@ -28,6 +27,7 @@ pub struct FlatpakBackend {
     user: bool,
     catalog: Arc<RwLock<AppstreamCatalog>>,
     default_remote: String,
+    remotes: Vec<String>,
     installed_cache: Arc<RwLock<Option<(std::time::Instant, HashMap<String, (String, String)>)>>>,
     active_cancellables: Arc<RwLock<HashMap<PackageId, Cancellable>>>,
 }
@@ -36,12 +36,12 @@ impl FlatpakBackend {
     pub fn new(user: bool) -> Result<Self, PastorError> {
         let inst = Self::create_installation(user)?;
 
-        let mut appstream_dirs: Vec<(String, PathBuf)> = Vec::new();
+        let mut remotes: Vec<String> = Vec::new();
         let mut default_remote = "flathub".to_string();
         let mut found_flathub = false;
 
-        if let Ok(remotes) = inst.list_remotes(Cancellable::NONE) {
-            for remote in remotes {
+        if let Ok(inst_remotes) = inst.list_remotes(Cancellable::NONE) {
+            for remote in inst_remotes {
                 let is_disabled = remote.is_disabled();
                 let is_noenumerate = remote.is_noenumerate();
                 let url = remote.url();
@@ -58,28 +58,19 @@ impl FlatpakBackend {
                 } else if !found_flathub && default_remote != "flathub" {
                     default_remote = remote_name.clone();
                 }
-                if let Some(dir) = remote.appstream_dir(None).and_then(|x| x.path()) {
-                    if dir.is_dir() {
-                        appstream_dirs.push((remote_name, dir));
-                    }
+                if !remotes.contains(&remote_name) {
+                    remotes.push(remote_name);
                 }
             }
         }
 
-        let mut catalog = AppstreamCatalog::default();
-        for (remote_name, dir) in &appstream_dirs {
-            let loaded = AppstreamCatalog::load_from_dir(dir, remote_name);
-            if catalog.icons_dir.is_none() && loaded.icons_dir.is_some() {
-                catalog.icons_dir = loaded.icons_dir.clone();
-            }
-            catalog.components.extend(loaded.components);
-            catalog.aliases.extend(loaded.aliases);
-        }
+        let catalog = Self::build_catalog_from_install(&inst, &remotes);
 
         tracing::info!(
-            "FlatpakBackend initialized (user={}): {} catalog components loaded",
+            "FlatpakBackend initialized (user={}): {} catalog components loaded, {:?} remotes",
             user,
-            catalog.components.len()
+            catalog.components.len(),
+            remotes,
         );
 
         Ok(Self {
@@ -87,9 +78,88 @@ impl FlatpakBackend {
             user,
             catalog: Arc::new(RwLock::new(catalog)),
             default_remote,
+            remotes,
             installed_cache: Arc::new(RwLock::new(None)),
             active_cancellables: Arc::new(RwLock::new(HashMap::new())),
         })
+    }
+
+    fn build_catalog_from_install(inst: &Installation, remotes: &[String]) -> AppstreamCatalog {
+        let mut catalog = AppstreamCatalog::default();
+        for remote_name in remotes {
+            match inst.remote_by_name(remote_name, Cancellable::NONE) {
+                Ok(remote) => {
+                    if let Some(dir) = remote.appstream_dir(None).and_then(|x| x.path()) {
+                        if dir.is_dir() {
+                            let loaded = AppstreamCatalog::load_from_dir(&dir, remote_name);
+                            if catalog.icons_dir.is_none() && loaded.icons_dir.is_some() {
+                                catalog.icons_dir = loaded.icons_dir.clone();
+                            }
+                            catalog.components.extend(loaded.components);
+                            catalog.aliases.extend(loaded.aliases);
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to get Flatpak remote '{}': {e}", remote_name);
+                }
+            }
+        }
+        catalog
+    }
+
+    fn reload_catalog(&self) {
+        let user = self.user;
+        let remotes = self.remotes.clone();
+        if let Ok(inst) = Self::create_installation(user) {
+            let catalog = Self::build_catalog_from_install(&inst, &remotes);
+            if let Ok(mut guard) = self.catalog.write() {
+                *guard = catalog;
+            }
+        }
+        tracing::info!("Flatpak AppStream catalog reloaded (user={})", self.user);
+    }
+
+    /// Ensure the AppStream catalog is populated. On a fresh machine, flatpak
+    /// hasn't fetched the metadata yet (it's downloaded on first install), so
+    /// we trigger `update_appstream_full_sync` once then reload from disk.
+    async fn ensure_catalog(&self) {
+        {
+            let populated = self.catalog.read().map(|c| !c.components.is_empty()).unwrap_or(false);
+            if populated {
+                return;
+            }
+        }
+
+        let user = self.user;
+        let remotes = self.remotes.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            let inst = Self::create_installation(user)
+                .map_err(|e| PastorError::BackendError {
+                    backend: "flatpak".into(),
+                    message: format!("Failed to create flatpak installation for refresh: {e}"),
+                })?;
+            for name in &remotes {
+                if let Err(e) = inst.update_appstream_full_sync(name, None, None, Cancellable::NONE) {
+                    tracing::warn!("Failed to update AppStream for remote '{}': {e}", name);
+                }
+            }
+            Ok::<(), PastorError>(())
+        })
+        .await;
+
+        match result {
+            Ok(Ok(())) => {
+                tracing::info!("Flatpak AppStream metadata refreshed, reloading catalog");
+                self.reload_catalog();
+            }
+            Ok(Err(e)) => {
+                tracing::warn!("Flatpak AppStream refresh failed: {e}");
+            }
+            Err(e) => {
+                tracing::warn!("Flatpak AppStream refresh task panicked: {e}");
+            }
+        }
     }
 
     fn create_installation(user: bool) -> Result<Installation, PastorError> {
@@ -303,7 +373,12 @@ impl PackageBackend for FlatpakBackend {
         self.name
     }
 
+    fn handles(&self, id: &PackageId) -> bool {
+        matches!(id.source, PackageSource::Flatpak { .. })
+    }
+
     async fn search(&self, query: &str) -> Result<Vec<Package>, PastorError> {
+        self.ensure_catalog().await;
         let q = query.trim().to_lowercase();
         let installed_map = self.get_installed_map().await?;
 
@@ -423,6 +498,7 @@ impl PackageBackend for FlatpakBackend {
     }
 
     async fn get_by_category(&self, category: PackageCategory) -> Result<Vec<Package>, PastorError> {
+        self.ensure_catalog().await;
         let installed_map = self.get_installed_map().await.unwrap_or_default();
 
         let catalog_guard = self.catalog.read().map_err(|_| PastorError::BackendError {
@@ -552,6 +628,7 @@ impl PackageBackend for FlatpakBackend {
     }
 
     async fn curated_picks(&self) -> Result<Vec<Package>, PastorError> {
+        self.ensure_catalog().await;
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();
 
         let app_ids = tokio::task::spawn_blocking(move || {
@@ -658,6 +735,7 @@ impl PackageBackend for FlatpakBackend {
         let PackageSource::Flatpak { ref remote } = id.source else {
             return Ok(None);
         };
+        self.ensure_catalog().await;
 
         if id.name.starts_with("runtime/") || id.name.starts_with("app/") {
             let installed = self.installed().await.unwrap_or_default();

@@ -60,6 +60,11 @@ pub trait PackageBackend: Send + Sync {
         progress_tx: Sender<TransactionEvent>,
     ) -> Result<(), PastorError>;
 
+    /// Whether this backend can handle the given package (used to route install/remove to the right backend)
+    fn handles(&self, _id: &PackageId) -> bool {
+        true
+    }
+
     /// Cancel an in-progress transaction for a package
     async fn cancel(&self, _id: &PackageId) -> Result<(), PastorError> {
         Ok(())
