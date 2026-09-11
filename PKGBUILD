@@ -56,6 +56,10 @@ package() {
     install -Dm644 "data/com.parchlinux.pastor.desktop" \
         "${pkgdir}/usr/share/applications/com.parchlinux.pastor.desktop"
 
+    # Install autostart entry for background indicator
+    install -Dm644 "data/com.parchlinux.pastor-autostart.desktop" \
+        "${pkgdir}/etc/xdg/autostart/com.parchlinux.pastor.desktop"
+
     # Install icon
     install -Dm644 "data/icons/com.parchlinux.pastor.svg" \
         "${pkgdir}/usr/share/icons/hicolor/scalable/apps/com.parchlinux.pastor.svg"

@@ -38,3 +38,4 @@ libflatpak = "0.7"
 flate2 = "1.0"
 quick-xml = "0.37"
 ureq = { version = "2.10", features = ["json"] }
+ksni = "0.3.6"

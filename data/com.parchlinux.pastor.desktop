@@ -10,3 +10,12 @@ Categories=System;PackageManager;Settings;
 StartupNotify=true
 StartupWMClass=com.parchlinux.pastor
 Keywords=package;store;app;install;software;parch;pacman;flatpak;
+Actions=Updates;CheckUpdates;
+
+[Desktop Action Updates]
+Name=Updates
+Exec=pastor --updates
+
+[Desktop Action CheckUpdates]
+Name=Check for Updates
+Exec=pastor --check-updates
