@@ -135,9 +135,11 @@ pub fn create_downgrade_view(
             } else {
                 found_versions.sort_by(|a, b| b.0.cmp(&a.0));
                 for (ver, fname, size) in found_versions {
+                    let row_title = glib::markup_escape_text(&format!("Version {}", ver));
+                    let row_sub = glib::markup_escape_text(&format!("{fname} • {:.1} MB", size));
                     let row = adw::ActionRow::builder()
-                        .title(format!("Version {}", ver))
-                        .subtitle(format!("{fname} • {:.1} MB", size))
+                        .title(row_title.as_str())
+                        .subtitle(row_sub.as_str())
                         .activatable(true)
                         .build();
 

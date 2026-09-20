@@ -1,23 +1,24 @@
 [package]
-name = "pastor-flatpak"
+name = "pastor-alpm"
 version = "0.2.0"
 edition = "2024"
 
 [dependencies]
 pastor-core.workspace = true
 
+alpm = "5.0.2"
+alpm-utils = "5.0.0"
+pacmanconf = "3.1.0"
+
 async-trait.workspace = true
-chrono.workspace = true
 futures.workspace = true
+tokio.workspace = true
+tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-tokio.workspace = true
-tracing.workspace = true
-glib.workspace = true
-gio.workspace = true
-libflatpak.workspace = true
 flate2.workspace = true
 quick-xml = "0.37"
-ureq.workspace = true
+jxl-oxide = "0.12"
+image = { version = "0.25", default-features = false, features = ["png"] }
 bincode.workspace = true

@@ -69,4 +69,24 @@ pub trait PackageBackend: Send + Sync {
     async fn cancel(&self, _id: &PackageId) -> Result<(), PastorError> {
         Ok(())
     }
+
+    /// Update all pending packages managed by this backend in a single batch
+    async fn update_all(
+        &self,
+        progress_tx: Sender<TransactionEvent>,
+    ) -> Result<(), PastorError> {
+        let ups = self.updates().await?;
+        for up in ups {
+            self.install(&up.id, progress_tx.clone()).await?;
+        }
+        Ok(())
+    }
+
+    /// Refresh remote package databases (e.g. pacman -Sy)
+    async fn refresh_databases(
+        &self,
+        _progress_tx: Sender<TransactionEvent>,
+    ) -> Result<(), PastorError> {
+        Ok(())
+    }
 }

@@ -8,15 +8,16 @@ use std::{
 use flate2::read::GzDecoder;
 use pastor_core::{PackageCategory, PackageIcon};
 use quick_xml::{events::Event, reader::Reader};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppstreamRelease {
     pub version: String,
     pub date: Option<String>,
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppstreamComponent {
     pub id: String,
     pub name: String,
@@ -60,11 +61,47 @@ impl AppstreamComponent {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct AppstreamCatalog {
     pub components: HashMap<String, AppstreamComponent>,
     pub aliases: HashMap<String, String>,
     pub icons_dir: Option<PathBuf>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct FlatpakCacheFile {
+    signature: u64,
+    catalog: AppstreamCatalog,
+}
+
+fn compute_flatpak_appstream_signature(effective_dir: &Path, appstream_dir: &Path) -> u64 {
+    let mut sig: u64 = 0;
+    for dir in &[effective_dir, appstream_dir] {
+        for fname in &["appstream.xml", "appstream.xml.gz"] {
+            let p = dir.join(fname);
+            if let Ok(m) = std::fs::metadata(&p) {
+                sig = sig.wrapping_add(m.len());
+                if let Ok(modified) = m.modified() {
+                    if let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) {
+                        sig = sig.wrapping_add(dur.as_secs()).wrapping_add(dur.subsec_nanos() as u64);
+                    }
+                }
+            }
+        }
+    }
+    sig
+}
+
+pub(crate) fn get_flatpak_cache_file(remote_name: &str) -> PathBuf {
+    let cache_home = std::env::var("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            PathBuf::from(home).join(".cache")
+        });
+    let dir = cache_home.join("pastor");
+    let _ = std::fs::create_dir_all(&dir);
+    dir.join(format!("flatpak_{remote_name}.bin"))
 }
 
 impl AppstreamCatalog {
@@ -91,14 +128,31 @@ impl AppstreamCatalog {
     }
 
     pub fn load_from_dir(appstream_dir: &Path, remote_name: &str) -> Self {
-        let mut catalog = Self::default();
-
         // Check if there is an 'active' subfolder (standard flathub appstream layout)
         let effective_dir = if appstream_dir.join("active").is_dir() {
             appstream_dir.join("active")
         } else {
             appstream_dir.to_path_buf()
         };
+
+        let cache_file = get_flatpak_cache_file(remote_name);
+        let sig = compute_flatpak_appstream_signature(&effective_dir, appstream_dir);
+
+        if let Ok(file) = File::open(&cache_file) {
+            let reader = BufReader::new(file);
+            if let Ok(cached) = bincode::deserialize_from::<_, FlatpakCacheFile>(reader) {
+                if cached.signature == sig && !cached.catalog.components.is_empty() {
+                    tracing::info!(
+                        "Flatpak AppStream catalog loaded from binary cache for '{}': {} components in <10ms",
+                        remote_name,
+                        cached.catalog.components.len()
+                    );
+                    return cached.catalog;
+                }
+            }
+        }
+
+        let mut catalog = Self::default();
 
         let icons_dir = effective_dir.join("icons");
         if icons_dir.is_dir() {
@@ -137,6 +191,17 @@ impl AppstreamCatalog {
                     catalog.parse_xml(reader, remote_name);
                 }
             }
+        }
+
+        // Save to binary cache for instant cold starts
+        let cache_data = FlatpakCacheFile {
+            signature: sig,
+            catalog: catalog.clone(),
+        };
+        if let Ok(file) = File::create(&cache_file) {
+            let writer = std::io::BufWriter::new(file);
+            let _ = bincode::serialize_into(writer, &cache_data);
+            tracing::info!("Flatpak AppStream binary cache written to {:?}", cache_file);
         }
 
         catalog

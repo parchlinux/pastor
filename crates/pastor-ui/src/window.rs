@@ -398,7 +398,7 @@ impl MainWindow {
                     if sub.is_empty() {
                         wt.set_subtitle(&title);
                     } else {
-                        wt.set_subtitle(&format!("{} — {}", title, sub));
+                        wt.set_subtitle(&format!("{} - {}", title, sub));
                     }
                 }
             })
@@ -949,6 +949,7 @@ impl MainWindow {
             let split_for_cat = split_view.clone();
             let wt_cat = window_title.clone();
             let active_cats_click = active_categories.clone();
+            let page_ref_for_cat = current_page_name.clone();
 
             cat_list.connect_row_activated(move |_, row| {
                 if split_for_cat.is_collapsed() {
@@ -971,8 +972,12 @@ impl MainWindow {
                         ),
                     );
 
+                    let page_ref_cat = page_ref_for_cat.clone();
                     glib::spawn_future_local(async move {
                         if let Ok(pkgs) = store_c.get_by_category(cat).await {
+                            if page_ref_cat.borrow().as_str() != "category" {
+                                return;
+                            }
                             let list_view = create_package_list_view(
                                 cat.title(),
                                 "Browse applications in this category",
@@ -997,44 +1002,142 @@ impl MainWindow {
             let cur_t = active_section_title.clone();
             let cur_s = active_section_sub.clone();
             let sync_fn = sync_title.clone();
+            let page_ref = current_page_name.clone();
+            let go_back_fn = go_back.clone();
+            let search_generation = Rc::new(std::cell::Cell::new(0u64));
+            let debounce_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
 
-            search_entry.connect_search_changed(move |entry| {
-                let query = entry.text().to_string();
-                if query.trim().is_empty() {
-                    return;
-                }
-                *cur_t.borrow_mut() = format!("Search “{}”", query);
-                *cur_s.borrow_mut() = "".to_string();
-                sync_fn();
+            let execute_search = {
+                let nav = nav.clone();
+                let store = store.clone();
+                let on_sel = on_sel.clone();
+                let on_tx = on_tx.clone();
+                let cur_t = cur_t.clone();
+                let cur_s = cur_s.clone();
+                let sync_fn = sync_fn.clone();
+                let page_ref = page_ref.clone();
+                let search_entry = search_entry.clone();
+                let search_generation = search_generation.clone();
 
-                let nav_s = nav.clone();
-                let store_s = store.clone();
-                let on_sel_s = on_sel.clone();
-                let on_tx_s = on_tx.clone();
-                let q_title = format!("Search results for \"{}\"", query);
+                Rc::new(move |query: String| {
+                    let trimmed = query.trim().to_string();
+                    if trimmed.is_empty() {
+                        return;
+                    }
 
-                nav_s(
-                    "search",
-                    create_loading_view(
-                        &q_title,
-                        "Searching repositories and Flathub catalog…",
-                    ),
-                );
+                    let my_gen = search_generation.get() + 1;
+                    search_generation.set(my_gen);
 
-                glib::spawn_future_local(async move {
-                    if let Ok(results) = store_s.search(&query).await {
-                        let list_view = create_package_list_view(
+                    *cur_t.borrow_mut() = format!("Search “{}”", trimmed);
+                    *cur_s.borrow_mut() = "".to_string();
+                    sync_fn();
+
+                    let nav_s = nav.clone();
+                    let store_s = store.clone();
+                    let on_sel_s = on_sel.clone();
+                    let on_tx_s = on_tx.clone();
+                    let q_title = format!("Search results for \"{}\"", trimmed);
+                    let page_ref_task = page_ref.clone();
+                    let search_gen_task = search_generation.clone();
+                    let search_entry_task = search_entry.clone();
+                    let query_task = trimmed.clone();
+
+                    nav_s(
+                        "search",
+                        create_loading_view(
                             &q_title,
-                            "Filtered packages matching your search query across all active ecosystems",
-                            results,
-                            store_s,
-                            on_sel_s,
-                            on_tx_s,
-                        );
-                        nav_s("search", list_view);
+                            "Searching repositories and Flathub catalog…",
+                        ),
+                    );
+
+                    glib::spawn_future_local(async move {
+                        if let Ok(results) = store_s.search(&query_task).await {
+                            // Guard 1: discard if a newer search was initiated
+                            if search_gen_task.get() != my_gen {
+                                return;
+                            }
+                            // Guard 2: discard if the user navigated away from the search view
+                            // (e.g. they clicked a package and are now on "details")
+                            if page_ref_task.borrow().as_str() != "search" {
+                                return;
+                            }
+                            // Guard 3: discard if the search entry text has changed
+                            if search_entry_task.text().trim() != query_task {
+                                return;
+                            }
+
+                            let list_view = create_package_list_view(
+                                &q_title,
+                                "Filtered packages matching your search query across all active ecosystems",
+                                results,
+                                store_s,
+                                on_sel_s,
+                                on_tx_s,
+                            );
+                            nav_s("search", list_view);
+                        }
+                    });
+                })
+            };
+
+            // Search entry text changed (debounced 250ms)
+            {
+                let exec = execute_search.clone();
+                let timer_holder = debounce_timer.clone();
+                search_entry.connect_search_changed(move |entry| {
+                    if let Some(source) = timer_holder.borrow_mut().take() {
+                        source.remove();
+                    }
+
+                    let query = entry.text().to_string();
+                    if query.trim().is_empty() {
+                        return;
+                    }
+
+                    let exec_clone = exec.clone();
+                    let timer_holder_inner = timer_holder.clone();
+                    let query_clone = query.clone();
+
+                    let source_id = glib::timeout_add_local_once(
+                        std::time::Duration::from_millis(250),
+                        move || {
+                            timer_holder_inner.borrow_mut().take();
+                            exec_clone(query_clone);
+                        },
+                    );
+                    *timer_holder.borrow_mut() = Some(source_id);
+                });
+            }
+
+            // Search entry Enter pressed (immediate execution, cancels debounce)
+            {
+                let exec = execute_search.clone();
+                let timer_holder = debounce_timer.clone();
+                search_entry.connect_activate(move |entry| {
+                    if let Some(source) = timer_holder.borrow_mut().take() {
+                        source.remove();
+                    }
+                    let query = entry.text().to_string();
+                    exec(query);
+                });
+            }
+
+            // Stop search (Escape or clear button clicked)
+            {
+                let page_ref = page_ref.clone();
+                let go_back_c = go_back_fn.clone();
+                let timer_holder = debounce_timer.clone();
+                let search_gen = search_generation.clone();
+                search_entry.connect_stop_search(move |_| {
+                    if let Some(source) = timer_holder.borrow_mut().take() {
+                        source.remove();
+                    }
+                    search_gen.set(search_gen.get() + 1);
+                    if page_ref.borrow().as_str() == "search" {
+                        go_back_c();
                     }
                 });
-            });
+            }
         }
 
         // Application Actions & Page Routing

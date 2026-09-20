@@ -96,11 +96,16 @@ pub fn create_updates_view(
                         .description("All installed applications and Flatpaks are on their latest versions.")
                         .build();
 
-                    let check_again_btn = gtk4::Button::builder()
-                        .label("Check for Updates")
-                        .css_classes(["pill", "suggested-action"])
+                    let actions_box = gtk4::Box::builder()
+                        .orientation(gtk4::Orientation::Horizontal)
+                        .spacing(12)
                         .halign(gtk4::Align::Center)
                         .margin_top(16)
+                        .build();
+
+                    let check_again_btn = gtk4::Button::builder()
+                        .label("Check for Updates")
+                        .css_classes(["pill"])
                         .build();
 
                     let retrigger = load_ref_inner.clone();
@@ -110,7 +115,36 @@ pub fn create_updates_view(
                         }
                     });
 
-                    status_page.set_child(Some(&check_again_btn));
+                    let refresh_db_btn = gtk4::Button::builder()
+                        .label("Refresh Databases")
+                        .css_classes(["pill", "suggested-action"])
+                        .build();
+
+                    let store_refresh = store_c.clone();
+                    let on_tx_refresh = on_tx_c.clone();
+                    let retrigger_refresh = load_ref_inner.clone();
+                    refresh_db_btn.connect_clicked(move |_| {
+                        let mut rx = store_refresh.refresh_databases();
+                        let (tx_forward, rx_forward) = tokio::sync::mpsc::channel(100);
+                        on_tx_refresh(rx_forward);
+                        let retrig = retrigger_refresh.clone();
+                        glib::spawn_future_local(async move {
+                            while let Some(evt) = rx.recv().await {
+                                let is_done = matches!(evt.step, pastor_core::TransactionStep::Completed);
+                                let _ = tx_forward.send(evt).await;
+                                if is_done {
+                                    if let Some(f) = retrig.borrow().as_ref() {
+                                        f();
+                                    }
+                                    break;
+                                }
+                            }
+                        });
+                    });
+
+                    actions_box.append(&check_again_btn);
+                    actions_box.append(&refresh_db_btn);
+                    status_page.set_child(Some(&actions_box));
                     dyn_box_c.append(&status_page);
                 } else {
                     let mut pkgs = Vec::new();
@@ -195,24 +229,71 @@ pub fn create_updates_view(
                     text_box.append(&sub_lbl);
                     summary_card.append(&text_box);
 
-                    let update_all_btn = gtk4::Button::builder()
-                        .label("Update All")
-                        .css_classes(["suggested-action", "pill"])
+                    let card_actions = gtk4::Box::builder()
+                        .orientation(gtk4::Orientation::Horizontal)
+                        .spacing(8)
                         .valign(gtk4::Align::Center)
                         .margin_end(16)
                         .build();
 
-                    let store_for_all = store_c.clone();
-                    let on_tx_for_all = on_tx_c.clone();
-                    let pkgs_for_all = pkgs.clone();
-                    update_all_btn.connect_clicked(move |_| {
-                        for p in &pkgs_for_all {
-                            let rx = store_for_all.install(p.id.clone());
-                            on_tx_for_all(rx);
-                        }
+                    let refresh_btn = gtk4::Button::builder()
+                        .icon_name("view-refresh-symbolic")
+                        .tooltip_text("Refresh package databases")
+                        .css_classes(["flat", "circular"])
+                        .build();
+
+                    let store_refresh2 = store_c.clone();
+                    let on_tx_refresh2 = on_tx_c.clone();
+                    let retrigger_refresh2 = load_ref_inner.clone();
+                    refresh_btn.connect_clicked(move |_| {
+                        let mut rx = store_refresh2.refresh_databases();
+                        let (tx_forward, rx_forward) = tokio::sync::mpsc::channel(100);
+                        on_tx_refresh2(rx_forward);
+                        let retrig = retrigger_refresh2.clone();
+                        glib::spawn_future_local(async move {
+                            while let Some(evt) = rx.recv().await {
+                                let is_done = matches!(evt.step, pastor_core::TransactionStep::Completed);
+                                let _ = tx_forward.send(evt).await;
+                                if is_done {
+                                    if let Some(f) = retrig.borrow().as_ref() {
+                                        f();
+                                    }
+                                    break;
+                                }
+                            }
+                        });
                     });
 
-                    summary_card.append(&update_all_btn);
+                    let update_all_btn = gtk4::Button::builder()
+                        .label("Update All")
+                        .css_classes(["suggested-action", "pill"])
+                        .build();
+
+                    let store_for_all = store_c.clone();
+                    let on_tx_for_all = on_tx_c.clone();
+                    let retrigger_for_all = load_ref_inner.clone();
+                    update_all_btn.connect_clicked(move |_| {
+                        let mut rx = store_for_all.update_all();
+                        let (tx_forward, rx_forward) = tokio::sync::mpsc::channel(100);
+                        on_tx_for_all(rx_forward);
+                        let retrig = retrigger_for_all.clone();
+                        glib::spawn_future_local(async move {
+                            while let Some(evt) = rx.recv().await {
+                                let is_done = matches!(evt.step, pastor_core::TransactionStep::Completed);
+                                let _ = tx_forward.send(evt).await;
+                                if is_done {
+                                    if let Some(f) = retrig.borrow().as_ref() {
+                                        f();
+                                    }
+                                    break;
+                                }
+                            }
+                        });
+                    });
+
+                    card_actions.append(&refresh_btn);
+                    card_actions.append(&update_all_btn);
+                    summary_card.append(&card_actions);
                     dyn_box_c.append(&summary_card);
 
                     // Package Updates Group

@@ -1,10 +1,11 @@
 [package]
 name = "pastor-ui"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
 [dependencies]
 pastor-core.workspace = true
+pastor-alpm.workspace = true
 pastor-store.workspace = true
 adw.workspace = true
 gtk4.workspace = true
@@ -16,3 +17,6 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 ureq.workspace = true
 ksni.workspace = true
+alpm = "5.0.2"
+pacmanconf = "3.1.0"
+libflatpak.workspace = true

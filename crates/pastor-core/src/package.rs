@@ -195,42 +195,139 @@ pub struct PackageUpdate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleConfig {
+    /// ALPM Core (Native Arch Linux & Parch Linux packages)
+    pub enable_alpm: bool,
+    /// Flatpak Core (Sandboxed Flathub applications)
+    pub enable_flatpak: bool,
+
     pub enable_parch_world: bool,
     pub enable_parch_void: bool,
     pub enable_arch: bool,
     pub enable_aur: bool,
-    pub enable_flatpak: bool,
+    #[serde(default)]
+    pub disabled_alpm_repos: Vec<String>,
     pub enable_bootc: bool,
     pub enable_waydroid: bool,
     pub enable_snapper: bool,
+
+    pub check_updates_interval: u32,
+    pub notify_updates: bool,
+    pub notify_finish: bool,
+    pub parallel_downloads: u32,
+    pub display_badges: bool,
+    pub retained_snapshots: u32,
 }
 
 impl Default for ModuleConfig {
     fn default() -> Self {
         Self {
+            enable_alpm: true,
+            enable_flatpak: true,
             enable_parch_world: true,
             enable_parch_void: true,
             enable_arch: true,
             enable_aur: true,
-            enable_flatpak: true,
+            disabled_alpm_repos: Vec::new(),
             enable_bootc: false,
             enable_waydroid: false,
             enable_snapper: true,
+            check_updates_interval: 0,
+            notify_updates: true,
+            notify_finish: true,
+            parallel_downloads: 5,
+            display_badges: true,
+            retained_snapshots: 20,
         }
     }
 }
 
 impl ModuleConfig {
+    pub fn is_repo_enabled(&self, repo: &str) -> bool {
+        let lower = repo.to_ascii_lowercase();
+        if lower == "world" && !self.enable_parch_world {
+            return false;
+        }
+        if lower == "void" && !self.enable_parch_void {
+            return false;
+        }
+        if (lower == "core" || lower == "extra" || lower == "multilib") && !self.enable_arch {
+            return false;
+        }
+        !self.disabled_alpm_repos.iter().any(|r| r.eq_ignore_ascii_case(repo))
+    }
+
+    pub fn set_repo_enabled(&mut self, repo: &str, enabled: bool) {
+        let lower = repo.to_ascii_lowercase();
+        if enabled {
+            self.disabled_alpm_repos.retain(|r| !r.eq_ignore_ascii_case(repo));
+            if lower == "world" {
+                self.enable_parch_world = true;
+            } else if lower == "void" {
+                self.enable_parch_void = true;
+            } else if lower == "core" || lower == "extra" || lower == "multilib" {
+                self.enable_arch = true;
+            }
+        } else {
+            if !self.disabled_alpm_repos.iter().any(|r| r.eq_ignore_ascii_case(repo)) {
+                self.disabled_alpm_repos.push(repo.to_string());
+            }
+            if lower == "world" {
+                self.enable_parch_world = false;
+            } else if lower == "void" {
+                self.enable_parch_void = false;
+            }
+        }
+    }
+
     pub fn is_source_enabled(&self, source: &PackageSource) -> bool {
         match source {
-            PackageSource::Parch(ParchRepoType::World) => self.enable_parch_world,
-            PackageSource::Parch(ParchRepoType::Void) => self.enable_parch_void,
-            PackageSource::Arch(_) => self.enable_arch,
+            PackageSource::Parch(ParchRepoType::World) => self.is_repo_enabled("world"),
+            PackageSource::Parch(ParchRepoType::Void) => self.is_repo_enabled("void"),
+            PackageSource::Arch(repo_name) => self.is_repo_enabled(repo_name),
             PackageSource::Aur => self.enable_aur,
             PackageSource::Flatpak { .. } => self.enable_flatpak,
             PackageSource::Bootc => self.enable_bootc,
             PackageSource::Waydroid => self.enable_waydroid,
         }
+    }
+
+    pub fn config_path() -> std::path::PathBuf {
+        if let Ok(config_home) = std::env::var("XDG_CONFIG_HOME") {
+            let mut p = std::path::PathBuf::from(config_home);
+            p.push("pastor");
+            p.push("config.json");
+            p
+        } else if let Ok(home) = std::env::var("HOME") {
+            let mut p = std::path::PathBuf::from(home);
+            p.push(".config");
+            p.push("pastor");
+            p.push("config.json");
+            p
+        } else {
+            std::path::PathBuf::from("/tmp/pastor-config.json")
+        }
+    }
+
+    pub fn load() -> Self {
+        let path = Self::config_path();
+        if path.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if let Ok(config) = serde_json::from_str::<Self>(&content) {
+                    return config;
+                }
+            }
+        }
+        Self::default()
+    }
+
+    pub fn save(&self) -> Result<(), std::io::Error> {
+        let path = Self::config_path();
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        std::fs::write(path, json)
     }
 }
 

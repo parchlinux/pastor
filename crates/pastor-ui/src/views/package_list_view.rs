@@ -34,9 +34,11 @@ pub fn create_package_list_view(
             .build();
         content_box.append(&status_page);
     } else {
+        let esc_title = glib::markup_escape_text(title);
+        let esc_desc = glib::markup_escape_text(description);
         let group = adw::PreferencesGroup::builder()
-            .title(title)
-            .description(description)
+            .title(esc_title.as_str())
+            .description(esc_desc.as_str())
             .build();
 
         let list_box = gtk4::ListBox::builder()
@@ -77,9 +79,11 @@ pub fn create_loading_view(title: &str, description: &str) -> gtk4::Widget {
         .margin_end(16)
         .build();
 
+    let esc_title = glib::markup_escape_text(title);
+    let esc_desc = glib::markup_escape_text(description);
     let group = adw::PreferencesGroup::builder()
-        .title(title)
-        .description(description)
+        .title(esc_title.as_str())
+        .description(esc_desc.as_str())
         .build();
 
     let spinner_box = gtk4::Box::builder()

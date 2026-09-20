@@ -3,6 +3,7 @@ use std::sync::{Arc, RwLock};
 
 use futures::future::join_all;
 pub use pastor_core::*;
+use pastor_alpm::AlpmBackend;
 use pastor_flatpak::FlatpakBackend;
 #[cfg(feature = "mock")]
 use pastor_mock::MockPackageBackend;
@@ -43,6 +44,17 @@ impl Store {
         let mut backends: Vec<Arc<dyn PackageBackend>> = Vec::new();
         let snapshot_backend: Arc<dyn SnapshotBackend> = Arc::new(NullSnapshotBackend);
 
+        // Initialize native ALPM backend
+        match AlpmBackend::new() {
+            Ok(alpm) => {
+                backends.push(Arc::new(alpm));
+                tracing::info!("Native ALPM backend registered successfully");
+            }
+            Err(e) => {
+                tracing::warn!("Failed to initialize native ALPM backend: {e}");
+            }
+        }
+
         // Initialize real Flatpak native backend via libflatpak
         match FlatpakBackend::new(false) {
             Ok(flatpak) => {
@@ -64,6 +76,17 @@ impl Store {
         Self {
             backends,
             snapshot_backend,
+            modules: Arc::new(RwLock::new(ModuleConfig::load())),
+            active_transactions: Arc::new(RwLock::new(HashMap::new())),
+            tx_broadcaster,
+        }
+    }
+
+    pub fn empty() -> Self {
+        let (tx_broadcaster, _) = broadcast::channel(200);
+        Self {
+            backends: vec![],
+            snapshot_backend: Arc::new(NullSnapshotBackend),
             modules: Arc::new(RwLock::new(ModuleConfig::default())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
             tx_broadcaster,
@@ -78,7 +101,7 @@ impl Store {
         Self {
             backends,
             snapshot_backend,
-            modules: Arc::new(RwLock::new(ModuleConfig::default())),
+            modules: Arc::new(RwLock::new(ModuleConfig::load())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
             tx_broadcaster,
         }
@@ -92,7 +115,7 @@ impl Store {
         Self {
             backends: vec![mock_backend],
             snapshot_backend: snap,
-            modules: Arc::new(RwLock::new(ModuleConfig::default())),
+            modules: Arc::new(RwLock::new(ModuleConfig::load())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
             tx_broadcaster,
         }
@@ -107,18 +130,29 @@ impl Store {
     }
 
     pub fn set_module_config(&self, config: ModuleConfig) {
+        let _ = config.save();
         *self.modules.write().unwrap() = config;
     }
 
+    pub fn is_backend_enabled(&self, b: &dyn PackageBackend, config: &ModuleConfig) -> bool {
+        match b.name() {
+            "alpm" => config.enable_alpm,
+            "flatpak" => config.enable_flatpak,
+            _ => true,
+        }
+    }
+
     pub async fn search_raw(&self, query: &str) -> Result<Vec<Package>, PastorError> {
+        let config = self.module_config();
         let mut futures = Vec::new();
         for b in &self.backends {
-            futures.push(b.search(query));
+            if self.is_backend_enabled(b.as_ref(), &config) {
+                futures.push(b.search(query));
+            }
         }
 
         let results = join_all(futures).await;
         let mut all_pkgs = Vec::new();
-        let config = self.module_config();
 
         for res in results {
             match res {
@@ -229,23 +263,28 @@ impl Store {
     }
 
     pub async fn get_package(&self, id: &PackageId) -> Result<Option<Package>, PastorError> {
+        let config = self.module_config();
         for b in &self.backends {
-            if let Ok(Some(pkg)) = b.get_package(id).await {
-                return Ok(Some(pkg));
+            if self.is_backend_enabled(b.as_ref(), &config) {
+                if let Ok(Some(pkg)) = b.get_package(id).await {
+                    return Ok(Some(pkg));
+                }
             }
         }
         Ok(None)
     }
 
     pub async fn get_installed(&self) -> Result<Vec<Package>, PastorError> {
+        let config = self.module_config();
         let mut futures = Vec::new();
         for b in &self.backends {
-            futures.push(b.installed());
+            if self.is_backend_enabled(b.as_ref(), &config) {
+                futures.push(b.installed());
+            }
         }
 
         let results = join_all(futures).await;
         let mut installed = Vec::new();
-        let config = self.module_config();
         for res in results {
             if let Ok(pkgs) = res {
                 for p in pkgs {
@@ -270,14 +309,16 @@ impl Store {
     }
 
     pub async fn get_updates(&self) -> Result<Vec<PackageUpdate>, PastorError> {
+        let config = self.module_config();
         let mut futures = Vec::new();
         for b in &self.backends {
-            futures.push(b.updates());
+            if self.is_backend_enabled(b.as_ref(), &config) {
+                futures.push(b.updates());
+            }
         }
 
         let results = join_all(futures).await;
         let mut updates = Vec::new();
-        let config = self.module_config();
         for res in results {
             if let Ok(up_list) = res {
                 for up in up_list {
@@ -291,14 +332,16 @@ impl Store {
     }
 
     pub async fn get_by_category(&self, category: PackageCategory) -> Result<Vec<Package>, PastorError> {
+        let config = self.module_config();
         let mut futures = Vec::new();
         for b in &self.backends {
-            futures.push(b.get_by_category(category));
+            if self.is_backend_enabled(b.as_ref(), &config) {
+                futures.push(b.get_by_category(category));
+            }
         }
 
         let results = join_all(futures).await;
         let mut all_pkgs = Vec::new();
-        let config = self.module_config();
 
         for res in results {
             match res {
@@ -316,14 +359,16 @@ impl Store {
     }
 
     pub async fn get_curated_picks(&self) -> Result<Vec<Package>, PastorError> {
+        let config = self.module_config();
         let mut futures = Vec::new();
         for b in &self.backends {
-            futures.push(b.curated_picks());
+            if b.name() == "flatpak" && self.is_backend_enabled(b.as_ref(), &config) {
+                futures.push(b.curated_picks());
+            }
         }
 
         let results = join_all(futures).await;
         let mut all_pkgs = Vec::new();
-        let config = self.module_config();
 
         for res in results {
             match res {
@@ -684,6 +729,122 @@ impl Store {
                         })
                         .await;
                 }
+            }
+        });
+
+        rx
+    }
+
+    /// Update all available updates across all enabled backends in a single coordinated batch
+    pub fn update_all(&self) -> Receiver<TransactionEvent> {
+        let (tx, rx): (Sender<TransactionEvent>, Receiver<TransactionEvent>) = mpsc::channel(100);
+        let config = self.module_config();
+        let enabled_backends: Vec<_> = self
+            .backends
+            .iter()
+            .filter(|b| self.is_backend_enabled(b.as_ref(), &config))
+            .cloned()
+            .collect();
+
+        tokio::spawn(async move {
+            let _ = tx
+                .send(TransactionEvent {
+                    step: TransactionStep::SyncingDatabase,
+                    progress_fraction: 0.05,
+                    log_message: "Starting system and application updates...".to_string(),
+                })
+                .await;
+
+            let mut has_errors = false;
+            for b in enabled_backends {
+                let (b_tx, mut b_rx) = mpsc::channel(100);
+                let b_clone = b.clone();
+                let join_h = tokio::spawn(async move {
+                    b_clone.update_all(b_tx).await
+                });
+
+                while let Some(evt) = b_rx.recv().await {
+                    let _ = tx.send(evt).await;
+                }
+
+                if let Ok(Err(e)) = join_h.await {
+                    has_errors = true;
+                    let _ = tx
+                        .send(TransactionEvent {
+                            step: TransactionStep::Failed(e.to_string()),
+                            progress_fraction: 1.0,
+                            log_message: format!("Update error in {}: {}", b.name(), e),
+                        })
+                        .await;
+                }
+            }
+
+            if !has_errors {
+                let _ = tx
+                    .send(TransactionEvent {
+                        step: TransactionStep::Completed,
+                        progress_fraction: 1.0,
+                        log_message: "All updates completed successfully".to_string(),
+                    })
+                    .await;
+            }
+        });
+
+        rx
+    }
+
+    /// Refresh remote package databases (e.g. pacman -Sy)
+    pub fn refresh_databases(&self) -> Receiver<TransactionEvent> {
+        let (tx, rx): (Sender<TransactionEvent>, Receiver<TransactionEvent>) = mpsc::channel(100);
+        let config = self.module_config();
+        let enabled_backends: Vec<_> = self
+            .backends
+            .iter()
+            .filter(|b| self.is_backend_enabled(b.as_ref(), &config))
+            .cloned()
+            .collect();
+
+        tokio::spawn(async move {
+            let _ = tx
+                .send(TransactionEvent {
+                    step: TransactionStep::SyncingDatabase,
+                    progress_fraction: 0.05,
+                    log_message: "Refreshing package databases...".to_string(),
+                })
+                .await;
+
+            let mut has_errors = false;
+            for b in enabled_backends {
+                let (b_tx, mut b_rx) = mpsc::channel(100);
+                let b_clone = b.clone();
+                let join_h = tokio::spawn(async move {
+                    b_clone.refresh_databases(b_tx).await
+                });
+
+                while let Some(evt) = b_rx.recv().await {
+                    let _ = tx.send(evt).await;
+                }
+
+                if let Ok(Err(e)) = join_h.await {
+                    has_errors = true;
+                    let _ = tx
+                        .send(TransactionEvent {
+                            step: TransactionStep::Failed(e.to_string()),
+                            progress_fraction: 1.0,
+                            log_message: format!("Database refresh error in {}: {}", b.name(), e),
+                        })
+                        .await;
+                }
+            }
+
+            if !has_errors {
+                let _ = tx
+                    .send(TransactionEvent {
+                        step: TransactionStep::Completed,
+                        progress_fraction: 1.0,
+                        log_message: "Package databases synchronized successfully".to_string(),
+                    })
+                    .await;
             }
         });
 

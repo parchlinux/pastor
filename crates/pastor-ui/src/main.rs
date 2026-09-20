@@ -12,6 +12,15 @@ use app::Application;
 use gtk4::glib;
 
 fn main() -> glib::ExitCode {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 2 && args[1] == "--alpm-worker" {
+        if let Err(e) = pastor_alpm::run_worker(&args[2..]) {
+            eprintln!("ALPM Worker error: {e}");
+            std::process::exit(1);
+        }
+        std::process::exit(0);
+    }
+
     tracing_subscriber::fmt::init();
 
     // Initialize multi-threaded Tokio runtime so async tasks, network timers, and sleeps

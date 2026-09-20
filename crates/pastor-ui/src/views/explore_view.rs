@@ -1,6 +1,6 @@
 use adw::prelude::*;
 use gtk4::glib;
-use pastor_core::{Package, PackageCategory};
+use pastor_core::{Package, PackageCategory, PackageSource};
 use pastor_store::Store;
 
 use super::package_row::create_package_row;
@@ -48,6 +48,30 @@ pub fn create_explore_view(
     carousel_box.append(&indicator);
     content_box.append(&carousel_box);
 
+    let scroll_ctrl = gtk4::EventControllerScroll::new(
+        gtk4::EventControllerScrollFlags::BOTH_AXES,
+    );
+    let carousel_ctrl = carousel.clone();
+    scroll_ctrl.connect_scroll(move |_, dx, dy| {
+        let n = carousel_ctrl.n_pages();
+        if n <= 1 {
+            return glib::Propagation::Proceed;
+        }
+        let delta = if dy.abs() > dx.abs() { dy } else { dx };
+        if delta > 0.2 {
+            let next = (carousel_ctrl.position().floor() as u32 + 1).min(n - 1);
+            carousel_ctrl.scroll_to(&carousel_ctrl.nth_page(next), true);
+            glib::Propagation::Stop
+        } else if delta < -0.2 {
+            let prev = (carousel_ctrl.position().ceil() as u32).saturating_sub(1);
+            carousel_ctrl.scroll_to(&carousel_ctrl.nth_page(prev), true);
+            glib::Propagation::Stop
+        } else {
+            glib::Propagation::Stop
+        }
+    });
+    carousel.add_controller(scroll_ctrl);
+
     // Initial placeholder hero card while loading
     let initial_hero = create_default_hero(store.clone(), on_select.clone());
     carousel.append(&initial_hero);
@@ -61,13 +85,18 @@ pub fn create_explore_view(
 
     glib::spawn_future_local(async move {
         let picks = store_for_carousel.get_curated_picks().await.unwrap_or_default();
-        if !picks.is_empty() {
+        let flatpak_picks: Vec<_> = picks
+            .into_iter()
+            .filter(|p| matches!(p.id.source, PackageSource::Flatpak { .. }))
+            .collect();
+
+        if !flatpak_picks.is_empty() {
             carousel_clone.remove(&initial_hero);
-            for p in &picks {
+            for p in &flatpak_picks {
                 let card = create_banner_card(p, on_sel_carousel.clone());
                 carousel_clone.append(&card);
             }
-            indicator_clone.set_visible(picks.len() > 1);
+            indicator_clone.set_visible(flatpak_picks.len() > 1);
         }
     });
 
@@ -169,9 +198,11 @@ fn create_category_section(
     on_category_select: impl Fn(PackageCategory) + 'static + Clone,
     on_transaction_start: impl Fn(tokio::sync::mpsc::Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
 ) -> gtk4::Widget {
+    let esc_title = glib::markup_escape_text(title);
+    let esc_desc = glib::markup_escape_text(description);
     let group = adw::PreferencesGroup::builder()
-        .title(title)
-        .description(description)
+        .title(esc_title.as_str())
+        .description(esc_desc.as_str())
         .margin_start(16)
         .margin_end(16)
         .build();

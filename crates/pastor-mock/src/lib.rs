@@ -903,7 +903,7 @@ fn get_seed_packages() -> Vec<Package> {
             version: "4.3.2-1".to_string(),
             installed_version: None,
             summary: "Very fast and versatile 3D modeller, renderer and animator".to_string(),
-            description: Some("Blender is the free and open source 3D creation suite supporting the entirety of the 3D pipeline—modeling, rigging, animation, simulation, rendering, and motion tracking.".to_string()),
+            description: Some("Blender is the free and open source 3D creation suite supporting the entirety of the 3D pipeline - modeling, rigging, animation, simulation, rendering, and motion tracking.".to_string()),
             icon: Some(PackageIcon::Themed("applications-graphics".to_string())),
             screenshots: vec![],
             homepage: Some("https://www.blender.org/".to_string()),

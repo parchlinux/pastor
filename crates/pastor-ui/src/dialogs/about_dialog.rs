@@ -5,7 +5,7 @@ pub fn show_about_dialog(parent: &impl IsA<gtk4::Widget>) {
         .application_name("Parch Store (Pastor)")
         .application_icon("com.parchlinux.pastor")
         .developer_name("ParchLinux Team")
-        .version("0.1.0")
+        .version(env!("CARGO_PKG_VERSION"))
         .copyright("© 2026 ParchLinux Team")
         .website("https://parchlinux.com")
         .issue_url("https://github.com/parchlinux/pastor/issues")

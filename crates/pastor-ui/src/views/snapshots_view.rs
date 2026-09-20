@@ -55,7 +55,7 @@ pub fn create_snapshots_view(
         if let Ok(snaps) = backend_clone.list_snapshots().await {
             for s in snaps {
                 let row = adw::ActionRow::builder()
-                    .title(format!("#{} — {}", s.number, s.description))
+                    .title(format!("#{} - {}", s.number, s.description))
                     .subtitle(format!(
                         "Date: {} • Type: {}",
                         s.date.format("%Y-%m-%d %H:%M:%S UTC"),

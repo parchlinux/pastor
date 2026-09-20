@@ -81,7 +81,12 @@ pub fn create_package_details_view(
 
     let dev_name = pkg.maintainer.as_deref().unwrap_or("ParchLinux Contributors");
     let lic_str = pkg.license.as_deref().unwrap_or("Open Source");
-    let meta_subtitle = format!("{} • v{} • {}", dev_name, pkg.version, lic_str);
+    let dev_display = if let Some((name, _)) = dev_name.split_once('<') {
+        name.trim()
+    } else {
+        dev_name.trim()
+    };
+    let meta_subtitle = format!("{} • v{} • {}", dev_display, pkg.version, lic_str);
 
     let developer_label = gtk4::Label::builder()
         .label(&meta_subtitle)
@@ -197,7 +202,7 @@ pub fn create_package_details_view(
                 };
 
                 if seen_sources.insert(source_key) {
-                    let label = format!("{} — v{}", source_desc, alt_p.version);
+                    let label = format!("{} - v{}", source_desc, alt_p.version);
                     if alt_p.id == current_pkg_clone.id {
                         selected_idx = unique_alts.len();
                     }
@@ -607,7 +612,7 @@ pub fn create_package_details_view(
                 .build();
 
             let header_title = gtk4::Label::builder()
-                .label(format!("{} — {}", pkg.display_title(), slide_title))
+                .label(format!("{} - {}", pkg.display_title(), slide_title))
                 .css_classes(["caption", "dim-label"])
                 .hexpand(true)
                 .halign(gtk4::Align::Center)
@@ -677,16 +682,18 @@ pub fn create_package_details_view(
     // -------------------------------------------------------------
     // 5. What's New Section (Actual Changelog from AppStream)
     // -------------------------------------------------------------
+    let wn_title = glib::markup_escape_text(&format!("What's New in Version {}", pkg.version));
     let whats_new_group = adw::PreferencesGroup::builder()
-        .title(format!("What's New in Version {}", pkg.version))
+        .title(wn_title.as_str())
         .build();
 
     let changelog_text = pkg.changelog.as_deref().unwrap_or(
         "Optimized for ParchLinux with updated system dependencies, Wayland integration, and performance enhancements."
     );
 
+    let exp_title = glib::markup_escape_text(&format!("Version {} Release Notes", pkg.version));
     let expander = adw::ExpanderRow::builder()
-        .title(format!("Version {} Release Notes", pkg.version))
+        .title(exp_title.as_str())
         .subtitle("Click to view changelog and update details")
         .expanded(true)
         .build();
@@ -872,9 +879,11 @@ pub fn create_package_details_view(
 
 /// Helper to create a specification row with an icon prefix
 fn create_spec_row(title: &str, subtitle: &str, icon_name: &str) -> adw::ActionRow {
+    let esc_title = glib::markup_escape_text(title);
+    let esc_sub = glib::markup_escape_text(subtitle);
     let row = adw::ActionRow::builder()
-        .title(title)
-        .subtitle(subtitle)
+        .title(esc_title.as_str())
+        .subtitle(esc_sub.as_str())
         .build();
     let img = gtk4::Image::from_icon_name(icon_name);
     row.add_prefix(&img);

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/pastor-alpm",
     "crates/pastor-core",
     "crates/pastor-flatpak",
     "crates/pastor-mock",
@@ -9,13 +10,14 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 authors = ["ParchLinux Team"]
 edition = "2021"
 license = "GPL-3.0-only"
 repository = "https://github.com/parchlinux/pastor"
 
 [workspace.dependencies]
+pastor-alpm = { path = "crates/pastor-alpm" }
 pastor-core = { path = "crates/pastor-core" }
 pastor-flatpak = { path = "crates/pastor-flatpak" }
 pastor-mock = { path = "crates/pastor-mock" }
@@ -39,3 +41,4 @@ flate2 = "1.0"
 quick-xml = "0.37"
 ureq = { version = "2.10", features = ["json"] }
 ksni = "0.3.6"
+bincode = "1.3"

@@ -64,24 +64,60 @@ impl FlatpakBackend {
             }
         }
 
-        let catalog = Self::build_catalog_from_install(&inst, &remotes);
+        let has_cache = Self::check_cache_exists(&inst, &remotes);
+        let (catalog, needs_bg_load) = if has_cache {
+            (Self::build_catalog_from_install(&inst, &remotes), false)
+        } else {
+            (AppstreamCatalog::default(), true)
+        };
+
+        let catalog_arc = Arc::new(RwLock::new(catalog));
+
+        if needs_bg_load {
+            let cat_clone = catalog_arc.clone();
+            let remotes_clone = remotes.clone();
+            tokio::task::spawn_blocking(move || {
+                if let Ok(inst) = Self::create_installation(user) {
+                    tracing::info!("Cold start: building Flatpak catalog in background...");
+                    let built = Self::build_catalog_from_install(&inst, &remotes_clone);
+                    if let Ok(mut guard) = cat_clone.write() {
+                        *guard = built;
+                    }
+                    tracing::info!("Background Flatpak catalog build complete");
+                }
+            });
+        }
 
         tracing::info!(
-            "FlatpakBackend initialized (user={}): {} catalog components loaded, {:?} remotes",
+            "FlatpakBackend initialized (user={}): has_cache={}, {:?} remotes",
             user,
-            catalog.components.len(),
+            has_cache,
             remotes,
         );
 
         Ok(Self {
             name: "flatpak",
             user,
-            catalog: Arc::new(RwLock::new(catalog)),
+            catalog: catalog_arc,
             default_remote,
             remotes,
             installed_cache: Arc::new(RwLock::new(None)),
             active_cancellables: Arc::new(RwLock::new(HashMap::new())),
         })
+    }
+
+    fn check_cache_exists(inst: &Installation, remotes: &[String]) -> bool {
+        for remote_name in remotes {
+            if let Ok(remote) = inst.remote_by_name(remote_name, Cancellable::NONE) {
+                if let Some(_dir) = remote.appstream_dir(None).and_then(|x| x.path()) {
+                    let cache_file = crate::appstream::get_flatpak_cache_file(remote_name);
+                    if cache_file.is_file() {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     fn build_catalog_from_install(inst: &Installation, remotes: &[String]) -> AppstreamCatalog {

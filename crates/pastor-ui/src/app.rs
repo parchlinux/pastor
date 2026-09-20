@@ -133,6 +133,9 @@ impl Application {
             let manual_rx_arc = Arc::new(Mutex::new(Some(manual_check_rx)));
 
             app.connect_startup(move |_| {
+                if let Some(settings) = gtk4::Settings::default() {
+                    settings.set_gtk_application_prefer_dark_theme(false);
+                }
                 adw::init().expect("Failed to initialize Libadwaita");
                 adw::StyleManager::default().set_color_scheme(adw::ColorScheme::Default);
 

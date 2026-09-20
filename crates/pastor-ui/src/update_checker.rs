@@ -119,7 +119,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_now_with_mock_store() {
-        let store = Store::new();
+        let store = Store::empty();
         let state = IndicatorState::default();
         let (cmd_tx, mut cmd_rx) = tokio::sync::mpsc::unbounded_channel();
 
