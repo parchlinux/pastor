@@ -475,17 +475,15 @@ impl PackageBackend for AlpmBackend {
     }
 
     async fn search(&self, query: &str) -> Result<Vec<Package>, PastorError> {
-        if !self.catalog_loaded.load(Ordering::SeqCst) {
-            let _ = tokio::time::timeout(std::time::Duration::from_secs(5), self.catalog_ready.notified()).await;
-        }
         let q = query.trim().to_lowercase();
         let pacman = self.pacman_config.clone();
-        let catalog = self.catalog.read().unwrap().clone();
+        let catalog_arc = self.catalog.clone();
         let b = self.clone();
 
         tokio::task::spawn_blocking(move || {
             let alpm = Self::create_alpm(&pacman)?;
             let localdb = alpm.localdb();
+            let catalog = catalog_arc.read().unwrap();
 
             let mut matched_pkgs: Vec<(i32, Package)> = Vec::new();
             let mut seen_names = std::collections::HashSet::new();
@@ -686,12 +684,13 @@ impl PackageBackend for AlpmBackend {
 
     async fn get_by_category(&self, category: PackageCategory) -> Result<Vec<Package>, PastorError> {
         let pacman = self.pacman_config.clone();
-        let catalog = self.catalog.read().unwrap().clone();
+        let catalog_arc = self.catalog.clone();
         let b = self.clone();
 
         tokio::task::spawn_blocking(move || {
             let alpm = Self::create_alpm(&pacman)?;
             let localdb = alpm.localdb();
+            let catalog = catalog_arc.read().unwrap();
 
             let mut packages = Vec::new();
             let mut seen = std::collections::HashSet::new();
@@ -764,12 +763,13 @@ impl PackageBackend for AlpmBackend {
 
         let name = id.name.clone();
         let pacman = self.pacman_config.clone();
-        let catalog = self.catalog.read().unwrap().clone();
+        let catalog_arc = self.catalog.clone();
         let b = self.clone();
 
         tokio::task::spawn_blocking(move || {
             let alpm = Self::create_alpm(&pacman)?;
             let localdb = alpm.localdb();
+            let catalog = catalog_arc.read().unwrap();
 
             let pkg_opt = alpm.syncdbs().pkg(name.as_str()).ok().or_else(|| localdb.pkg(name.as_str()).ok());
             if let Some(pkg) = pkg_opt {
@@ -788,12 +788,13 @@ impl PackageBackend for AlpmBackend {
 
     async fn installed(&self) -> Result<Vec<Package>, PastorError> {
         let pacman = self.pacman_config.clone();
-        let catalog = self.catalog.read().unwrap().clone();
+        let catalog_arc = self.catalog.clone();
         let b = self.clone();
 
         tokio::task::spawn_blocking(move || {
             let alpm = Self::create_alpm(&pacman)?;
             let localdb = alpm.localdb();
+            let catalog = catalog_arc.read().unwrap();
 
             let mut packages = Vec::new();
             for pkg in localdb.pkgs() {
