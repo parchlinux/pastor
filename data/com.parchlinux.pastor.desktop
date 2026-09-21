@@ -2,11 +2,12 @@
 Name=Parch Store
 GenericName=Software Center
 Comment=Discover and install software on ParchLinux
-Exec=pastor
+Exec=pastor %u
 Icon=com.parchlinux.pastor
 Terminal=false
 Type=Application
 Categories=System;PackageManager;Settings;
+MimeType=x-scheme-handler/pastor;x-scheme-handler/appstream;
 StartupNotify=true
 StartupWMClass=com.parchlinux.pastor
 Keywords=package;store;app;install;software;parch;pacman;flatpak;

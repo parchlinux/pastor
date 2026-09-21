@@ -5,6 +5,7 @@ mod indicator;
 mod notifications;
 mod styles;
 mod update_checker;
+pub mod uri_handler;
 mod views;
 mod window;
 

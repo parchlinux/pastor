@@ -20,6 +20,13 @@ use crate::{
 pub struct MainWindow {
     window: adw::ApplicationWindow,
     show_updates_fn: Rc<dyn Fn()>,
+    show_explore_fn: Rc<dyn Fn()>,
+    show_installed_fn: Rc<dyn Fn()>,
+    show_settings_fn: Rc<dyn Fn()>,
+    show_snapshots_fn: Rc<dyn Fn()>,
+    show_downgrade_fn: Rc<dyn Fn()>,
+    show_search_fn: Rc<dyn Fn(String)>,
+    open_package_fn: Rc<dyn Fn(String)>,
 }
 
 impl MainWindow {
@@ -592,6 +599,38 @@ impl MainWindow {
 
         *on_select_pkg_holder.borrow_mut() = Some(Rc::new(on_select_pkg.clone()));
 
+        let on_category_select = {
+            let nav_c = navigate_to_view.clone();
+            let store_c = store_rc.clone();
+            let on_sel_c = on_select_pkg.clone();
+            let on_tx_c = on_tx_start.clone();
+            let cur_t = active_section_title.clone();
+            let cur_s = active_section_sub.clone();
+            let sync_fn = sync_title.clone();
+            move |cat: PackageCategory| {
+                let nav_inner = nav_c.clone();
+                let store_inner = store_c.clone();
+                let on_sel_inner = on_sel_c.clone();
+                let on_tx_inner = on_tx_c.clone();
+                *cur_t.borrow_mut() = cat.title().to_string();
+                *cur_s.borrow_mut() = "Category".to_string();
+                sync_fn();
+                glib::spawn_future_local(async move {
+                    if let Ok(pkgs) = store_inner.get_by_category(cat).await {
+                        let list_view = create_package_list_view(
+                            cat.title(),
+                            "Browse applications in this category",
+                            pkgs,
+                            store_inner,
+                            on_sel_inner,
+                            on_tx_inner,
+                        );
+                        nav_inner("category", list_view);
+                    }
+                });
+            }
+        };
+
         // Connect Transaction Bar Cancel Button
         {
             let store_cancel = store_rc.clone();
@@ -843,39 +882,8 @@ impl MainWindow {
                 }
             });
 
-            let on_cat = {
-                let nav_c = nav.clone();
-                let store_c = store.clone();
-                let on_sel_c = on_sel.clone();
-                let on_tx_c = on_tx.clone();
-                let cur_t = active_section_title.clone();
-                let cur_s = active_section_sub.clone();
-                let sync_fn = sync_title.clone();
-                move |cat: PackageCategory| {
-                    let nav_inner = nav_c.clone();
-                    let store_inner = store_c.clone();
-                    let on_sel_inner = on_sel_c.clone();
-                    let on_tx_inner = on_tx_c.clone();
-                    *cur_t.borrow_mut() = cat.title().to_string();
-                    *cur_s.borrow_mut() = "Category".to_string();
-                    sync_fn();
-                    glib::spawn_future_local(async move {
-                        if let Ok(pkgs) = store_inner.get_by_category(cat).await {
-                            let list_view = create_package_list_view(
-                                cat.title(),
-                                "Browse applications in this category",
-                                pkgs,
-                                store_inner,
-                                on_sel_inner,
-                                on_tx_inner,
-                            );
-                            nav_inner("category", list_view);
-                        }
-                    });
-                }
-            };
-
-            let on_cat_clone = on_cat.clone();
+            let on_cat = on_category_select.clone();
+            let on_cat_clone = on_category_select.clone();
             let explore_view = create_explore_view(
                 store.clone(),
                 on_sel.clone(),
@@ -928,6 +936,48 @@ impl MainWindow {
             });
         }
 
+        let show_explore_fn: Rc<dyn Fn()> = {
+            let nav = navigate_to_view.clone();
+            let store = store_rc.clone();
+            let on_sel = on_select_pkg.clone();
+            let on_cat_c = on_category_select.clone();
+            let on_tx = on_tx_start.clone();
+            let nav_list = nav_list.clone();
+            Rc::new(move || {
+                if let Some(row) = nav_list.row_at_index(0) {
+                    nav_list.select_row(Some(&row));
+                }
+                let explore = create_explore_view(
+                    store.clone(),
+                    on_sel.clone(),
+                    on_cat_c.clone(),
+                    on_tx.clone(),
+                );
+                nav("explore", explore);
+            })
+        };
+
+        let show_installed_fn: Rc<dyn Fn()> = {
+            let nav = navigate_to_view.clone();
+            let r_holder = reload_inst_holder.clone();
+            let nav_list = nav_list.clone();
+            Rc::new(move || {
+                if let Some(row) = nav_list.row_at_index(1) {
+                    nav_list.select_row(Some(&row));
+                }
+                nav(
+                    "installed",
+                    create_loading_view(
+                        "Installed Software",
+                        "Scanning installed packages and Flatpaks on your system…",
+                    ),
+                );
+                if let Some(r_inst) = r_holder.borrow().as_ref() {
+                    r_inst();
+                }
+            })
+        };
+
         let show_updates_fn: Rc<dyn Fn()> = {
             let nav = navigate_to_view.clone();
             let store = store_rc.clone();
@@ -944,6 +994,170 @@ impl MainWindow {
                     on_tx.clone(),
                 );
                 nav("updates", updates_view);
+            })
+        };
+
+        let app_handle = app.clone();
+        let show_settings_fn: Rc<dyn Fn()> = {
+            let a = app_handle.clone();
+            Rc::new(move || {
+                a.activate_action("settings", None);
+            })
+        };
+
+        let show_snapshots_fn: Rc<dyn Fn()> = {
+            let a = app_handle.clone();
+            Rc::new(move || {
+                a.activate_action("snapshots", None);
+            })
+        };
+
+        let show_downgrade_fn: Rc<dyn Fn()> = {
+            let a = app_handle.clone();
+            Rc::new(move || {
+                a.activate_action("downgrade", None);
+            })
+        };
+
+        let search_generation = Rc::new(std::cell::Cell::new(0u64));
+        let debounce_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
+
+        let execute_search = {
+            let nav = navigate_to_view.clone();
+            let store = store_rc.clone();
+            let on_sel = on_select_pkg.clone();
+            let on_tx = on_tx_start.clone();
+            let cur_t = active_section_title.clone();
+            let cur_s = active_section_sub.clone();
+            let sync_fn = sync_title.clone();
+            let page_ref = current_page_name.clone();
+            let search_entry = search_entry.clone();
+            let search_generation = search_generation.clone();
+            let go_back_exec = go_back.clone();
+
+            Rc::new(move |query: String| {
+                let trimmed = query.trim().to_string();
+                if trimmed.is_empty() {
+                    search_generation.set(search_generation.get() + 1);
+                    if page_ref.borrow().as_str() == "search" {
+                        go_back_exec();
+                    }
+                    return;
+                }
+
+                let my_gen = search_generation.get() + 1;
+                search_generation.set(my_gen);
+
+                *cur_t.borrow_mut() = format!("Search “{}”", trimmed);
+                *cur_s.borrow_mut() = "".to_string();
+                sync_fn();
+
+                let nav_s = nav.clone();
+                let store_s = store.clone();
+                let on_sel_s = on_sel.clone();
+                let on_tx_s = on_tx.clone();
+                let q_title = format!("Search results for \"{}\"", trimmed);
+                let page_ref_task = page_ref.clone();
+                let search_gen_task = search_generation.clone();
+                let search_entry_task = search_entry.clone();
+                let query_task = trimmed.clone();
+
+                nav_s(
+                    "search",
+                    create_loading_view(
+                        &q_title,
+                        "Searching repositories and Flathub catalog…",
+                    ),
+                );
+
+                glib::spawn_future_local(async move {
+                    if let Ok(results) = store_s.search_raw(&query_task).await {
+                        // Guard 1: discard if a newer search was initiated
+                        if search_gen_task.get() != my_gen {
+                            return;
+                        }
+                        // Guard 2: discard if the user navigated away from the search view
+                        if page_ref_task.borrow().as_str() != "search" {
+                            return;
+                        }
+                        // Guard 3: discard if the search entry text has changed
+                        if search_entry_task.text().trim() != query_task {
+                            return;
+                        }
+
+                        let list_view = create_package_list_view(
+                            &q_title,
+                            "Filtered packages matching your search query across all active ecosystems",
+                            results,
+                            store_s,
+                            on_sel_s,
+                            on_tx_s,
+                        );
+                        nav_s("search", list_view);
+                    }
+                });
+            })
+        };
+
+        let show_search_fn: Rc<dyn Fn(String)> = {
+            let search_entry_for_fn = search_entry.clone();
+            let exec_search_for_fn = execute_search.clone();
+            Rc::new(move |q: String| {
+                search_entry_for_fn.set_text(&q);
+                exec_search_for_fn(q);
+            })
+        };
+
+        let open_package_fn: Rc<dyn Fn(String)> = {
+            let nav = navigate_to_view.clone();
+            let store = store_rc.clone();
+            let on_sel = on_select_pkg.clone();
+            let exec_search = execute_search.clone();
+            let search_entry_sub = search_entry.clone();
+
+            Rc::new(move |pkg_name: String| {
+                let clean = pkg_name.strip_suffix(".desktop").unwrap_or(&pkg_name).to_string();
+                let nav_c = nav.clone();
+                let store_c = store.clone();
+                let on_sel_c = on_sel.clone();
+                let exec_search_c = exec_search.clone();
+                let search_entry_inner = search_entry_sub.clone();
+                let target_name = clean.clone();
+
+                nav_c(
+                    "details",
+                    create_loading_view(
+                        &format!("Loading {}…", target_name),
+                        "Querying repositories, AUR, and Flathub catalog…",
+                    ),
+                );
+
+                glib::spawn_future_local(async move {
+                    if let Ok(results) = store_c.search_raw(&target_name).await {
+                        // Look for exact match first
+                        let exact = results.iter().find(|p| {
+                            let p_clean = p.name.strip_suffix(".desktop").unwrap_or(&p.name);
+                            p.name.eq_ignore_ascii_case(&target_name)
+                                || p.id.name.eq_ignore_ascii_case(&target_name)
+                                || p_clean.eq_ignore_ascii_case(&target_name)
+                                || p.display_title().eq_ignore_ascii_case(&target_name)
+                        });
+
+                        if let Some(pkg) = exact {
+                            on_sel_c(pkg.clone());
+                        } else if !results.is_empty() {
+                            search_entry_inner.set_text(&target_name);
+                            exec_search_c(target_name);
+                        } else {
+                            let not_found_page = adw::StatusPage::builder()
+                                .icon_name("system-search-symbolic")
+                                .title(format!("Package '{}' Not Found", target_name))
+                                .description("The requested package was not found in active repositories, AUR, or Flatpak.")
+                                .build();
+                            nav_c("details", not_found_page.upcast());
+                        }
+                    }
+                });
             })
         };
 
@@ -1002,102 +1216,12 @@ impl MainWindow {
 
         // Search Entry query changed
         {
-            let nav = navigate_to_view.clone();
-            let store = store_rc.clone();
-            let on_sel = on_select_pkg.clone();
-            let on_tx = on_tx_start.clone();
-            let cur_t = active_section_title.clone();
-            let cur_s = active_section_sub.clone();
-            let sync_fn = sync_title.clone();
-            let page_ref = current_page_name.clone();
-            let go_back_fn = go_back.clone();
-            let search_generation = Rc::new(std::cell::Cell::new(0u64));
-            let debounce_timer: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-
-            let execute_search = {
-                let nav = nav.clone();
-                let store = store.clone();
-                let on_sel = on_sel.clone();
-                let on_tx = on_tx.clone();
-                let cur_t = cur_t.clone();
-                let cur_s = cur_s.clone();
-                let sync_fn = sync_fn.clone();
-                let page_ref = page_ref.clone();
-                let search_entry = search_entry.clone();
-                let search_generation = search_generation.clone();
-                let go_back_exec = go_back_fn.clone();
-
-                Rc::new(move |query: String| {
-                    let trimmed = query.trim().to_string();
-                    if trimmed.is_empty() {
-                        search_generation.set(search_generation.get() + 1);
-                        if page_ref.borrow().as_str() == "search" {
-                            go_back_exec();
-                        }
-                        return;
-                    }
-
-                    let my_gen = search_generation.get() + 1;
-                    search_generation.set(my_gen);
-
-                    *cur_t.borrow_mut() = format!("Search “{}”", trimmed);
-                    *cur_s.borrow_mut() = "".to_string();
-                    sync_fn();
-
-                    let nav_s = nav.clone();
-                    let store_s = store.clone();
-                    let on_sel_s = on_sel.clone();
-                    let on_tx_s = on_tx.clone();
-                    let q_title = format!("Search results for \"{}\"", trimmed);
-                    let page_ref_task = page_ref.clone();
-                    let search_gen_task = search_generation.clone();
-                    let search_entry_task = search_entry.clone();
-                    let query_task = trimmed.clone();
-
-                    nav_s(
-                        "search",
-                        create_loading_view(
-                            &q_title,
-                            "Searching repositories and Flathub catalog…",
-                        ),
-                    );
-
-                    glib::spawn_future_local(async move {
-                        if let Ok(results) = store_s.search_raw(&query_task).await {
-                            // Guard 1: discard if a newer search was initiated
-                            if search_gen_task.get() != my_gen {
-                                return;
-                            }
-                            // Guard 2: discard if the user navigated away from the search view
-                            // (e.g. they clicked a package and are now on "details")
-                            if page_ref_task.borrow().as_str() != "search" {
-                                return;
-                            }
-                            // Guard 3: discard if the search entry text has changed
-                            if search_entry_task.text().trim() != query_task {
-                                return;
-                            }
-
-                            let list_view = create_package_list_view(
-                                &q_title,
-                                "Filtered packages matching your search query across all active ecosystems",
-                                results,
-                                store_s,
-                                on_sel_s,
-                                on_tx_s,
-                            );
-                            nav_s("search", list_view);
-                        }
-                    });
-                })
-            };
-
             // Search entry text changed (debounced 250ms)
             {
                 let exec = execute_search.clone();
                 let timer_holder = debounce_timer.clone();
-                let page_ref = page_ref.clone();
-                let go_back_changed = go_back_fn.clone();
+                let page_ref = current_page_name.clone();
+                let go_back_changed = go_back.clone();
                 let search_gen_changed = search_generation.clone();
 
                 search_entry.connect_search_changed(move |entry| {
@@ -1144,8 +1268,8 @@ impl MainWindow {
 
             // Stop search (Escape or clear button clicked)
             {
-                let page_ref = page_ref.clone();
-                let go_back_c = go_back_fn.clone();
+                let page_ref = current_page_name.clone();
+                let go_back_c = go_back.clone();
                 let timer_holder = debounce_timer.clone();
                 let search_gen = search_generation.clone();
                 search_entry.connect_stop_search(move |_| {
@@ -1254,6 +1378,13 @@ impl MainWindow {
         Self {
             window,
             show_updates_fn,
+            show_explore_fn,
+            show_installed_fn,
+            show_settings_fn,
+            show_snapshots_fn,
+            show_downgrade_fn,
+            show_search_fn,
+            open_package_fn,
         }
     }
 
@@ -1261,9 +1392,81 @@ impl MainWindow {
         self.window.present();
     }
 
+    pub fn show_explore(&self) {
+        self.window.present();
+        (self.show_explore_fn)();
+    }
+
+    pub fn show_installed(&self) {
+        self.window.present();
+        (self.show_installed_fn)();
+    }
+
     pub fn show_updates(&self) {
         self.window.present();
         (self.show_updates_fn)();
+    }
+
+    pub fn show_settings(&self) {
+        self.window.present();
+        (self.show_settings_fn)();
+    }
+
+    pub fn show_snapshots(&self) {
+        self.window.present();
+        (self.show_snapshots_fn)();
+    }
+
+    pub fn show_downgrade(&self) {
+        self.window.present();
+        (self.show_downgrade_fn)();
+    }
+
+    pub fn show_search(&self, query: &str) {
+        self.window.present();
+        (self.show_search_fn)(query.to_string());
+    }
+
+    pub fn open_package(&self, pkg_name: &str) {
+        self.window.present();
+        (self.open_package_fn)(pkg_name.to_string());
+    }
+
+    pub fn handle_uri(&self, uri: &str) {
+        self.window.present();
+        match crate::uri_handler::parse_uri(uri) {
+            Some(crate::uri_handler::PastorRoute::Install(pkg)) => {
+                // Navigate to details page where user can review and explicitly install
+                self.open_package(&pkg);
+            }
+            Some(crate::uri_handler::PastorRoute::Details(pkg)) => {
+                self.open_package(&pkg);
+            }
+            Some(crate::uri_handler::PastorRoute::Search(query)) => {
+                self.show_search(&query);
+            }
+            Some(crate::uri_handler::PastorRoute::Updates) => {
+                self.show_updates();
+            }
+            Some(crate::uri_handler::PastorRoute::Installed) => {
+                self.show_installed();
+            }
+            Some(crate::uri_handler::PastorRoute::Explore) => {
+                self.show_explore();
+            }
+            Some(crate::uri_handler::PastorRoute::Settings) => {
+                self.show_settings();
+            }
+            Some(crate::uri_handler::PastorRoute::Snapshots) => {
+                self.show_snapshots();
+            }
+            Some(crate::uri_handler::PastorRoute::Downgrade) => {
+                self.show_downgrade();
+            }
+            None => {
+                tracing::warn!("Received unsupported or invalid URI: {}", uri);
+            }
+        }
     }
 }
 

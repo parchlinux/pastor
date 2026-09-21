@@ -23,7 +23,7 @@ impl Application {
     pub fn new() -> Self {
         let app = adw::Application::builder()
             .application_id("com.parchlinux.pastor")
-            .flags(gio::ApplicationFlags::HANDLES_COMMAND_LINE)
+            .flags(gio::ApplicationFlags::HANDLES_COMMAND_LINE | gio::ApplicationFlags::HANDLES_OPEN)
             .build();
 
         let store = Store::new();
@@ -50,6 +50,27 @@ impl Application {
                 }
             }
         };
+
+        // Activate signal handling (e.g. desktop launch with no args)
+        {
+            let get_window = get_or_create_window.clone();
+            app.connect_activate(move |app| {
+                let w = get_window(app);
+                w.present();
+            });
+        }
+
+        // Open signal handling (e.g. URI handling via D-Bus / GFile)
+        {
+            let get_window = get_or_create_window.clone();
+            app.connect_open(move |app, files, _hint| {
+                let w = get_window(app);
+                for file in files {
+                    let uri = file.uri().to_string();
+                    w.handle_uri(&uri);
+                }
+            });
+        }
 
         // Attach command receiver on the GTK main loop
         {
@@ -194,7 +215,7 @@ impl Application {
             });
         }
 
-        // Command line handling: supports --hidden / --indicator for starting minimized to tray
+        // Command line handling: supports --hidden / --indicator, URIs, and subcommands
         {
             let get_window = get_or_create_window;
             let manual_tx = manual_check_tx;
@@ -213,13 +234,21 @@ impl Application {
 
                 if args.iter().any(|a| a == "--help" || a == "-h") {
                     println!("Parch Store - Application & Package Manager");
-                    println!("\nUsage: pastor [OPTIONS]\n");
+                    println!("\nUsage: pastor [OPTIONS] [URI | SUBCOMMAND]\n");
                     println!("Options:");
                     println!("  --hidden, --indicator  Start minimized to system tray");
                     println!("  --updates              Open directly to Updates view");
                     println!("  --check-updates        Trigger an immediate background update check");
                     println!("  -v, --version          Print version information");
-                    println!("  -h, --help             Print this help message");
+                    println!("  -h, --help             Print this help message\n");
+                    println!("Supported URIs & Subcommands:");
+                    println!("  pastor://install/<pkg> Open package details and offer installation");
+                    println!("  pastor://details/<pkg> View package information");
+                    println!("  pastor://search/<term> Search repositories, AUR, and Flatpaks");
+                    println!("  pastor://updates       Open updates page");
+                    println!("  appstream://<pkg>      Open package via AppStream ID");
+                    println!("  install <pkg>          Open package details view");
+                    println!("  search <term>          Search packages");
                     return 0.into();
                 }
 
@@ -231,7 +260,24 @@ impl Application {
                     let _ = manual_tx.try_send(());
                 }
 
-                if is_updates {
+                // Check for URI or positional arguments
+                let uri_arg = args.iter().skip(1).find(|a| {
+                    a.starts_with("pastor:") || a.starts_with("appstream:")
+                });
+
+                if let Some(uri) = uri_arg {
+                    let w = get_window(app);
+                    w.handle_uri(uri);
+                } else if args.len() >= 3 && args[1] == "install" {
+                    let w = get_window(app);
+                    w.open_package(&args[2]);
+                } else if args.len() >= 3 && (args[1] == "search" || args[1] == "--search") {
+                    let w = get_window(app);
+                    w.show_search(&args[2]);
+                } else if args.len() >= 3 && (args[1] == "show" || args[1] == "details") {
+                    let w = get_window(app);
+                    w.open_package(&args[2]);
+                } else if is_updates {
                     let w = get_window(app);
                     w.show_updates();
                 } else if !is_hidden {

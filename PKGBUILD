@@ -51,6 +51,7 @@ package() {
     # Install binary
     install -Dm755 "target/release/pastor-ui" "${pkgdir}/usr/bin/pastor"
     ln -sf /usr/bin/pastor "${pkgdir}/usr/bin/pastor-ui"
+    ln -sf /usr/bin/pastor "${pkgdir}/usr/bin/pastor-store"
 
     # Install desktop entry
     install -Dm644 "data/com.parchlinux.pastor.desktop" \
