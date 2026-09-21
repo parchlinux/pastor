@@ -78,6 +78,22 @@ pub fn create_package_row(
         .build();
     title_box.append(&title_label);
 
+    let (badge_text, badge_class) = match &pkg.id.source {
+        pastor_core::PackageSource::Parch(pastor_core::ParchRepoType::World) => ("Parch", "parch-badge-world"),
+        pastor_core::PackageSource::Parch(pastor_core::ParchRepoType::Void) => ("Void", "parch-badge-void"),
+        pastor_core::PackageSource::Arch(_) => ("Arch", "parch-badge-arch"),
+        pastor_core::PackageSource::Aur => ("AUR", "parch-badge-aur"),
+        pastor_core::PackageSource::Flatpak { .. } => ("Flatpak", "parch-badge-flatpak"),
+        pastor_core::PackageSource::Bootc => ("bootc", "parch-badge-bootc"),
+        pastor_core::PackageSource::Waydroid => ("Waydroid", "parch-badge-waydroid"),
+    };
+    let source_badge = gtk4::Label::builder()
+        .label(badge_text)
+        .css_classes([badge_class])
+        .valign(gtk4::Align::Center)
+        .build();
+    title_box.append(&source_badge);
+
     if pkg.state == PackageState::UpdateAvailable {
         let update_badge = gtk4::Label::builder()
             .label("Update Available")
@@ -301,11 +317,51 @@ pub fn create_package_row(
     action_btn.connect_clicked(move |_| {
         match pkg_for_btn.state {
             PackageState::NotInstalled | PackageState::UpdateAvailable => {
-                action_btn_clone.set_visible(false);
-                quick_uninst_on_act.set_visible(false);
-                progress_box_clone.set_visible(true);
-                let rx = store_for_btn.install(pkg_for_btn.id.clone());
-                on_tx_start(rx);
+                if matches!(pkg_for_btn.id.source, pastor_core::PackageSource::Aur) {
+                    let s_aur = store_for_btn.clone();
+                    let p_aur = pkg_for_btn.clone();
+                    let tx_start = on_tx_start.clone();
+                    let btn_c = action_btn_clone.clone();
+                    let qu_c = quick_uninst_on_act.clone();
+                    let pbox_c = progress_box_clone.clone();
+                    btn_c.set_sensitive(false);
+                    let btn_widget = btn_c.clone();
+
+                    glib::spawn_future_local(async move {
+                        match s_aur.prepare_aur_scan(&p_aur.name).await {
+                            Ok((_commit, trust, scan_report, diff)) => {
+                                btn_c.set_sensitive(true);
+                                let p_name_for_cb = p_aur.name.clone();
+                                crate::dialogs::show_aur_review_dialog(
+                                    &btn_widget,
+                                    &p_aur.name,
+                                    &p_aur.version,
+                                    &trust,
+                                    &scan_report,
+                                    &diff,
+                                    move |use_sandbox| {
+                                        s_aur.set_aur_sandbox_enabled(&p_name_for_cb, use_sandbox);
+                                        btn_c.set_visible(false);
+                                        qu_c.set_visible(false);
+                                        pbox_c.set_visible(true);
+                                        let rx = s_aur.install(p_aur.id.clone());
+                                        tx_start(rx);
+                                    },
+                                );
+                            }
+                            Err(e) => {
+                                btn_c.set_sensitive(true);
+                                tracing::error!("Failed to prepare AUR review: {e}");
+                            }
+                        }
+                    });
+                } else {
+                    action_btn_clone.set_visible(false);
+                    quick_uninst_on_act.set_visible(false);
+                    progress_box_clone.set_visible(true);
+                    let rx = store_for_btn.install(pkg_for_btn.id.clone());
+                    on_tx_start(rx);
+                }
             }
             PackageState::Installed => {
                 action_btn_clone.set_visible(false);

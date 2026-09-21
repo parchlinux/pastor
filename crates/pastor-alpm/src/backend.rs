@@ -384,6 +384,66 @@ impl AlpmBackend {
 
         Ok(())
     }
+
+    pub fn get_installed_pkg_version(&self, name: &str) -> Option<String> {
+        let pacman = self.pacman_config.clone();
+        if let Ok(alpm) = Self::create_alpm(&pacman) {
+            alpm.localdb().pkg(name).ok().map(|p| p.version().to_string())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_foreign_packages(&self) -> Vec<(String, String)> {
+        let pacman = self.pacman_config.clone();
+        if let Ok(alpm) = Self::create_alpm(&pacman) {
+            let syncdbs = alpm.syncdbs();
+            alpm.localdb()
+                .pkgs()
+                .into_iter()
+                .filter(|pkg| syncdbs.pkg(pkg.name()).is_err())
+                .map(|pkg| (pkg.name().to_string(), pkg.version().to_string()))
+                .collect()
+        } else {
+            vec![]
+        }
+    }
+
+    pub fn is_package_installed(&self, name: &str) -> bool {
+        self.get_installed_pkg_version(name).is_some()
+    }
+
+    pub async fn install_local_package(
+        &self,
+        pkg_path: &std::path::Path,
+        progress_tx: Sender<TransactionEvent>,
+    ) -> Result<(), PastorError> {
+        let path_str = pkg_path.to_string_lossy().to_string();
+        tokio::task::spawn_blocking(move || {
+            Self::run_privileged("install-file", &[&path_str], progress_tx)
+        })
+        .await
+        .map_err(|e| PastorError::BackendError {
+            backend: "alpm".into(),
+            message: format!("Install local package task error: {e}"),
+        })?
+    }
+
+    pub async fn remove_package_by_name(
+        &self,
+        pkg_name: &str,
+        progress_tx: Sender<TransactionEvent>,
+    ) -> Result<(), PastorError> {
+        let name_str = pkg_name.to_string();
+        tokio::task::spawn_blocking(move || {
+            Self::run_privileged("remove", &[&name_str], progress_tx)
+        })
+        .await
+        .map_err(|e| PastorError::BackendError {
+            backend: "alpm".into(),
+            message: format!("Remove package task error: {e}"),
+        })?
+    }
 }
 
 #[async_trait]
@@ -409,18 +469,21 @@ impl PackageBackend for AlpmBackend {
             let mut matched_pkgs: Vec<(i32, Package)> = Vec::new();
             let mut seen_names = std::collections::HashSet::new();
 
-            if q.is_empty() {
+            let b = AlpmBackend {
+                name: this_name,
+                pacman_config: pacman.clone(),
+                catalog: Arc::new(RwLock::new(catalog.clone())),
+                active_cancellations: Arc::new(RwLock::new(HashMap::new())),
+            };
+
+            let tokens: Vec<&str> = q.split_whitespace().collect();
+
+            if tokens.is_empty() {
                 // Return popular desktop applications when query is empty
                 for (pkgname, meta) in &catalog.by_pkgname {
                     if let Some(pkg) = alpm.syncdbs().pkg(pkgname.as_str()).ok().or_else(|| localdb.pkg(pkgname.as_str()).ok()) {
                         if seen_names.insert(pkg.name().to_string()) {
                             let installed_pkg = localdb.pkg(pkg.name()).ok();
-                            let b = AlpmBackend {
-                                name: this_name,
-                                pacman_config: pacman.clone(),
-                                catalog: Arc::new(RwLock::new(catalog.clone())),
-                                active_cancellations: Arc::new(RwLock::new(HashMap::new())),
-                            };
                             let p = b.build_package(&alpm, &pkg, installed_pkg, &catalog);
                             let score = if !meta.screenshots.is_empty() { 50 } else { 10 };
                             matched_pkgs.push((score, p));
@@ -431,76 +494,168 @@ impl PackageBackend for AlpmBackend {
                     }
                 }
             } else {
-                // Search sync databases
+                let q_norm: String = q.chars().filter(|c| c.is_alphanumeric()).collect();
+                let score_and_build = |pkg: &alpm::Package| -> (i32, Package) {
+                    let name = pkg.name();
+                    let name_lower = name.to_lowercase();
+                    let desc_lower = pkg.desc().unwrap_or_default().to_lowercase();
+
+                    let meta = catalog.get(name);
+                    let title_lower = meta.as_ref().map(|m| m.name.to_lowercase()).unwrap_or_default();
+                    let summary_lower = meta.as_ref().map(|m| m.summary.to_lowercase()).unwrap_or_default();
+                    let id_lower = meta.as_ref().map(|m| m.id.to_lowercase()).unwrap_or_default();
+                    let empty_kw = Vec::new();
+                    let keywords = meta.as_ref().map(|m| &m.keywords).unwrap_or(&empty_kw);
+
+                    let mut score = 0;
+
+                    // Exact query matches
+                    if name_lower == q {
+                        score += 2500;
+                    } else if title_lower == q {
+                        score += 2200;
+                    } else if name_lower.starts_with(&q) {
+                        score += 1200;
+                    } else if title_lower.starts_with(&q) {
+                        score += 1100;
+                    } else if name_lower.contains(&q) {
+                        score += 800;
+                    } else if title_lower.contains(&q) {
+                        score += 750;
+                    }
+
+                    // Normalized continuous query match (e.g. "diskutility" matches "org.gnome.DiskUtility" or "gnome-disk-utility")
+                    if !q_norm.is_empty() {
+                        let id_norm: String = id_lower.chars().filter(|c| c.is_alphanumeric()).collect();
+                        let name_norm: String = name_lower.chars().filter(|c| c.is_alphanumeric()).collect();
+                        if id_norm.contains(&q_norm) {
+                            score += 950;
+                        }
+                        if name_norm.contains(&q_norm) {
+                            score += 900;
+                        }
+                    }
+
+                    // Token-level matches
+                    let mut matched_token_count = 0;
+                    for t in &tokens {
+                        let mut token_matched = false;
+                        if name_lower.contains(t) {
+                            score += 200;
+                            token_matched = true;
+                        }
+                        if title_lower.contains(t) {
+                            score += 220;
+                            token_matched = true;
+                        }
+                        if id_lower.contains(t) {
+                            score += 180;
+                            token_matched = true;
+                        }
+                        if summary_lower.contains(t) {
+                            score += 150;
+                            token_matched = true;
+                        }
+                        if keywords.iter().any(|k| k.contains(t)) {
+                            score += 160;
+                            token_matched = true;
+                        }
+                        if desc_lower.contains(t) {
+                            score += 100;
+                            token_matched = true;
+                        }
+                        if token_matched {
+                            matched_token_count += 1;
+                        }
+                    }
+
+                    // All tokens matched bonus
+                    if !tokens.is_empty() && matched_token_count == tokens.len() {
+                        score += 800;
+                    } else if matched_token_count > 0 {
+                        score += (matched_token_count as i32) * 150;
+                    }
+
+                    // Desktop GUI application bonus
+                    if meta.is_some() {
+                        score += 250;
+                        if !meta.as_ref().unwrap().screenshots.is_empty() {
+                            score += 50;
+                        }
+                    }
+
+                    // Already installed package bonus
+                    let is_installed = localdb.pkg(name).is_ok();
+                    if is_installed {
+                        score += 50;
+                    }
+
+                    let installed_pkg = localdb.pkg(name).ok();
+                    let p = b.build_package(&alpm, pkg, installed_pkg, &catalog);
+                    (score, p)
+                };
+
+                // 1. Sync DBs: search matching ALL tokens (standard pacman -Ss behavior)
                 for db in alpm.syncdbs() {
-                    let search_targets = [q.as_str()];
-                    if let Ok(pkgs) = db.search(search_targets.iter()) {
+                    if let Ok(pkgs) = db.search(tokens.iter()) {
                         for pkg in pkgs {
-                            let name = pkg.name();
-                            if !seen_names.insert(name.to_string()) {
-                                continue;
+                            if seen_names.insert(pkg.name().to_string()) {
+                                matched_pkgs.push(score_and_build(&pkg));
                             }
-                            let name_lower = name.to_lowercase();
-                            let desc_lower = pkg.desc().unwrap_or_default().to_lowercase();
-
-                            let mut score = 0;
-                            if name_lower == q {
-                                score += 1000;
-                            } else if name_lower.starts_with(&q) {
-                                score += 600;
-                            } else if name_lower.contains(&q) {
-                                score += 400;
-                            }
-
-                            if desc_lower.contains(&q) {
-                                score += 200;
-                            }
-
-                            if let Some(meta) = catalog.get(name) {
-                                let app_title = meta.name.to_lowercase();
-                                if app_title == q {
-                                    score += 900;
-                                } else if app_title.contains(&q) {
-                                    score += 350;
-                                }
-                            }
-
-                            let installed_pkg = localdb.pkg(name).ok();
-                            let b = AlpmBackend {
-                                name: this_name,
-                                pacman_config: pacman.clone(),
-                                catalog: Arc::new(RwLock::new(catalog.clone())),
-                                active_cancellations: Arc::new(RwLock::new(HashMap::new())),
-                            };
-                            let p = b.build_package(&alpm, &pkg, installed_pkg, &catalog);
-                            matched_pkgs.push((score, p));
                         }
                     }
                 }
 
-                // Search localdb for any locally installed packages that match
-                if let Ok(local_matches) = localdb.search([q.as_str()].iter()) {
-                    for pkg in local_matches {
-                        let name = pkg.name();
-                        if !seen_names.insert(name.to_string()) {
-                            continue;
+                // 2. If multi-token query, also search primary token so related tools with keyword matches are considered
+                if tokens.len() > 1 {
+                    for db in alpm.syncdbs() {
+                        if let Ok(pkgs) = db.search([tokens[0]].iter()) {
+                            for pkg in pkgs {
+                                if matched_pkgs.len() >= 200 {
+                                    break;
+                                }
+                                if seen_names.insert(pkg.name().to_string()) {
+                                    matched_pkgs.push(score_and_build(&pkg));
+                                }
+                            }
                         }
-                        let name_lower = name.to_lowercase();
-                        let mut score = 300;
-                        if name_lower == q {
-                            score += 800;
-                        } else if name_lower.starts_with(&q) {
-                            score += 500;
-                        }
+                    }
+                }
 
-                        let b = AlpmBackend {
-                            name: this_name,
-                            pacman_config: pacman.clone(),
-                            catalog: Arc::new(RwLock::new(catalog.clone())),
-                            active_cancellations: Arc::new(RwLock::new(HashMap::new())),
-                        };
-                        let p = b.build_package(&alpm, &pkg, Some(&pkg), &catalog);
-                        matched_pkgs.push((score, p));
+                // 3. AppStream Catalog: check pkgname, desktop title, id, summary, and keywords
+                for (pkgname, meta) in &catalog.by_pkgname {
+                    if seen_names.contains(pkgname) {
+                        continue;
+                    }
+
+                    let pkg_lower = pkgname.to_lowercase();
+                    let title_lower = meta.name.to_lowercase();
+                    let id_lower = meta.id.to_lowercase();
+                    let summary_lower = meta.summary.to_lowercase();
+
+                    let matches_any = tokens.iter().any(|t| {
+                        pkg_lower.contains(t)
+                            || title_lower.contains(t)
+                            || id_lower.contains(t)
+                            || summary_lower.contains(t)
+                            || meta.keywords.iter().any(|k| k.contains(t))
+                    });
+
+                    if matches_any {
+                        if let Some(pkg) = alpm.syncdbs().pkg(pkgname.as_str()).ok().or_else(|| localdb.pkg(pkgname.as_str()).ok()) {
+                            if seen_names.insert(pkg.name().to_string()) {
+                                matched_pkgs.push(score_and_build(&pkg));
+                            }
+                        }
+                    }
+                }
+
+                // 4. Local DB search
+                if let Ok(local_matches) = localdb.search(tokens.iter()) {
+                    for pkg in local_matches {
+                        if seen_names.insert(pkg.name().to_string()) {
+                            matched_pkgs.push(score_and_build(&pkg));
+                        }
                     }
                 }
             }

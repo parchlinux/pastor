@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 pastor-core.workspace = true
 pastor-alpm.workspace = true
+pastor-aur.workspace = true
 pastor-store.workspace = true
 adw.workspace = true
 gtk4.workspace = true

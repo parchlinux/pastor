@@ -123,6 +123,7 @@ pub fn create_package_details_view(
     let (safety_text, safety_class) = match &pkg.id.source {
         PackageSource::Flatpak { .. } => ("Sandboxed", "metadata-badge-accent"),
         PackageSource::Bootc => ("Immutable Root", "metadata-badge-accent"),
+        PackageSource::Aur => ("Bubblewrap Isolated", "metadata-badge-accent"),
         _ => ("Snapper Protected", "metadata-badge"),
     };
     let safety_badge = gtk4::Label::builder()
@@ -445,11 +446,51 @@ pub fn create_package_details_view(
                     let install_btn_clone = install_btn.clone();
                     let progress_box_clone = progress_box.clone();
 
+                    let pkg_ver = pkg.version.clone();
                     install_btn.connect_clicked(move |_| {
-                        install_btn_clone.set_visible(false);
-                        progress_box_clone.set_visible(true);
-                        let rx_to_bar = store_i.install(pkg_i.clone());
-                        tx_i(rx_to_bar);
+                        if matches!(pkg_i.source, PackageSource::Aur) {
+                            let s_aur = store_i.clone();
+                            let p_id = pkg_i.clone();
+                            let p_ver = pkg_ver.clone();
+                            let tx_cb = tx_i.clone();
+                            let btn_c = install_btn_clone.clone();
+                            let pbox_c = progress_box_clone.clone();
+                            btn_c.set_sensitive(false);
+                            let btn_widget = btn_c.clone();
+
+                            glib::spawn_future_local(async move {
+                                match s_aur.prepare_aur_scan(&p_id.name).await {
+                                    Ok((_commit, trust, scan_report, diff)) => {
+                                        btn_c.set_sensitive(true);
+                                        let p_id_install = p_id.clone();
+                                        crate::dialogs::show_aur_review_dialog(
+                                            &btn_widget,
+                                            &p_id.name,
+                                            &p_ver,
+                                            &trust,
+                                            &scan_report,
+                                            &diff,
+                                            move |use_sandbox| {
+                                                s_aur.set_aur_sandbox_enabled(&p_id_install.name, use_sandbox);
+                                                btn_c.set_visible(false);
+                                                pbox_c.set_visible(true);
+                                                let rx_to_bar = s_aur.install(p_id_install);
+                                                tx_cb(rx_to_bar);
+                                            },
+                                        );
+                                    }
+                                    Err(e) => {
+                                        btn_c.set_sensitive(true);
+                                        tracing::error!("Failed to prepare AUR review: {e}");
+                                    }
+                                }
+                            });
+                        } else {
+                            install_btn_clone.set_visible(false);
+                            progress_box_clone.set_visible(true);
+                            let rx_to_bar = store_i.install(pkg_i.clone());
+                            tx_i(rx_to_bar);
+                        }
                     });
 
                     target_box.append(&install_btn);
@@ -567,11 +608,11 @@ pub fn create_package_details_view(
     content_box.append(&hero_box);
 
     let dl_str = match pkg.size_download {
-        Some(sz) => format!("{:.1} MB", sz as f64 / 1_048_576.0),
+        Some(sz) => pastor_core::format_size(sz),
         None => "Varies".to_string(),
     };
     let inst_str = match pkg.size_installed {
-        Some(sz) => format!("{:.1} MB", sz as f64 / 1_048_576.0),
+        Some(sz) => pastor_core::format_size(sz),
         None => "Varies".to_string(),
     };
 

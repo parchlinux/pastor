@@ -45,4 +45,12 @@ async fn test_alpm_backend_operations() {
     assert_eq!(ff.display_title(), "Firefox");
     assert!(ff.icon.is_some(), "firefox should have an icon");
     assert!(!ff.screenshots.is_empty(), "firefox should have screenshots from AppStream");
+
+    // Search for "disk utility" multi-term query
+    let disk_results = backend.search("disk utility").await.expect("search disk utility should succeed");
+    assert!(!disk_results.is_empty(), "Search for 'disk utility' should return results");
+    let names: Vec<&str> = disk_results.iter().map(|p| p.name.as_str()).collect();
+    println!("'disk utility' search results: {:?}", names);
+    assert!(names.contains(&"gnome-disk-utility"), "results should include gnome-disk-utility");
+    assert_eq!(disk_results[0].name, "gnome-disk-utility", "gnome-disk-utility should be top ranked for 'disk utility'");
 }

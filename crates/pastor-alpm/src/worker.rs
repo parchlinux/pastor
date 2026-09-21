@@ -77,7 +77,12 @@ fn setup_callbacks(alpm: &mut alpm::Alpm) {
                 WorkerEvent {
                     step: "Downloading".to_string(),
                     progress_fraction: frac,
-                    log_message: format!("Downloading {}: {}/{}", filename, p.downloaded, p.total),
+                    log_message: format!(
+                        "Downloading {}: {} / {}",
+                        filename,
+                        pastor_core::format_size(p.downloaded as u64),
+                        pastor_core::format_size(p.total as u64)
+                    ),
                 }
                 .emit();
             }
@@ -290,16 +295,18 @@ pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             }
             .emit();
         }
-        "downgrade" => {
+        "install-file" | "downgrade" => {
             let targets = &args[1..];
             if targets.is_empty() {
-                return Err("No package target file provided for downgrade".into());
+                return Err("No package target file provided".into());
             }
             let pkg_path = &targets[0];
+            let is_install = action == "install-file";
+            let op_desc = if is_install { "Installing package" } else { "Preparing downgrade" };
             WorkerEvent {
                 step: "ApplyingChanges".to_string(),
                 progress_fraction: 0.1,
-                log_message: format!("Preparing downgrade from {}...", pkg_path),
+                log_message: format!("{} from {}...", op_desc, pkg_path),
             }
             .emit();
 
@@ -322,7 +329,11 @@ pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             WorkerEvent {
                 step: "Completed".to_string(),
                 progress_fraction: 1.0,
-                log_message: "Downgrade successfully completed".to_string(),
+                log_message: if is_install {
+                    "Package successfully installed".to_string()
+                } else {
+                    "Downgrade successfully completed".to_string()
+                },
             }
             .emit();
         }

@@ -182,6 +182,32 @@ impl Package {
     pub fn is_installed(&self) -> bool {
         matches!(self.state, PackageState::Installed | PackageState::UpdateAvailable)
     }
+
+    pub fn formatted_installed_size(&self) -> Option<String> {
+        self.size_installed.map(format_size)
+    }
+
+    pub fn formatted_download_size(&self) -> Option<String> {
+        self.size_download.map(format_size)
+    }
+}
+
+/// Format byte counts dynamically into human-readable strings (B, KB, MB, GB) based on size.
+pub fn format_size(bytes: u64) -> String {
+    const KB: f64 = 1024.0;
+    const MB: f64 = 1024.0 * 1024.0;
+    const GB: f64 = 1024.0 * 1024.0 * 1024.0;
+
+    let b = bytes as f64;
+    if b >= GB {
+        format!("{:.2} GB", b / GB)
+    } else if b >= MB {
+        format!("{:.1} MB", b / MB)
+    } else if b >= KB {
+        format!("{:.1} KB", b / KB)
+    } else {
+        format!("{} B", bytes)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

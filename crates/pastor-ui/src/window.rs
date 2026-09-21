@@ -460,6 +460,13 @@ impl MainWindow {
                     *cur_t.borrow_mut() = t.to_string();
                     *cur_s.borrow_mut() = s.to_string();
                     sync_fn();
+                } else if page_ref.borrow().as_str() == "search" {
+                    content_stack_b.set_visible_child_name("explore");
+                    *page_ref.borrow_mut() = "explore".to_string();
+                    back_btn_clone.set_visible(false);
+                    *cur_t.borrow_mut() = "Explore".to_string();
+                    *cur_s.borrow_mut() = "".to_string();
+                    sync_fn();
                 }
             })
         };
@@ -1018,10 +1025,15 @@ impl MainWindow {
                 let page_ref = page_ref.clone();
                 let search_entry = search_entry.clone();
                 let search_generation = search_generation.clone();
+                let go_back_exec = go_back_fn.clone();
 
                 Rc::new(move |query: String| {
                     let trimmed = query.trim().to_string();
                     if trimmed.is_empty() {
+                        search_generation.set(search_generation.get() + 1);
+                        if page_ref.borrow().as_str() == "search" {
+                            go_back_exec();
+                        }
                         return;
                     }
 
@@ -1051,7 +1063,7 @@ impl MainWindow {
                     );
 
                     glib::spawn_future_local(async move {
-                        if let Ok(results) = store_s.search(&query_task).await {
+                        if let Ok(results) = store_s.search_raw(&query_task).await {
                             // Guard 1: discard if a newer search was initiated
                             if search_gen_task.get() != my_gen {
                                 return;
@@ -1084,6 +1096,10 @@ impl MainWindow {
             {
                 let exec = execute_search.clone();
                 let timer_holder = debounce_timer.clone();
+                let page_ref = page_ref.clone();
+                let go_back_changed = go_back_fn.clone();
+                let search_gen_changed = search_generation.clone();
+
                 search_entry.connect_search_changed(move |entry| {
                     if let Some(source) = timer_holder.borrow_mut().take() {
                         source.remove();
@@ -1091,6 +1107,10 @@ impl MainWindow {
 
                     let query = entry.text().to_string();
                     if query.trim().is_empty() {
+                        search_gen_changed.set(search_gen_changed.get() + 1);
+                        if page_ref.borrow().as_str() == "search" {
+                            go_back_changed();
+                        }
                         return;
                     }
 

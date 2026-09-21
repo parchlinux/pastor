@@ -83,6 +83,7 @@ impl Application {
                         }
                         AppCommand::Quit => {
                             app.quit();
+                            std::process::exit(0);
                         }
                     }
                 }
@@ -121,6 +122,7 @@ impl Application {
                 if let Some(app) = app_weak.upgrade() {
                     app.quit();
                 }
+                std::process::exit(0);
             });
             app.add_action(&action);
         }

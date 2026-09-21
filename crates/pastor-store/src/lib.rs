@@ -4,6 +4,7 @@ use std::sync::{Arc, RwLock};
 use futures::future::join_all;
 pub use pastor_core::*;
 use pastor_alpm::AlpmBackend;
+use pastor_aur::AurBackend;
 use pastor_flatpak::FlatpakBackend;
 #[cfg(feature = "mock")]
 use pastor_mock::MockPackageBackend;
@@ -33,6 +34,7 @@ pub enum ActiveTransactionEvent {
 #[derive(Clone)]
 pub struct Store {
     backends: Vec<Arc<dyn PackageBackend>>,
+    aur_backend: Option<Arc<AurBackend>>,
     snapshot_backend: Arc<dyn SnapshotBackend>,
     modules: Arc<RwLock<ModuleConfig>>,
     active_transactions: Arc<RwLock<HashMap<PackageId, ActiveTransactionInfo>>>,
@@ -42,17 +44,29 @@ pub struct Store {
 impl Store {
     pub fn new() -> Self {
         let mut backends: Vec<Arc<dyn PackageBackend>> = Vec::new();
+        let mut aur_backend: Option<Arc<AurBackend>> = None;
         let snapshot_backend: Arc<dyn SnapshotBackend> = Arc::new(NullSnapshotBackend);
 
         // Initialize native ALPM backend
-        match AlpmBackend::new() {
+        let alpm_arc = match AlpmBackend::new() {
             Ok(alpm) => {
-                backends.push(Arc::new(alpm));
+                let arc = Arc::new(alpm);
+                backends.push(arc.clone());
                 tracing::info!("Native ALPM backend registered successfully");
+                Some(arc)
             }
             Err(e) => {
                 tracing::warn!("Failed to initialize native ALPM backend: {e}");
+                None
             }
+        };
+
+        // Initialize Secure AUR backend
+        if let Some(ref alpm) = alpm_arc {
+            let aur = Arc::new(AurBackend::new(alpm.clone()));
+            backends.push(aur.clone());
+            aur_backend = Some(aur);
+            tracing::info!("Secure AUR backend registered successfully");
         }
 
         // Initialize real Flatpak native backend via libflatpak
@@ -75,6 +89,7 @@ impl Store {
 
         Self {
             backends,
+            aur_backend,
             snapshot_backend,
             modules: Arc::new(RwLock::new(ModuleConfig::load())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
@@ -86,6 +101,7 @@ impl Store {
         let (tx_broadcaster, _) = broadcast::channel(200);
         Self {
             backends: vec![],
+            aur_backend: None,
             snapshot_backend: Arc::new(NullSnapshotBackend),
             modules: Arc::new(RwLock::new(ModuleConfig::default())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
@@ -100,6 +116,7 @@ impl Store {
         let (tx_broadcaster, _) = broadcast::channel(200);
         Self {
             backends,
+            aur_backend: None,
             snapshot_backend,
             modules: Arc::new(RwLock::new(ModuleConfig::load())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
@@ -114,6 +131,7 @@ impl Store {
         let (tx_broadcaster, _) = broadcast::channel(200);
         Self {
             backends: vec![mock_backend],
+            aur_backend: None,
             snapshot_backend: snap,
             modules: Arc::new(RwLock::new(ModuleConfig::load())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
@@ -138,6 +156,7 @@ impl Store {
         match b.name() {
             "alpm" => config.enable_alpm,
             "flatpak" => config.enable_flatpak,
+            "aur" => config.enable_aur,
             _ => true,
         }
     }
@@ -234,7 +253,6 @@ impl Store {
             let clean = p.name.strip_suffix(".desktop").unwrap_or(&p.name);
             let short = clean.rsplit('.').next().unwrap_or(clean).to_lowercase();
             let title = p.display_title().to_lowercase().trim().to_string();
-
             let is_dup = if !short.is_empty() && seen_keys.contains(&format!("short:{}", short)) {
                 true
             } else if !title.is_empty() && title != "application" && title != "package" && seen_keys.contains(&format!("title:{}", title)) {
@@ -423,6 +441,30 @@ impl Store {
         }
 
         Ok(alternatives)
+    }
+
+    pub fn aur_backend(&self) -> Option<Arc<AurBackend>> {
+        self.aur_backend.clone()
+    }
+
+    pub async fn prepare_aur_scan(
+        &self,
+        package_name: &str,
+    ) -> Result<(String, pastor_aur::TrustReport, pastor_aur::ScanReport, String), PastorError> {
+        if let Some(ref aur) = self.aur_backend {
+            aur.prepare_and_scan(package_name).await
+        } else {
+            Err(PastorError::BackendError {
+                backend: "aur".into(),
+                message: "AUR backend is not registered or available".into(),
+            })
+        }
+    }
+
+    pub fn set_aur_sandbox_enabled(&self, package_name: &str, enabled: bool) {
+        if let Some(ref aur) = self.aur_backend {
+            aur.set_sandbox_for_package(package_name, enabled);
+        }
     }
 
     pub fn subscribe_transactions(&self) -> broadcast::Receiver<ActiveTransactionEvent> {

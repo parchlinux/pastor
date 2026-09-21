@@ -1,5 +1,6 @@
 use adw::prelude::*;
-use pastor_core::Package;
+use gtk4::glib;
+use pastor_core::{Package, PackageSource};
 use pastor_store::Store;
 
 use super::package_row::create_package_row;
@@ -41,23 +42,147 @@ pub fn create_package_list_view(
             .description(esc_desc.as_str())
             .build();
 
+        // -------------------------------------------------------------
+        // Source Filter Bar (All, Official Repos, AUR, Flatpak)
+        // -------------------------------------------------------------
+        let all_count = packages.len();
+        let repo_count = packages
+            .iter()
+            .filter(|p| matches!(p.id.source, PackageSource::Parch(_) | PackageSource::Arch(_)))
+            .count();
+        let aur_count = packages
+            .iter()
+            .filter(|p| matches!(p.id.source, PackageSource::Aur))
+            .count();
+        let flatpak_count = packages
+            .iter()
+            .filter(|p| matches!(p.id.source, PackageSource::Flatpak { .. }))
+            .count();
+
+        let filter_bar = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .spacing(10)
+            .margin_bottom(8)
+            .build();
+
+        let filter_lbl = gtk4::Label::builder()
+            .label("Filter source:")
+            .css_classes(["caption", "dim-label"])
+            .valign(gtk4::Align::Center)
+            .build();
+        filter_bar.append(&filter_lbl);
+
+        let linked_box = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .css_classes(["linked"])
+            .build();
+
+        let btn_all = gtk4::ToggleButton::builder()
+            .label(&format!("All ({all_count})"))
+            .active(true)
+            .build();
+
+        let btn_repos = gtk4::ToggleButton::builder()
+            .label(&format!("Official ({repo_count})"))
+            .group(&btn_all)
+            .build();
+
+        let btn_aur = gtk4::ToggleButton::builder()
+            .label(&format!("AUR ({aur_count})"))
+            .group(&btn_all)
+            .build();
+
+        let btn_flatpak = gtk4::ToggleButton::builder()
+            .label(&format!("Flatpak ({flatpak_count})"))
+            .group(&btn_all)
+            .build();
+
+        linked_box.append(&btn_all);
+        linked_box.append(&btn_repos);
+        linked_box.append(&btn_aur);
+        linked_box.append(&btn_flatpak);
+        filter_bar.append(&linked_box);
+        content_box.append(&filter_bar);
+
         let list_box = gtk4::ListBox::builder()
             .selection_mode(gtk4::SelectionMode::None)
             .css_classes(["boxed-list"])
             .build();
 
-        for pkg in packages {
+        let mut row_sources: Vec<(gtk4::Widget, PackageSource)> = Vec::new();
+        for pkg in &packages {
             let row = create_package_row(
-                &pkg,
+                pkg,
                 &store,
                 on_select.clone(),
                 on_transaction_start.clone(),
             );
+            row_sources.push((row.clone().into(), pkg.id.source.clone()));
             list_box.append(&row);
         }
 
         group.add(&list_box);
         content_box.append(&group);
+
+        let empty_filter_msg = adw::StatusPage::builder()
+            .icon_name("system-search-symbolic")
+            .title("No Packages in Filter")
+            .description("No software packages in the selected repository category match this query.")
+            .visible(false)
+            .build();
+        content_box.append(&empty_filter_msg);
+
+        let update_filter = {
+            let row_sources = row_sources.clone();
+            let empty_msg = empty_filter_msg.clone();
+            let list_box = list_box.clone();
+            move |mode: &str| {
+                let mut visible_count = 0;
+                for (row, source) in &row_sources {
+                    let is_visible = match mode {
+                        "all" => true,
+                        "repos" => matches!(source, PackageSource::Parch(_) | PackageSource::Arch(_)),
+                        "aur" => matches!(source, PackageSource::Aur),
+                        "flatpak" => matches!(source, PackageSource::Flatpak { .. }),
+                        _ => true,
+                    };
+                    row.set_visible(is_visible);
+                    if is_visible {
+                        visible_count += 1;
+                    }
+                }
+                list_box.set_visible(visible_count > 0);
+                empty_msg.set_visible(visible_count == 0);
+            }
+        };
+
+        let uf = update_filter.clone();
+        btn_all.connect_toggled(move |btn| {
+            if btn.is_active() {
+                uf("all");
+            }
+        });
+
+        let uf = update_filter.clone();
+        btn_repos.connect_toggled(move |btn| {
+            if btn.is_active() {
+                uf("repos");
+            }
+        });
+
+        let uf = update_filter.clone();
+        btn_aur.connect_toggled(move |btn| {
+            if btn.is_active() {
+                uf("aur");
+            }
+        });
+
+        let uf = update_filter.clone();
+        btn_flatpak.connect_toggled(move |btn| {
+            if btn.is_active() {
+                uf("flatpak");
+            }
+        });
     }
 
     scrolled.set_child(Some(&content_box));
@@ -100,18 +225,17 @@ pub fn create_loading_view(title: &str, description: &str) -> gtk4::Widget {
         .width_request(40)
         .height_request(40)
         .build();
-    spinner_box.append(&spinner);
 
-    let loading_label = gtk4::Label::builder()
-        .label("Loading software packages…")
-        .css_classes(["caption", "dim-label"])
+    let loading_lbl = gtk4::Label::builder()
+        .label("Searching repositories, AUR, and Flathub catalog…")
+        .css_classes(["dim-label", "caption"])
         .build();
-    spinner_box.append(&loading_label);
 
+    spinner_box.append(&spinner);
+    spinner_box.append(&loading_lbl);
     group.add(&spinner_box);
     content_box.append(&group);
 
     scrolled.set_child(Some(&content_box));
     scrolled.upcast()
 }
-

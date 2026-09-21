@@ -28,3 +28,16 @@ fn test_categories() {
     assert!(cats.contains(&PackageCategory::Android));
     assert_eq!(PackageCategory::Android.title(), "Android Apps (Waydroid)");
 }
+
+#[test]
+fn test_format_size() {
+    use pastor_core::format_size;
+    assert_eq!(format_size(500), "500 B");
+    assert_eq!(format_size(1024), "1.0 KB");
+    assert_eq!(format_size(512 * 1024), "512.0 KB");
+    assert_eq!(format_size(1024 * 1024), "1.0 MB");
+    assert_eq!(format_size(45 * 1024 * 1024), "45.0 MB");
+    assert_eq!(format_size(1500 * 1024 * 1024), "1.46 GB");
+    assert_eq!(format_size(3 * 1024 * 1024 * 1024), "3.00 GB");
+}
+

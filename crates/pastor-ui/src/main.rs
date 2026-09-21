@@ -32,5 +32,6 @@ fn main() -> glib::ExitCode {
     let _guard = rt.enter();
 
     let app = Application::new();
-    app.run()
+    let exit_code = app.run();
+    std::process::exit(i32::from(exit_code));
 }

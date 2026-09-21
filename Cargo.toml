@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/pastor-alpm",
+    "crates/pastor-aur",
     "crates/pastor-core",
     "crates/pastor-flatpak",
     "crates/pastor-mock",
@@ -18,6 +19,7 @@ repository = "https://github.com/parchlinux/pastor"
 
 [workspace.dependencies]
 pastor-alpm = { path = "crates/pastor-alpm" }
+pastor-aur = { path = "crates/pastor-aur" }
 pastor-core = { path = "crates/pastor-core" }
 pastor-flatpak = { path = "crates/pastor-flatpak" }
 pastor-mock = { path = "crates/pastor-mock" }

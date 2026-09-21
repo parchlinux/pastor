@@ -27,6 +27,7 @@ pub struct AlpmAppMetadata {
     pub developer: Option<String>,
     pub launchables: Vec<String>,
     pub provides_ids: Vec<String>,
+    pub keywords: Vec<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -45,7 +46,7 @@ struct AlpmCacheFile {
 }
 
 fn compute_swcatalog_signature() -> u64 {
-    let mut sig: u64 = 0;
+    let mut sig: u64 = 0x53574b5744; // SWKWD v2 cache salt
     let xml_dir = Path::new("/usr/share/swcatalog/xml");
     if let Ok(entries) = std::fs::read_dir(xml_dir) {
         for entry in entries.flatten() {
@@ -78,7 +79,7 @@ fn get_catalog_cache_file() -> PathBuf {
         });
     let dir = cache_home.join("pastor");
     let _ = std::fs::create_dir_all(&dir);
-    dir.join("alpm_catalog.bin")
+    dir.join("alpm_catalog_v2.bin")
 }
 
 impl AlpmCatalog {
@@ -318,6 +319,14 @@ impl AlpmCatalog {
                                     }
                                 }
                             }
+                            "keyword" => {
+                                if !text.is_empty() {
+                                    let kw_lower = text.to_lowercase();
+                                    if !comp.keywords.contains(&kw_lower) {
+                                        comp.keywords.push(kw_lower);
+                                    }
+                                }
+                            }
                             "screenshot" | "image" => {
                                 if (text.starts_with("http://") || text.starts_with("https://"))
                                     && (current_type == "source" || current_type.is_empty() || comp.screenshots.is_empty())
@@ -508,6 +517,7 @@ impl AlpmCatalog {
                 developer: None,
                 launchables: vec![format!("{}.desktop", file_stem)],
                 provides_ids: vec![],
+                keywords: vec![],
             };
 
             self.by_pkgname.entry(file_stem.to_string()).or_insert_with(|| meta.clone());

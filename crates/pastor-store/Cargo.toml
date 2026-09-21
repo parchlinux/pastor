@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 pastor-core.workspace = true
 pastor-alpm.workspace = true
+pastor-aur.workspace = true
 pastor-flatpak.workspace = true
 pastor-mock = { workspace = true, optional = true }
 async-trait.workspace = true

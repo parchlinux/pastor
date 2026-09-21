@@ -34,10 +34,10 @@ impl TransactionStep {
             Self::CheckingDependencies => "Checking dependencies...".to_string(),
             Self::Downloading { current_bytes, total_bytes, speed_bps } => {
                 if *total_bytes > 100 {
-                    let mb_curr = *current_bytes as f64 / 1_048_576.0;
-                    let mb_tot = *total_bytes as f64 / 1_048_576.0;
+                    let curr_str = crate::package::format_size(*current_bytes);
+                    let tot_str = crate::package::format_size(*total_bytes);
                     let kb_speed = *speed_bps as f64 / 1024.0;
-                    format!("Downloading ({:.1}/{:.1} MB at {:.0} KB/s)...", mb_curr, mb_tot, kb_speed)
+                    format!("Downloading ({} / {} at {:.0} KB/s)...", curr_str, tot_str, kb_speed)
                 } else {
                     format!("Downloading ({}%)...", current_bytes)
                 }

@@ -618,15 +618,7 @@ fn prune_flatpak_unused_runtimes() {
 
 /// Format human-readable byte sizes
 fn format_size(bytes: u64) -> String {
-    if bytes >= 1024 * 1024 * 1024 {
-        format!("{:.2} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
-    } else if bytes >= 1024 * 1024 {
-        format!("{:.1} MB", bytes as f64 / (1024.0 * 1024.0))
-    } else if bytes >= 1024 {
-        format!("{:.0} KB", bytes as f64 / 1024.0)
-    } else {
-        format!("{} bytes", bytes)
-    }
+    pastor_core::format_size(bytes)
 }
 
 /// Launch Parch Repository Manager (mirrorman)
