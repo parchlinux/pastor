@@ -23,10 +23,13 @@ use tokio::sync::mpsc::Sender;
 
 use crate::appstream::AlpmCatalog;
 
+#[derive(Clone)]
 pub struct AlpmBackend {
     name: &'static str,
     pacman_config: pacmanconf::Config,
     catalog: Arc<RwLock<AlpmCatalog>>,
+    catalog_ready: Arc<tokio::sync::Notify>,
+    catalog_loaded: Arc<AtomicBool>,
     active_cancellations: Arc<RwLock<HashMap<PackageId, Arc<AtomicBool>>>>,
 }
 
@@ -46,21 +49,30 @@ impl AlpmBackend {
             (Arc::new(RwLock::new(AlpmCatalog::default())), true)
         };
 
+        let catalog_ready = Arc::new(tokio::sync::Notify::new());
+        let catalog_loaded = Arc::new(AtomicBool::new(!needs_bg_load));
+
         let backend = Self {
             name: "alpm",
             pacman_config,
             catalog: catalog.clone(),
+            catalog_ready: catalog_ready.clone(),
+            catalog_loaded: catalog_loaded.clone(),
             active_cancellations: Arc::new(RwLock::new(HashMap::new())),
         };
 
         if needs_bg_load {
             let cat_clone = catalog;
+            let ready_clone = catalog_ready;
+            let loaded_clone = catalog_loaded;
             tokio::task::spawn_blocking(move || {
                 tracing::info!("Cold start: parsing ALPM AppStream catalog in background...");
                 let cat = AlpmCatalog::load_system();
                 if let Ok(mut guard) = cat_clone.write() {
                     *guard = cat;
                 }
+                loaded_clone.store(true, Ordering::SeqCst);
+                ready_clone.notify_waiters();
                 tracing::info!("Background ALPM AppStream catalog parsing complete");
             });
         }
@@ -68,6 +80,12 @@ impl AlpmBackend {
         tracing::info!("AlpmBackend initialized successfully with native libalpm");
 
         Ok(backend)
+    }
+
+    pub async fn wait_catalog_ready(&self) {
+        if !self.catalog_loaded.load(Ordering::SeqCst) {
+            self.catalog_ready.notified().await;
+        }
     }
 
     fn create_alpm(pacman: &pacmanconf::Config) -> Result<alpm::Alpm, PastorError> {
@@ -457,10 +475,13 @@ impl PackageBackend for AlpmBackend {
     }
 
     async fn search(&self, query: &str) -> Result<Vec<Package>, PastorError> {
+        if !self.catalog_loaded.load(Ordering::SeqCst) {
+            let _ = tokio::time::timeout(std::time::Duration::from_secs(5), self.catalog_ready.notified()).await;
+        }
         let q = query.trim().to_lowercase();
         let pacman = self.pacman_config.clone();
         let catalog = self.catalog.read().unwrap().clone();
-        let this_name = self.name;
+        let b = self.clone();
 
         tokio::task::spawn_blocking(move || {
             let alpm = Self::create_alpm(&pacman)?;
@@ -468,13 +489,6 @@ impl PackageBackend for AlpmBackend {
 
             let mut matched_pkgs: Vec<(i32, Package)> = Vec::new();
             let mut seen_names = std::collections::HashSet::new();
-
-            let b = AlpmBackend {
-                name: this_name,
-                pacman_config: pacman.clone(),
-                catalog: Arc::new(RwLock::new(catalog.clone())),
-                active_cancellations: Arc::new(RwLock::new(HashMap::new())),
-            };
 
             let tokens: Vec<&str> = q.split_whitespace().collect();
 
@@ -673,17 +687,11 @@ impl PackageBackend for AlpmBackend {
     async fn get_by_category(&self, category: PackageCategory) -> Result<Vec<Package>, PastorError> {
         let pacman = self.pacman_config.clone();
         let catalog = self.catalog.read().unwrap().clone();
-        let this_name = self.name;
+        let b = self.clone();
 
         tokio::task::spawn_blocking(move || {
             let alpm = Self::create_alpm(&pacman)?;
             let localdb = alpm.localdb();
-            let b = AlpmBackend {
-                name: this_name,
-                pacman_config: pacman.clone(),
-                catalog: Arc::new(RwLock::new(catalog.clone())),
-                active_cancellations: Arc::new(RwLock::new(HashMap::new())),
-            };
 
             let mut packages = Vec::new();
             let mut seen = std::collections::HashSet::new();
@@ -740,7 +748,7 @@ impl PackageBackend for AlpmBackend {
         .await
         .map_err(|e| PastorError::BackendError {
             backend: "alpm".into(),
-            message: format!("Category task failed: {e}"),
+            message: format!("get_by_category task failed: {e}"),
         })?
     }
 
@@ -757,7 +765,7 @@ impl PackageBackend for AlpmBackend {
         let name = id.name.clone();
         let pacman = self.pacman_config.clone();
         let catalog = self.catalog.read().unwrap().clone();
-        let this_name = self.name;
+        let b = self.clone();
 
         tokio::task::spawn_blocking(move || {
             let alpm = Self::create_alpm(&pacman)?;
@@ -766,12 +774,6 @@ impl PackageBackend for AlpmBackend {
             let pkg_opt = alpm.syncdbs().pkg(name.as_str()).ok().or_else(|| localdb.pkg(name.as_str()).ok());
             if let Some(pkg) = pkg_opt {
                 let inst = localdb.pkg(name.as_str()).ok();
-                let b = AlpmBackend {
-                    name: this_name,
-                    pacman_config: pacman,
-                    catalog: Arc::new(RwLock::new(catalog.clone())),
-                    active_cancellations: Arc::new(RwLock::new(HashMap::new())),
-                };
                 Ok(Some(b.build_package(&alpm, &pkg, inst, &catalog)))
             } else {
                 Ok(None)
@@ -787,17 +789,11 @@ impl PackageBackend for AlpmBackend {
     async fn installed(&self) -> Result<Vec<Package>, PastorError> {
         let pacman = self.pacman_config.clone();
         let catalog = self.catalog.read().unwrap().clone();
-        let this_name = self.name;
+        let b = self.clone();
 
         tokio::task::spawn_blocking(move || {
             let alpm = Self::create_alpm(&pacman)?;
             let localdb = alpm.localdb();
-            let b = AlpmBackend {
-                name: this_name,
-                pacman_config: pacman,
-                catalog: Arc::new(RwLock::new(catalog.clone())),
-                active_cancellations: Arc::new(RwLock::new(HashMap::new())),
-            };
 
             let mut packages = Vec::new();
             for pkg in localdb.pkgs() {
