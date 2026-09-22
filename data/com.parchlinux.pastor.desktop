@@ -10,7 +10,7 @@ Categories=System;PackageManager;Settings;
 MimeType=x-scheme-handler/pastor;x-scheme-handler/appstream;
 StartupNotify=true
 StartupWMClass=com.parchlinux.pastor
-Keywords=package;store;app;install;software;parch;pacman;flatpak;
+Keywords=pastor;store;software;package;packages;app;application;apps;install;update;updates;upgrade;download;manager;center;repo;repository;parch;pacman;flatpak;aur;marketplace;programs;discover;
 Actions=Updates;CheckUpdates;
 
 [Desktop Action Updates]

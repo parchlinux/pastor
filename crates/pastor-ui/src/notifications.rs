@@ -22,7 +22,14 @@ pub fn send_updates_notification(app: &impl IsA<gio::Application>, update_count:
     notification.set_default_action("app.open-updates");
     notification.add_button("Review Updates", "app.open-updates");
 
-    let icon = gio::ThemedIcon::new("software-update-available");
+    // Prefer the app's own icon (always installed with pastor), then standard
+    // freedesktop names. The old "software-update-available" name only exists
+    // in a few themes (not Breeze), which rendered as a white square in KDE.
+    let icon = gio::ThemedIcon::from_names(&[
+        "com.parchlinux.pastor",
+        "system-software-update",
+        "software-update-available",
+    ]);
     notification.set_icon(&icon);
 
     app.send_notification(Some(NOTIFICATION_ID_UPDATES), &notification);
