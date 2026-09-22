@@ -374,10 +374,34 @@ impl AlpmBackend {
         if let Some(stdout) = child.stdout.take() {
             let reader = std::io::BufReader::new(stdout);
             use std::io::BufRead;
+
+            // ALPM download/progress callbacks emit events hundreds of times per
+            // second. Forwarding every one into the (bounded) UI event channels
+            // floods them; backpressure then blocks this reader, the worker's
+            // stdout pipe fills up, and pacman freezes mid-download. Throttle
+            // progress chatter while ALWAYS draining stdout so the privileged
+            // worker is never blocked by a slow UI consumer.
+            let throttle_window = std::time::Duration::from_millis(125);
+            let mut last_forward = std::time::Instant::now()
+                .checked_sub(throttle_window)
+                .unwrap_or_else(std::time::Instant::now);
+
             for line in reader.lines() {
                 if let Ok(line) = line {
                     if let Ok(worker_evt) = serde_json::from_str::<crate::worker::WorkerEvent>(&line) {
-                        let _ = progress_tx.blocking_send(worker_evt.to_transaction_event());
+                        let evt = worker_evt.to_transaction_event();
+                        if matches!(
+                            evt.step,
+                            TransactionStep::Downloading { .. }
+                                | TransactionStep::ApplyingChanges { .. }
+                        ) {
+                            let now = std::time::Instant::now();
+                            if now.duration_since(last_forward) < throttle_window {
+                                continue;
+                            }
+                            last_forward = now;
+                        }
+                        let _ = progress_tx.blocking_send(evt);
                     }
                 }
             }

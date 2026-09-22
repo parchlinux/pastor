@@ -61,15 +61,9 @@ impl Store {
             }
         };
 
-        // Initialize Secure AUR backend
-        if let Some(ref alpm) = alpm_arc {
-            let aur = Arc::new(AurBackend::new(alpm.clone()));
-            backends.push(aur.clone());
-            aur_backend = Some(aur);
-            tracing::info!("Secure AUR backend registered successfully");
-        }
-
-        // Initialize real Flatpak native backend via libflatpak
+        // Initialize real Flatpak native backend via libflatpak (before AUR so
+        // system/Flatpak updates apply first and AUR builds run last as the
+        // local user, with the only root step being the final artifact install)
         match FlatpakBackend::new(false) {
             Ok(flatpak) => {
                 backends.push(Arc::new(flatpak));
@@ -83,6 +77,17 @@ impl Store {
                     tracing::info!("User Flatpak native backend registered successfully");
                 }
             }
+        }
+
+        // Initialize Secure AUR backend (registered last: AUR sources are fetched
+        // and built with local-user permissions; only the final pacman install of
+        // the compiled artifact is elevated, so the password prompt appears when
+        // actually installing)
+        if let Some(ref alpm) = alpm_arc {
+            let aur = Arc::new(AurBackend::new(alpm.clone()));
+            backends.push(aur.clone());
+            aur_backend = Some(aur);
+            tracing::info!("Secure AUR backend registered successfully");
         }
 
         let (tx_broadcaster, _) = broadcast::channel(200);

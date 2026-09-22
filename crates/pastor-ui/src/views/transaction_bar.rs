@@ -215,11 +215,13 @@ impl TransactionBar {
 
                 if matches!(evt.step, TransactionStep::Completed | TransactionStep::Cancelled | TransactionStep::Failed(_)) {
                     terminal_hit = true;
-                    break;
                 }
             }
 
-            // Decrement the counter; only hide the bar when no transactions remain
+            // The event stream only ends when the transaction owner closes the
+            // channel, which is the true end of the transaction. A coordinated
+            // batch (e.g. update_all) legitimately contains many intermediate
+            // Completed events, one per package, so we must not stop early.
             let remaining = active_ops.fetch_sub(1, Ordering::SeqCst) - 1;
             if remaining == 0 {
                 spinner.stop();

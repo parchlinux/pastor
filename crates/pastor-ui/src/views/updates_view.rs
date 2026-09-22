@@ -251,14 +251,25 @@ pub fn create_updates_view(
                         on_tx_refresh2(rx_forward);
                         let retrig = retrigger_refresh2.clone();
                         glib::spawn_future_local(async move {
+                            // A transaction can emit many intermediate Completed
+                            // events (e.g. batched update_all). Only end when the
+                            // stream closes, then refresh the list if a terminal
+                            // step was seen.
+                            let mut saw_terminal = false;
                             while let Some(evt) = rx.recv().await {
-                                let is_done = matches!(evt.step, pastor_core::TransactionStep::Completed);
+                                if matches!(
+                                    evt.step,
+                                    pastor_core::TransactionStep::Completed
+                                        | pastor_core::TransactionStep::Cancelled
+                                        | pastor_core::TransactionStep::Failed(_)
+                                ) {
+                                    saw_terminal = true;
+                                }
                                 let _ = tx_forward.send(evt).await;
-                                if is_done {
-                                    if let Some(f) = retrig.borrow().as_ref() {
-                                        f();
-                                    }
-                                    break;
+                            }
+                            if saw_terminal {
+                                if let Some(f) = retrig.borrow().as_ref() {
+                                    f();
                                 }
                             }
                         });
@@ -278,14 +289,23 @@ pub fn create_updates_view(
                         on_tx_for_all(rx_forward);
                         let retrig = retrigger_for_all.clone();
                         glib::spawn_future_local(async move {
+                            // Batched update_all emits intermediate Completed
+                            // events per package; only end when the stream closes.
+                            let mut saw_terminal = false;
                             while let Some(evt) = rx.recv().await {
-                                let is_done = matches!(evt.step, pastor_core::TransactionStep::Completed);
+                                if matches!(
+                                    evt.step,
+                                    pastor_core::TransactionStep::Completed
+                                        | pastor_core::TransactionStep::Cancelled
+                                        | pastor_core::TransactionStep::Failed(_)
+                                ) {
+                                    saw_terminal = true;
+                                }
                                 let _ = tx_forward.send(evt).await;
-                                if is_done {
-                                    if let Some(f) = retrig.borrow().as_ref() {
-                                        f();
-                                    }
-                                    break;
+                            }
+                            if saw_terminal {
+                                if let Some(f) = retrig.borrow().as_ref() {
+                                    f();
                                 }
                             }
                         });
