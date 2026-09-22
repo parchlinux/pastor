@@ -3,7 +3,7 @@
 
 pkgname=pastor
 pkgver=0.2.6
-pkgrel=1
+pkgrel=2
 pkgdesc="Modern, native software management center for ParchLinux"
 arch=('x86_64')
 url="https://github.com/parchlinux/pastor"
