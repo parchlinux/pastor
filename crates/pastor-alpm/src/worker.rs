@@ -54,7 +54,36 @@ fn create_alpm() -> Result<alpm::Alpm, Box<dyn std::error::Error>> {
     for group in &pacman.ignore_group {
         let _ = handle.add_ignoregroup(group.as_str());
     }
+
+    // The pacmanconf crate only knows the /etc/pacman.d/hooks default; real
+    // pacman also ALWAYS scans the system hook directory. Without it, libalpm
+    // runs transactions with no file-triggered hooks at all, so hooks like
+    // update-desktop-database / update-mime-database never fire and in-app
+    // self-updates leave stale MIME caches (breaking xdg-open pastor:// links).
+    const SYSTEM_HOOK_DIR: &str = "/usr/share/libalpm/hooks";
+    if !handle.hookdirs().iter().any(|d| d.trim_end_matches('/') == SYSTEM_HOOK_DIR) {
+        handle.add_hookdir(SYSTEM_HOOK_DIR)?;
+    }
+
     Ok(handle)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn system_hook_dir_is_configured() {
+        let alpm = super::create_alpm().expect("worker alpm handle should initialize");
+        let dirs: Vec<String> = alpm.hookdirs().iter().map(|d| d.to_string()).collect();
+        let norm = |d: &String| d.trim_end_matches('/').to_string();
+        assert!(
+            dirs.iter().any(|d| norm(d) == "/usr/share/libalpm/hooks"),
+            "system hook dir must be registered so alpm file-triggered hooks run; got {dirs:?}"
+        );
+        assert!(
+            dirs.iter().any(|d| norm(d) == "/etc/pacman.d/hooks"),
+            "pacman.d hooks dir must remain registered; got {dirs:?}"
+        );
+    }
 }
 
 fn setup_callbacks(alpm: &mut alpm::Alpm) {
