@@ -49,16 +49,16 @@ pub fn create_package_details_view(
     let icon = match &pkg.icon {
         Some(PackageIcon::LocalPath(path)) => {
             let img = gtk4::Image::from_file(path);
-            img.set_pixel_size(100);
+            img.set_pixel_size(crate::icons::ICON_SIZE_XL);
             img
         }
         Some(PackageIcon::Themed(name)) => gtk4::Image::builder()
             .icon_name(name)
-            .pixel_size(100)
+            .pixel_size(crate::icons::ICON_SIZE_XL)
             .build(),
         _ => gtk4::Image::builder()
             .icon_name("application-x-executable")
-            .pixel_size(100)
+            .pixel_size(crate::icons::ICON_SIZE_XL)
             .build(),
     };
     icon_container.append(&icon);
@@ -736,7 +736,7 @@ pub fn create_package_details_view(
     let expander = adw::ExpanderRow::builder()
         .title(exp_title.as_str())
         .subtitle("Click to view changelog and update details")
-        .expanded(true)
+        .expanded(false)
         .build();
     let rel_icon = gtk4::Image::from_icon_name("software-update-available-symbolic");
     expander.add_prefix(&rel_icon);
@@ -883,7 +883,7 @@ pub fn create_package_details_view(
         let expander = adw::ExpanderRow::builder()
             .title(format!("Dependencies ({})", pkg.dependencies.len()))
             .subtitle("Packages and runtimes required for functionality")
-            .expanded(true)
+            .expanded(false)
             .build();
         let dep_icon = gtk4::Image::from_icon_name("system-run-symbolic");
         expander.add_prefix(&dep_icon);
@@ -901,10 +901,29 @@ pub fn create_package_details_view(
             .build();
 
         for dep in &pkg.dependencies {
-            let chip = gtk4::Label::builder()
-                .label(dep)
-                .css_classes(["dependency-tag"])
+            let dep_clean = dep.split(|c| c == '<' || c == '>' || c == '=').next().unwrap_or(dep).trim().to_string();
+            let chip = gtk4::Button::builder()
+                .label(&dep_clean)
+                .css_classes(["dependency-tag", "flat"])
+                .tooltip_text(&format!("View package details for {dep_clean}"))
+                .valign(gtk4::Align::Center)
                 .build();
+
+            let store_dep = store.clone();
+            let on_sel_dep = on_select_package.clone();
+            let dep_name = dep_clean.clone();
+            chip.connect_clicked(move |_| {
+                let s = store_dep.clone();
+                let name = dep_name.clone();
+                let on_sel = on_sel_dep.clone();
+                glib::spawn_future_local(async move {
+                    if let Ok(results) = s.search_raw(&name).await {
+                        if let Some(target) = results.into_iter().find(|p| p.name == name || p.id.name == name) {
+                            on_sel(target);
+                        }
+                    }
+                });
+            });
             dep_flow.insert(&chip, -1);
         }
 
@@ -932,88 +951,61 @@ fn create_spec_row(title: &str, subtitle: &str, icon_name: &str) -> adw::ActionR
 }
 
 
-/// Helper to generate authentic, category-tailored preview canvas mockups
-fn create_preview_canvas(pkg: &Package, slide_index: usize) -> gtk4::Widget {
-    let canvas_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .spacing(16)
-        .css_classes(["screenshot-preview-body"])
-        .vexpand(true)
-        .build();
-
-    let primary_cat = pkg.categories.first().copied().unwrap_or(PackageCategory::Utilities);
-
-    // Sidebar wireframe
-    let sidebar = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(8)
-        .css_classes(["mock-sidebar-box"])
-        .build();
-
-    let side_icon = match primary_cat {
-        PackageCategory::Development => "text-editor-symbolic",
-        PackageCategory::Graphics => "image-x-generic-symbolic",
-        PackageCategory::Multimedia => "audio-x-generic-symbolic",
-        PackageCategory::Games => "input-gaming-symbolic",
-        _ => "utilities-terminal-symbolic",
-    };
-    let s_icon = gtk4::Image::builder()
-        .icon_name(side_icon)
-        .pixel_size(24)
-        .halign(gtk4::Align::Start)
-        .margin_bottom(8)
-        .build();
-    sidebar.append(&s_icon);
-
-    for _ in 0..4 {
-        let bar = gtk4::Box::builder().css_classes(["mock-sidebar-bar"]).build();
-        sidebar.append(&bar);
-    }
-    canvas_box.append(&sidebar);
-
-    // Main workspace content panel
-    let content_panel = gtk4::Box::builder()
+/// Helper to generate polished category-tailored preview artwork card (DET-003)
+fn create_preview_canvas(pkg: &Package, _slide_index: usize) -> gtk4::Widget {
+    let card = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .spacing(12)
-        .hexpand(true)
-        .css_classes(["mock-content-panel"])
+        .halign(gtk4::Align::Center)
+        .valign(gtk4::Align::Center)
+        .margin_top(32)
+        .margin_bottom(32)
+        .margin_start(32)
+        .margin_end(32)
         .build();
 
-    let panel_header = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .spacing(8)
+    let icon_img = match &pkg.icon {
+        Some(PackageIcon::LocalPath(path)) => {
+            let img = gtk4::Image::from_file(path);
+            img.set_pixel_size(crate::icons::ICON_SIZE_LG);
+            img
+        }
+        Some(PackageIcon::Themed(name)) => gtk4::Image::builder()
+            .icon_name(name)
+            .pixel_size(crate::icons::ICON_SIZE_LG)
+            .build(),
+        _ => gtk4::Image::builder()
+            .icon_name("application-x-executable")
+            .pixel_size(crate::icons::ICON_SIZE_LG)
+            .build(),
+    };
+    icon_img.add_css_class("app-icon-hero");
+    card.append(&icon_img);
+
+    let title_label = gtk4::Label::builder()
+        .label(pkg.display_title())
+        .css_classes(["title-2"])
+        .halign(gtk4::Align::Center)
         .build();
+    card.append(&title_label);
 
-    let panel_title = gtk4::Label::builder()
-        .label(match slide_index {
-            0 => "Active Session",
-            1 => "Inspect & Debug",
-            _ => "Global Configuration",
-        })
-        .css_classes(["heading"])
-        .halign(gtk4::Align::Start)
-        .build();
-    panel_header.append(&panel_title);
-    content_panel.append(&panel_header);
-
-    for i in 0..3 {
-        let data_bar = gtk4::Box::builder()
-            .css_classes(["mock-data-bar"])
-            .opacity(1.0 - (i as f64 * 0.2))
-            .build();
-        content_panel.append(&data_bar);
-    }
-
-    let footer_tag = gtk4::Label::builder()
-        .label(format!("ParchLinux • {} v{}", pkg.name, pkg.version))
+    let ver_label = gtk4::Label::builder()
+        .label(format!("Version {}", pkg.version))
         .css_classes(["caption", "dim-label"])
-        .halign(gtk4::Align::End)
-        .margin_top(8)
+        .halign(gtk4::Align::Center)
         .build();
-    content_panel.append(&footer_tag);
+    card.append(&ver_label);
 
-    canvas_box.append(&content_panel);
-    canvas_box.upcast()
+    let cat = pkg.categories.first().copied().unwrap_or(PackageCategory::Utilities);
+    let cat_label = gtk4::Label::builder()
+        .label(cat.title())
+        .css_classes(["metadata-badge"])
+        .halign(gtk4::Align::Center)
+        .margin_top(4)
+        .build();
+    card.append(&cat_label);
+
+    card.upcast()
 }
 
 fn get_cache_path(url: &str) -> std::path::PathBuf {

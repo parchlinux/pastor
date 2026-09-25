@@ -14,7 +14,7 @@ pub use downgrade_view::create_downgrade_view;
 pub use explore_view::create_explore_view;
 pub use package_details_view::create_package_details_view;
 pub use package_list_view::{create_loading_view, create_package_list_view};
-pub use settings_view::create_settings_view;
+pub use settings_view::show_settings_window;
 pub use snapshots_view::create_snapshots_view;
 pub use transaction_bar::TransactionBar;
 pub use updates_view::create_updates_view;

@@ -48,6 +48,7 @@ pub fn create_explore_view(
     carousel_box.append(&indicator);
     content_box.append(&carousel_box);
 
+
     let scroll_ctrl = gtk4::EventControllerScroll::new(
         gtk4::EventControllerScrollFlags::BOTH_AXES,
     );
@@ -220,13 +221,22 @@ fn create_category_section(
         group.set_header_suffix(Some(&see_all_btn));
     }
 
-    let spinner = gtk4::Spinner::builder()
-        .spinning(true)
-        .margin_top(16)
-        .margin_bottom(16)
-        .halign(gtk4::Align::Center)
+    // Animated skeleton loading cards (EXP-002)
+    let skeleton_box = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(8)
+        .margin_top(8)
+        .margin_bottom(8)
         .build();
-    group.add(&spinner);
+
+    for _ in 0..2 {
+        let skel = gtk4::Box::builder()
+            .css_classes(["skeleton-card"])
+            .height_request(64)
+            .build();
+        skeleton_box.append(&skel);
+    }
+    group.add(&skeleton_box);
 
     let list = gtk4::ListBox::builder()
         .selection_mode(gtk4::SelectionMode::None)
@@ -236,7 +246,7 @@ fn create_category_section(
 
     let store_c = store.clone();
     let list_c = list.clone();
-    let spinner_c = spinner.clone();
+    let skeleton_c = skeleton_box.clone();
     let group_c = group.clone();
 
     glib::spawn_future_local(async move {
@@ -259,8 +269,8 @@ fn create_category_section(
         } else {
             group_c.set_visible(false);
         }
-        spinner_c.stop();
-        spinner_c.set_visible(false);
+        skeleton_c.set_visible(false);
+        group_c.remove(&skeleton_c);
     });
 
     group.add(&list);
@@ -334,12 +344,12 @@ fn create_banner_card(
     header_box.append(&pitch_lbl);
     card.append(&header_box);
 
-    // Optional Screenshot Preview
+    // Optional Screenshot Preview (EXP-004)
     if let Some(first_shot) = pkg.screenshots.first() {
         let shot_box = gtk4::Box::builder()
             .orientation(gtk4::Orientation::Vertical)
             .height_request(140)
-            .css_classes(["cascade-banner-art"])
+            .css_classes(["cascade-banner-art", "hero-screenshot-overlay"])
             .halign(gtk4::Align::Fill)
             .overflow(gtk4::Overflow::Hidden)
             .build();
@@ -357,7 +367,7 @@ fn create_banner_card(
         .valign(gtk4::Align::Center)
         .build();
 
-    let icon_w = create_pkg_icon(pkg, 48);
+    let icon_w = create_pkg_icon(pkg, crate::icons::ICON_SIZE_MD);
     footer_box.append(&icon_w);
 
     let app_meta = gtk4::Box::builder()

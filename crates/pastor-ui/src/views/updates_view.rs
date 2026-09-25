@@ -16,6 +16,8 @@ pub fn create_updates_view(
     let scrolled = gtk4::ScrolledWindow::builder()
         .hscrollbar_policy(gtk4::PolicyType::Never)
         .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .vexpand(true)
+        .hexpand(true)
         .build();
 
     let content_box = gtk4::Box::builder()
@@ -25,11 +27,15 @@ pub fn create_updates_view(
         .margin_bottom(24)
         .margin_start(16)
         .margin_end(16)
+        .vexpand(true)
+        .hexpand(true)
         .build();
 
     let dynamic_box = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .spacing(16)
+        .vexpand(true)
+        .hexpand(true)
         .build();
 
     content_box.append(&dynamic_box);
@@ -84,16 +90,13 @@ pub fn create_updates_view(
             glib::spawn_future_local(async move {
                 let updates = store_c.get_updates().await.unwrap_or_default();
 
-                // Clear loading spinner
-                while let Some(child) = dyn_box_c.first_child() {
-                    dyn_box_c.remove(&child);
-                }
-
                 if updates.is_empty() {
                     let status_page = adw::StatusPage::builder()
                         .icon_name("emblem-ok-symbolic")
                         .title("Software Is Up to Date")
                         .description("All installed applications and Flatpaks are on their latest versions.")
+                        .vexpand(true)
+                        .hexpand(true)
                         .build();
 
                     let actions_box = gtk4::Box::builder()
@@ -145,43 +148,50 @@ pub fn create_updates_view(
                     actions_box.append(&check_again_btn);
                     actions_box.append(&refresh_db_btn);
                     status_page.set_child(Some(&actions_box));
+
+                    while let Some(child) = dyn_box_c.first_child() {
+                        dyn_box_c.remove(&child);
+                    }
                     dyn_box_c.append(&status_page);
                 } else {
-                    let mut pkgs = Vec::new();
-                    for up in &updates {
-                        let pkg = if let Ok(Some(mut p)) = store_c.get_package(&up.id).await {
-                            p.state = PackageState::UpdateAvailable;
-                            p.installed_version = Some(up.current_version.clone());
-                            p.version = up.new_version.clone();
-                            p.size_download = up.download_size;
-                            if p.changelog.is_none() {
-                                p.changelog = up.changelog.clone();
+                    let fetch_futures = updates.into_iter().map(|up| {
+                        let s = store_c.clone();
+                        async move {
+                            if let Ok(Some(mut p)) = s.get_package(&up.id).await {
+                                p.state = PackageState::UpdateAvailable;
+                                p.installed_version = Some(up.current_version.clone());
+                                p.version = up.new_version.clone();
+                                p.size_download = up.download_size;
+                                if p.changelog.is_none() {
+                                    p.changelog = up.changelog.clone();
+                                }
+                                p
+                            } else {
+                                Package {
+                                    id: up.id.clone(),
+                                    name: up.id.name.clone(),
+                                    display_name: Some(up.id.name.clone()),
+                                    version: up.new_version.clone(),
+                                    installed_version: Some(up.current_version.clone()),
+                                    summary: format!("Update: {} → {}", up.current_version, up.new_version),
+                                    description: up.changelog.clone(),
+                                    icon: Some(PackageIcon::Themed("package-x-generic".to_string())),
+                                    screenshots: vec![],
+                                    homepage: None,
+                                    license: None,
+                                    maintainer: None,
+                                    categories: vec![],
+                                    size_installed: None,
+                                    size_download: up.download_size,
+                                    dependencies: vec![],
+                                    changelog: up.changelog.clone(),
+                                    state: PackageState::UpdateAvailable,
+                                }
                             }
-                            p
-                        } else {
-                            Package {
-                                id: up.id.clone(),
-                                name: up.id.name.clone(),
-                                display_name: Some(up.id.name.clone()),
-                                version: up.new_version.clone(),
-                                installed_version: Some(up.current_version.clone()),
-                                summary: format!("Update: {} → {}", up.current_version, up.new_version),
-                                description: up.changelog.clone(),
-                                icon: Some(PackageIcon::Themed("package-x-generic".to_string())),
-                                screenshots: vec![],
-                                homepage: None,
-                                license: None,
-                                maintainer: None,
-                                categories: vec![],
-                                size_installed: None,
-                                size_download: up.download_size,
-                                dependencies: vec![],
-                                changelog: up.changelog.clone(),
-                                state: PackageState::UpdateAvailable,
-                            }
-                        };
-                        pkgs.push(pkg);
-                    }
+                        }
+                    });
+
+                    let pkgs = futures::future::join_all(fetch_futures).await;
 
                     // Top Summary Card
                     let summary_card = gtk4::Box::builder()
@@ -275,8 +285,15 @@ pub fn create_updates_view(
                         });
                     });
 
+                    let total_download_size: u64 = pkgs.iter().filter_map(|p| p.size_download).sum();
+                    let update_all_label = if total_download_size > 0 {
+                        format!("Update All ({})", pastor_core::format_size(total_download_size))
+                    } else {
+                        "Update All".to_string()
+                    };
+
                     let update_all_btn = gtk4::Button::builder()
-                        .label("Update All")
+                        .label(&update_all_label)
                         .css_classes(["suggested-action", "pill"])
                         .build();
 
@@ -314,6 +331,9 @@ pub fn create_updates_view(
                     card_actions.append(&refresh_btn);
                     card_actions.append(&update_all_btn);
                     summary_card.append(&card_actions);
+                    while let Some(child) = dyn_box_c.first_child() {
+                        dyn_box_c.remove(&child);
+                    }
                     dyn_box_c.append(&summary_card);
 
                     // Package Updates Group

@@ -6,6 +6,29 @@ use gtk4::gio::prelude::AppInfoExt;
 use libflatpak::prelude::*;
 use pastor_store::Store;
 
+pub fn show_settings_window(
+    parent: Option<&gtk4::Window>,
+    store: Store,
+    on_open_snapshots: impl Fn() + 'static + Clone,
+) -> adw::PreferencesWindow {
+    let win = adw::PreferencesWindow::builder()
+        .title("Preferences")
+        .default_width(680)
+        .default_height(640)
+        .modal(true)
+        .build();
+
+    if let Some(p) = parent {
+        win.set_transient_for(Some(p));
+    }
+
+    let page = create_settings_page(&store, on_open_snapshots);
+    win.add(&page);
+    win.present();
+    win
+}
+
+#[allow(dead_code)]
 pub fn create_settings_view(
     store: Store,
     on_open_snapshots: impl Fn() + 'static + Clone,
@@ -15,6 +38,21 @@ pub fn create_settings_view(
         .vscrollbar_policy(gtk4::PolicyType::Automatic)
         .build();
 
+    let page = create_settings_page(&store, on_open_snapshots);
+
+    let clamp = adw::Clamp::builder()
+        .maximum_size(900)
+        .child(&page)
+        .build();
+
+    scrolled.set_child(Some(&clamp));
+    scrolled.upcast()
+}
+
+pub fn create_settings_page(
+    store: &Store,
+    on_open_snapshots: impl Fn() + 'static + Clone,
+) -> adw::PreferencesPage {
     let page = adw::PreferencesPage::builder()
         .title("Settings")
         .description("Configure package engines, repository priorities, automatic updates, and storage")
@@ -482,8 +520,7 @@ pub fn create_settings_view(
 
     page.add(&display_group);
 
-    scrolled.set_child(Some(&page));
-    scrolled.upcast()
+    page
 }
 
 /// Natively calculate actual pacman package cache size and package count

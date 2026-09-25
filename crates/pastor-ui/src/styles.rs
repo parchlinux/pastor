@@ -2,9 +2,9 @@ pub const APP_CSS: &str = r#"
 /* Parch Store Custom Styling */
 
 .parch-badge-world {
-    background-color: alpha(#3584e4, 0.2);
-    color: #3584e4;
-    border: 1px solid alpha(#3584e4, 0.4);
+    background-color: alpha(@blue_3, 0.2);
+    color: @blue_3;
+    border: 1px solid alpha(@blue_3, 0.4);
     border-radius: 9999px;
     padding: 3px 10px;
     font-weight: bold;
@@ -12,9 +12,9 @@ pub const APP_CSS: &str = r#"
 }
 
 .parch-badge-void {
-    background-color: alpha(#e66100, 0.2);
-    color: #e66100;
-    border: 1px solid alpha(#e66100, 0.4);
+    background-color: alpha(@orange_3, 0.2);
+    color: @orange_3;
+    border: 1px solid alpha(@orange_3, 0.4);
     border-radius: 9999px;
     padding: 3px 10px;
     font-weight: bold;
@@ -22,9 +22,9 @@ pub const APP_CSS: &str = r#"
 }
 
 .parch-badge-arch {
-    background-color: alpha(#1793d1, 0.15);
-    color: #1793d1;
-    border: 1px solid alpha(#1793d1, 0.3);
+    background-color: alpha(@blue_4, 0.15);
+    color: @blue_4;
+    border: 1px solid alpha(@blue_4, 0.3);
     border-radius: 9999px;
     padding: 3px 10px;
     font-weight: 600;
@@ -32,9 +32,9 @@ pub const APP_CSS: &str = r#"
 }
 
 .parch-badge-aur {
-    background-color: alpha(#9141ac, 0.18);
-    color: #9141ac;
-    border: 1px solid alpha(#9141ac, 0.35);
+    background-color: alpha(@purple_3, 0.18);
+    color: @purple_3;
+    border: 1px solid alpha(@purple_3, 0.35);
     border-radius: 9999px;
     padding: 3px 10px;
     font-weight: 600;
@@ -42,9 +42,9 @@ pub const APP_CSS: &str = r#"
 }
 
 .parch-badge-flatpak {
-    background-color: alpha(#4a90d9, 0.15);
-    color: #4a90d9;
-    border: 1px solid alpha(#4a90d9, 0.3);
+    background-color: alpha(@accent_color, 0.15);
+    color: @accent_color;
+    border: 1px solid alpha(@accent_color, 0.3);
     border-radius: 9999px;
     padding: 3px 10px;
     font-weight: 600;
@@ -52,9 +52,9 @@ pub const APP_CSS: &str = r#"
 }
 
 .parch-badge-bootc {
-    background-color: alpha(#2ec27e, 0.18);
-    color: #2ec27e;
-    border: 1px solid alpha(#2ec27e, 0.35);
+    background-color: alpha(@green_3, 0.18);
+    color: @green_3;
+    border: 1px solid alpha(@green_3, 0.35);
     border-radius: 9999px;
     padding: 3px 10px;
     font-weight: bold;
@@ -62,9 +62,9 @@ pub const APP_CSS: &str = r#"
 }
 
 .parch-badge-waydroid {
-    background-color: alpha(#33d17a, 0.15);
-    color: #26a269;
-    border: 1px solid alpha(#26a269, 0.3);
+    background-color: alpha(@green_4, 0.15);
+    color: @green_4;
+    border: 1px solid alpha(@green_4, 0.3);
     border-radius: 9999px;
     padding: 3px 10px;
     font-weight: 600;
@@ -72,9 +72,9 @@ pub const APP_CSS: &str = r#"
 }
 
 .parch-badge-update {
-    background-color: alpha(#e66100, 0.18);
-    color: #e66100;
-    border: 1px solid alpha(#e66100, 0.4);
+    background-color: alpha(@orange_3, 0.18);
+    color: @orange_3;
+    border: 1px solid alpha(@orange_3, 0.4);
     border-radius: 9999px;
     padding: 2px 9px;
     font-weight: 600;
@@ -82,7 +82,7 @@ pub const APP_CSS: &str = r#"
 }
 
 .hero-banner {
-    background: linear-gradient(135deg, #1c71d8 0%, #613583 100%);
+    background: linear-gradient(135deg, alpha(@accent_color, 0.85) 0%, alpha(@purple_3, 0.85) 100%);
     color: white;
     border-radius: 12px;
     padding: 24px;
@@ -105,10 +105,11 @@ pub const APP_CSS: &str = r#"
 .console-box {
     font-family: monospace;
     font-size: 0.85rem;
-    background-color: alpha(#000000, 0.4);
+    background-color: alpha(@window_bg_color, 0.85);
+    border: 1px solid alpha(@borders, 0.5);
     border-radius: 8px;
     padding: 10px;
-    color: #78aeed;
+    color: @accent_color;
 }
 
 .transaction-pill {
@@ -118,12 +119,80 @@ pub const APP_CSS: &str = r#"
     padding: 4px 12px;
 }
 
+/* Skeleton Loading (EXP-002) */
+@keyframes skeleton-shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+}
+
+.skeleton-card {
+    background: linear-gradient(90deg,
+        alpha(@card_bg_color, 0.5) 25%,
+        alpha(@card_bg_color, 0.85) 50%,
+        alpha(@card_bg_color, 0.5) 75%
+    );
+    background-size: 1200px 100%;
+    animation: skeleton-shimmer 1.4s infinite linear;
+    border-radius: 16px;
+    min-height: 120px;
+}
+
+/* Transaction Bar States (TRX-002) */
+.transaction-bar-active {
+    border-left: 4px solid @accent_color;
+}
+
+.transaction-bar-success {
+    border-left: 4px solid @success_color;
+}
+
+.transaction-bar-failed {
+    border-left: 4px solid @error_color;
+}
+
+/* Minimum Touch Targets & Chip (VIS-006, EXP-001) */
+.category-chip {
+    border-radius: 9999px;
+    padding: 6px 14px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    min-height: 38px;
+}
+
+button.dependency-tag {
+    background-color: alpha(@card_bg_color, 0.9);
+    border: 1px solid alpha(@borders, 0.5);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.82rem;
+    font-family: monospace;
+    min-height: 36px;
+    min-width: 44px;
+}
+
+button.dependency-tag:hover {
+    background-color: alpha(@accent_color, 0.15);
+    border-color: alpha(@accent_color, 0.4);
+    color: @accent_color;
+}
+
+/* Hero Screenshot Overlay (EXP-004) */
+.hero-screenshot-overlay {
+    border-radius: 16px;
+    background: linear-gradient(
+        to bottom,
+        alpha(#000000, 0.05) 0%,
+        alpha(#000000, 0.65) 100%
+    );
+}
+
 /* GNOME HIG Application Details Page Styling */
 
 .app-icon-hero {
     border-radius: 22px;
     box-shadow: 0 6px 20px alpha(#000000, 0.18);
-    padding: 4px;
+    background-color: alpha(@window_bg_color, 0.3);
+    padding: 6px;
 }
 
 .metadata-badge {
@@ -155,8 +224,7 @@ pub const APP_CSS: &str = r#"
     border: 1px solid alpha(@borders, 0.6);
     border-radius: 14px;
     box-shadow: 0 6px 20px alpha(#000000, 0.14);
-    min-height: 290px;
-    min-width: 520px;
+    min-height: 260px;
 }
 
 .screenshot-real-card {
@@ -296,4 +364,5 @@ pub const APP_CSS: &str = r#"
     padding: 12px 16px;
     margin-bottom: 8px;
 }
+
 "#;

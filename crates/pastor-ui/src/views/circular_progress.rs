@@ -21,7 +21,7 @@ impl CircularProgress {
         let fraction: Rc<RefCell<f64>> = Rc::new(RefCell::new(0.0));
         let fraction_clone = fraction.clone();
 
-        drawing_area.set_draw_func(move |_, cr, width, height| {
+        drawing_area.set_draw_func(move |area, cr, width, height| {
             let frac: f64 = *fraction_clone.borrow();
             let w = width as f64;
             let h = height as f64;
@@ -37,9 +37,15 @@ impl CircularProgress {
             let _ = cr.arc(center_x, center_y, radius, 0.0, 2.0 * PI);
             let _ = cr.stroke();
 
-            // 2. Draw active progress arc (Parch primary blue #3584e4)
+            // 2. Draw active progress arc using theme accent color (VIS-004)
             if frac > 0.001 {
-                cr.set_source_rgba(0.208, 0.518, 0.894, 1.0);
+                let ctx = area.style_context();
+                let (r, g, b) = if let Some(color) = ctx.lookup_color("accent_color") {
+                    (color.red() as f64, color.green() as f64, color.blue() as f64)
+                } else {
+                    (0.208, 0.518, 0.894)
+                };
+                cr.set_source_rgba(r, g, b, 1.0);
                 let start_angle = -PI / 2.0;
                 let end_angle = start_angle + (frac.clamp(0.0, 1.0) * 2.0 * PI);
                 let _ = cr.arc(center_x, center_y, radius, start_angle, end_angle);

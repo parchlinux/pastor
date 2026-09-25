@@ -197,6 +197,11 @@ pub fn create_downgrade_view(
         }
     });
 
-    scrolled.set_child(Some(&content_box));
+    let clamp = adw::Clamp::builder()
+        .maximum_size(900)
+        .child(&content_box)
+        .build();
+
+    scrolled.set_child(Some(&clamp));
     scrolled.upcast()
 }

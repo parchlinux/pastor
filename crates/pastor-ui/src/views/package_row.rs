@@ -37,22 +37,22 @@ pub fn create_package_row(
         }
     }
 
-    // Icon
+    // Icon (VIS-001)
     let icon = match &pkg.icon {
         Some(PackageIcon::LocalPath(path)) => {
             let img = gtk4::Image::from_file(path);
-            img.set_pixel_size(44);
+            img.set_pixel_size(crate::icons::ICON_SIZE_MD);
             img.set_valign(gtk4::Align::Center);
             img
         }
         Some(PackageIcon::Themed(name)) => gtk4::Image::builder()
             .icon_name(name)
-            .pixel_size(44)
+            .pixel_size(crate::icons::ICON_SIZE_MD)
             .valign(gtk4::Align::Center)
             .build(),
         _ => gtk4::Image::builder()
             .icon_name("application-x-executable")
-            .pixel_size(44)
+            .pixel_size(crate::icons::ICON_SIZE_MD)
             .valign(gtk4::Align::Center)
             .build(),
     };
@@ -78,6 +78,7 @@ pub fn create_package_row(
         .build();
     title_box.append(&title_label);
 
+    // Source badges with text/icon indicator (VIS-005)
     let (badge_text, badge_class) = match &pkg.id.source {
         pastor_core::PackageSource::Parch(pastor_core::ParchRepoType::World) => ("Parch", "parch-badge-world"),
         pastor_core::PackageSource::Parch(pastor_core::ParchRepoType::Void) => ("Void", "parch-badge-void"),
@@ -103,8 +104,23 @@ pub fn create_package_row(
         title_box.append(&update_badge);
     }
 
+    // Version & update diff display (UPD-002)
+    let ver_str = if pkg.state == PackageState::UpdateAvailable {
+        if let Some(ref cur) = pkg.installed_version {
+            if let Some(dl_sz) = pkg.size_download {
+                format!("{} → {} · {}", cur, pkg.version, pastor_core::format_size(dl_sz))
+            } else {
+                format!("{} → {}", cur, pkg.version)
+            }
+        } else {
+            format!("v{}", pkg.version)
+        }
+    } else {
+        format!("v{}", pkg.version)
+    };
+
     let version_label = gtk4::Label::builder()
-        .label(&pkg.version)
+        .label(&ver_str)
         .css_classes(["dim-label"])
         .valign(gtk4::Align::Center)
         .build();

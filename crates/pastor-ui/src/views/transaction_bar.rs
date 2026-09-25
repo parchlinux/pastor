@@ -168,6 +168,9 @@ impl TransactionBar {
     }
 
     pub fn monitor_transaction(&self, mut rx: Receiver<TransactionEvent>) {
+        self.container.remove_css_class("transaction-bar-failed");
+        self.container.remove_css_class("transaction-bar-success");
+        self.container.add_css_class("transaction-bar-active");
         self.container.set_visible(true);
         self.spinner.start();
         self.cancel_btn.set_visible(true);
@@ -190,6 +193,7 @@ impl TransactionBar {
         glib::spawn_future_local(async move {
             let mut last_message = String::new();
             let mut terminal_hit = false;
+            let mut has_failed = false;
             while let Some(evt) = rx.recv().await {
                 let log_text = evt.log_message.trim();
 
@@ -213,6 +217,12 @@ impl TransactionBar {
                     vadj.set_value(vadj.upper());
                 }
 
+                if matches!(evt.step, TransactionStep::Failed(_)) {
+                    has_failed = true;
+                    container.remove_css_class("transaction-bar-active");
+                    container.add_css_class("transaction-bar-failed");
+                }
+
                 if matches!(evt.step, TransactionStep::Completed | TransactionStep::Cancelled | TransactionStep::Failed(_)) {
                     terminal_hit = true;
                 }
@@ -226,6 +236,10 @@ impl TransactionBar {
             if remaining == 0 {
                 spinner.stop();
                 cancel_btn.set_visible(false);
+                if !has_failed {
+                    container.remove_css_class("transaction-bar-active");
+                    container.add_css_class("transaction-bar-success");
+                }
                 // Hide after 15 seconds unless the user has the console open
                 if terminal_hit {
                     let container_weak = container;

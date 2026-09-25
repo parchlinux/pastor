@@ -31,7 +31,7 @@ pub fn create_package_list_view(
         let status_page = adw::StatusPage::builder()
             .icon_name("system-search-symbolic")
             .title("No Packages Found")
-            .description("No software matches your current query or category filter.")
+            .description("Try a different spelling, or search the AUR for community packages.")
             .build();
         content_box.append(&status_page);
     } else {

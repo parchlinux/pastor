@@ -2,6 +2,13 @@ use gtk4::gdk::Display;
 use gtk4::IconTheme;
 use pastor_core::PackageCategory;
 
+/// Standardized icon scale across all views (VIS-001)
+#[allow(dead_code)]
+pub const ICON_SIZE_SM: i32 = 32;
+pub const ICON_SIZE_MD: i32 = 48;
+pub const ICON_SIZE_LG: i32 = 80;
+pub const ICON_SIZE_XL: i32 = 96;
+
 /// Resolve an icon name from a prioritized list of candidates that exists in the current theme.
 pub fn resolve_icon(candidates: &[&str]) -> String {
     if let Some(display) = Display::default() {

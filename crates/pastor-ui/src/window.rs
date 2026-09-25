@@ -11,7 +11,7 @@ use crate::{
     views::{
         create_downgrade_view, create_explore_view,
         create_loading_view, create_package_details_view, create_package_list_view,
-        create_settings_view, create_snapshots_view,
+        create_snapshots_view,
         create_updates_view, CircularProgress, TransactionBar,
     },
 };
@@ -45,9 +45,9 @@ impl MainWindow {
         });
 
         let split_view = adw::OverlaySplitView::builder()
-            .min_sidebar_width(240.0)
+            .min_sidebar_width(200.0)
             .max_sidebar_width(320.0)
-            .sidebar_width_fraction(0.24)
+            .sidebar_width_fraction(0.25)
             .enable_hide_gesture(true)
             .enable_show_gesture(true)
             .show_sidebar(true)
@@ -87,7 +87,7 @@ impl MainWindow {
 
         // Search Entry
         let search_entry = gtk4::SearchEntry::builder()
-            .placeholder_text("Search packages, apps, AUR… (Ctrl+K)")
+            .placeholder_text("Search packages, apps, AUR… (Ctrl+F)")
             .build();
         sidebar_box.append(&search_entry);
 
@@ -213,30 +213,6 @@ impl MainWindow {
             });
         }
 
-        // Global Keyboard Shortcuts (Ctrl+K for search, F9 / Ctrl+B for sidebar toggle)
-        let key_controller = gtk4::EventControllerKey::new();
-        let search_entry_focus = search_entry.clone();
-        let sv_key = split_view.clone();
-        key_controller.connect_key_pressed(move |_, keyval, _, state| {
-            if state.contains(gtk4::gdk::ModifierType::CONTROL_MASK)
-                && (keyval == gtk4::gdk::Key::k || keyval == gtk4::gdk::Key::K)
-            {
-                if !sv_key.shows_sidebar() {
-                    sv_key.set_show_sidebar(true);
-                }
-                search_entry_focus.grab_focus();
-                gtk4::glib::Propagation::Stop
-            } else if keyval == gtk4::gdk::Key::F9
-                || (state.contains(gtk4::gdk::ModifierType::CONTROL_MASK)
-                    && (keyval == gtk4::gdk::Key::b || keyval == gtk4::gdk::Key::B))
-            {
-                sv_key.set_show_sidebar(!sv_key.shows_sidebar());
-                gtk4::glib::Propagation::Stop
-            } else {
-                gtk4::glib::Propagation::Proceed
-            }
-        });
-        window.add_controller(key_controller);
 
         // Header Operations Button (Global Progress ring + Operations Popover)
         let header_ops_btn = gtk4::Button::builder()
@@ -485,6 +461,58 @@ impl MainWindow {
                 go_back_btn();
             });
         }
+
+        // Global Keyboard Shortcuts (Ctrl+F / Ctrl+K for search, Alt+Left for back, F9 / Ctrl+B for sidebar toggle, Ctrl+Q / Ctrl+W to close)
+        let key_controller = gtk4::EventControllerKey::new();
+        let search_entry_focus = search_entry.clone();
+        let sv_key = split_view.clone();
+        let go_back_key = go_back.clone();
+        let back_btn_key = header_back_btn.clone();
+        let win_key = window.clone();
+
+        key_controller.connect_key_pressed(move |_, keyval, _, state| {
+            let ctrl = state.contains(gtk4::gdk::ModifierType::CONTROL_MASK);
+            let alt = state.contains(gtk4::gdk::ModifierType::ALT_MASK);
+
+            if ctrl
+                && (keyval == gtk4::gdk::Key::f
+                    || keyval == gtk4::gdk::Key::F
+                    || keyval == gtk4::gdk::Key::k
+                    || keyval == gtk4::gdk::Key::K)
+            {
+                if !sv_key.shows_sidebar() {
+                    sv_key.set_show_sidebar(true);
+                }
+                search_entry_focus.grab_focus();
+                search_entry_focus.select_region(0, -1);
+                gtk4::glib::Propagation::Stop
+            } else if keyval == gtk4::gdk::Key::F9
+                || (ctrl && (keyval == gtk4::gdk::Key::b || keyval == gtk4::gdk::Key::B))
+            {
+                sv_key.set_show_sidebar(!sv_key.shows_sidebar());
+                gtk4::glib::Propagation::Stop
+            } else if (alt && keyval == gtk4::gdk::Key::Left)
+                || (alt && keyval == gtk4::gdk::Key::BackSpace)
+            {
+                if back_btn_key.is_visible() {
+                    go_back_key();
+                    gtk4::glib::Propagation::Stop
+                } else {
+                    gtk4::glib::Propagation::Proceed
+                }
+            } else if ctrl
+                && (keyval == gtk4::gdk::Key::q
+                    || keyval == gtk4::gdk::Key::Q
+                    || keyval == gtk4::gdk::Key::w
+                    || keyval == gtk4::gdk::Key::W)
+            {
+                win_key.close();
+                gtk4::glib::Propagation::Stop
+            } else {
+                gtk4::glib::Propagation::Proceed
+            }
+        });
+        window.add_controller(key_controller);
 
         // Helper to switch page views
         let navigate_to_view = {
@@ -1298,8 +1326,8 @@ impl MainWindow {
             app.add_action(&action_toggle_sidebar);
             app.set_accels_for_action("app.toggle-sidebar", &["F9"]);
 
-            // Settings Page Action
-            let nav_settings = navigate_to_view.clone();
+            // Settings Page Action (SET-001: AdwPreferencesWindow dialog)
+            let win_for_settings = window.clone();
             let s_settings = store_rc.clone();
             let nav_snaps_from_set = navigate_to_view.clone();
             let go_back_for_settings = go_back.clone();
@@ -1316,8 +1344,11 @@ impl MainWindow {
                     nav_snaps_cb("snapshots", snaps_view);
                 };
 
-                let set_view = create_settings_view(s_settings.clone(), open_snaps);
-                nav_settings("settings", set_view);
+                crate::views::show_settings_window(
+                    Some(win_for_settings.upcast_ref::<gtk4::Window>()),
+                    s_settings.clone(),
+                    open_snaps,
+                );
             });
             app.add_action(&action_settings);
             app.set_accels_for_action("app.settings", &["<Control>comma"]);
