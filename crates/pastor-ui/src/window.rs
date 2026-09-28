@@ -7,7 +7,7 @@ use pastor_core::{Package, PackageCategory};
 use pastor_store::{ActiveTransactionEvent, Store};
 
 use crate::{
-    dialogs::show_about_dialog,
+    dialogs::{show_about_dialog, show_shortcuts_dialog},
     views::{
         create_downgrade_view, create_explore_view,
         create_loading_view, create_package_details_view, create_package_list_view,
@@ -329,6 +329,7 @@ impl MainWindow {
         menu_model.append(Some("Snapper Snapshots"), Some("app.snapshots"));
         menu_model.append(Some("Downgrade Tool"), Some("app.downgrade"));
         menu_model.append(Some("Parch Mirror Manager"), Some("app.mirrors"));
+        menu_model.append(Some("Keyboard Shortcuts"), Some("app.shortcuts"));
         menu_model.append(Some("About Parch Store"), Some("app.about"));
         tools_menu_btn.set_menu_model(Some(&menu_model));
         content_header.pack_end(&tools_menu_btn);
@@ -500,6 +501,13 @@ impl MainWindow {
                 } else {
                     gtk4::glib::Propagation::Proceed
                 }
+            } else if (ctrl
+                && (keyval == gtk4::gdk::Key::question
+                    || keyval == gtk4::gdk::Key::slash))
+                || (ctrl && keyval == gtk4::gdk::Key::F1)
+            {
+                show_shortcuts_dialog(&win_key);
+                gtk4::glib::Propagation::Stop
             } else if ctrl
                 && (keyval == gtk4::gdk::Key::q
                     || keyval == gtk4::gdk::Key::Q
@@ -1389,6 +1397,15 @@ impl MainWindow {
                 nav_downgrade("downgrade", down_view);
             });
             app.add_action(&action_downgrade);
+
+            // Shortcuts Dialog Action
+            let w_shortcuts = window.clone();
+            let action_shortcuts = gio::SimpleAction::new("shortcuts", None);
+            action_shortcuts.connect_activate(move |_, _| {
+                show_shortcuts_dialog(&w_shortcuts);
+            });
+            app.add_action(&action_shortcuts);
+            app.set_accels_for_action("app.shortcuts", &["<Primary>question", "<Primary>slash", "<Primary>F1"]);
 
             // About Dialog Action
             let w_about = window.clone();
