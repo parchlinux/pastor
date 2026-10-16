@@ -6,7 +6,10 @@ use std::{
 };
 
 use flate2::read::GzDecoder;
-use pastor_core::{LocaleMatcher, LocalizedDescription, LocalizedField, PackageCategory, PackageIcon};
+use pastor_core::{
+    cleanup_stale_caches, pastor_cache_dir, LocaleMatcher, LocalizedDescription, LocalizedField,
+    PackageCategory, PackageIcon,
+};
 use quick_xml::{events::Event, reader::Reader};
 use serde::{Deserialize, Serialize};
 
@@ -75,23 +78,34 @@ fn compute_swcatalog_signature() -> u64 {
 }
 
 fn get_catalog_cache_file() -> PathBuf {
-    let cache_home = std::env::var("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-            PathBuf::from(home).join(".cache")
-        });
-    let dir = cache_home.join("pastor");
+    let dir = pastor_cache_dir();
     let _ = std::fs::create_dir_all(&dir);
     dir.join("alpm_catalog_v3.bin")
 }
 
 impl AlpmCatalog {
     pub fn load_from_cache() -> Option<Self> {
+        cleanup_stale_caches();
+
         let path = get_catalog_cache_file();
-        let file = File::open(&path).ok()?;
+        if !path.is_file() {
+            return None;
+        }
+
+        let file = match File::open(&path) {
+            Ok(f) => f,
+            Err(_) => return None,
+        };
         let reader = BufReader::new(file);
-        let cached: AlpmCacheFile = bincode::deserialize_from(reader).ok()?;
+        let cached: AlpmCacheFile = match bincode::deserialize_from(reader) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!("Failed to deserialize ALPM binary cache ({e}); deleting corrupted cache: {:?}", path);
+                let _ = std::fs::remove_file(&path);
+                return None;
+            }
+        };
+
         let current_sig = compute_swcatalog_signature();
         if cached.signature == current_sig && !cached.catalog.by_pkgname.is_empty() {
             tracing::info!(
@@ -100,6 +114,8 @@ impl AlpmCatalog {
             );
             Some(cached.catalog)
         } else {
+            tracing::info!("ALPM binary cache is stale (signature changed or empty); deleting old cache file: {:?}", path);
+            let _ = std::fs::remove_file(&path);
             None
         }
     }
@@ -604,13 +620,7 @@ pub fn parse_category(cat: &str) -> Option<PackageCategory> {
 }
 
 fn get_cache_icon_dir() -> PathBuf {
-    let cache_home = std::env::var("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-            PathBuf::from(home).join(".cache")
-        });
-    let dir = cache_home.join("pastor/icons");
+    let dir = pastor_cache_dir().join("icons");
     let _ = std::fs::create_dir_all(&dir);
     dir
 }
@@ -649,7 +659,13 @@ fn resolve_cached_icon(base: &Path, icon_file: &str) -> Option<String> {
                     let stem = icon_file.strip_suffix(".jxl").unwrap_or(icon_file);
                     let png_candidate = cache_dir.join(format!("{stem}.png"));
                     if png_candidate.is_file() {
-                        return Some(png_candidate.to_string_lossy().to_string());
+                        if let Ok(meta) = png_candidate.metadata() {
+                            if meta.len() > 0 {
+                                return Some(png_candidate.to_string_lossy().to_string());
+                            }
+                        }
+                        // Remove 0-byte or corrupt icon file that is in the way
+                        let _ = std::fs::remove_file(&png_candidate);
                     }
                     if convert_jxl_to_png(&candidate, &png_candidate).is_ok() {
                         return Some(png_candidate.to_string_lossy().to_string());

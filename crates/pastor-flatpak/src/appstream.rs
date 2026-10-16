@@ -6,7 +6,10 @@ use std::{
 };
 
 use flate2::read::GzDecoder;
-use pastor_core::{LocaleMatcher, LocalizedDescription, LocalizedField, PackageCategory, PackageIcon};
+use pastor_core::{
+    cleanup_stale_caches, pastor_cache_dir, LocaleMatcher, LocalizedDescription, LocalizedField,
+    PackageCategory, PackageIcon,
+};
 use quick_xml::{events::Event, reader::Reader};
 use serde::{Deserialize, Serialize};
 
@@ -97,13 +100,7 @@ fn compute_flatpak_appstream_signature(effective_dir: &Path, appstream_dir: &Pat
 }
 
 pub(crate) fn get_flatpak_cache_file(remote_name: &str) -> PathBuf {
-    let cache_home = std::env::var("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-            PathBuf::from(home).join(".cache")
-        });
-    let dir = cache_home.join("pastor");
+    let dir = pastor_cache_dir();
     let _ = std::fs::create_dir_all(&dir);
     dir.join(format!("flatpak_v3_{remote_name}.bin"))
 }
@@ -132,6 +129,8 @@ impl AppstreamCatalog {
     }
 
     pub fn load_from_dir(appstream_dir: &Path, remote_name: &str) -> Self {
+        cleanup_stale_caches();
+
         // Check if there is an 'active' subfolder (standard flathub appstream layout)
         let effective_dir = if appstream_dir.join("active").is_dir() {
             appstream_dir.join("active")
@@ -142,17 +141,38 @@ impl AppstreamCatalog {
         let cache_file = get_flatpak_cache_file(remote_name);
         let sig = compute_flatpak_appstream_signature(&effective_dir, appstream_dir);
 
-        if let Ok(file) = File::open(&cache_file) {
-            let reader = BufReader::new(file);
-            if let Ok(cached) = bincode::deserialize_from::<_, FlatpakCacheFile>(reader) {
-                if cached.signature == sig && !cached.catalog.components.is_empty() {
-                    tracing::info!(
-                        "Flatpak AppStream catalog loaded from binary cache for '{}': {} components in <10ms",
-                        remote_name,
-                        cached.catalog.components.len()
-                    );
-                    return cached.catalog;
+        if cache_file.is_file() {
+            if let Ok(file) = File::open(&cache_file) {
+                let reader = BufReader::new(file);
+                match bincode::deserialize_from::<_, FlatpakCacheFile>(reader) {
+                    Ok(cached) => {
+                        if cached.signature == sig && !cached.catalog.components.is_empty() {
+                            tracing::info!(
+                                "Flatpak AppStream catalog loaded from binary cache for '{}': {} components in <10ms",
+                                remote_name,
+                                cached.catalog.components.len()
+                            );
+                            return cached.catalog;
+                        } else {
+                            tracing::info!(
+                                "Flatpak cache signature mismatch or empty for '{}'; deleting stale cache: {:?}",
+                                remote_name,
+                                cache_file
+                            );
+                            let _ = std::fs::remove_file(&cache_file);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            "Failed to deserialize Flatpak cache for '{}' ({e}); deleting corrupted cache: {:?}",
+                            remote_name,
+                            cache_file
+                        );
+                        let _ = std::fs::remove_file(&cache_file);
+                    }
                 }
+            } else {
+                let _ = std::fs::remove_file(&cache_file);
             }
         }
 

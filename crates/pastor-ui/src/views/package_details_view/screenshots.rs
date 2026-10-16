@@ -45,7 +45,23 @@ pub fn create_screenshot_widget(url: &str) -> gtk4::Widget {
         .build();
 
     let cache_file = get_cache_path(url);
-    if cache_file.is_file() {
+    let is_valid = if cache_file.is_file() {
+        if let Ok(meta) = cache_file.metadata() {
+            if meta.len() > 0 {
+                true
+            } else {
+                let _ = std::fs::remove_file(&cache_file);
+                false
+            }
+        } else {
+            let _ = std::fs::remove_file(&cache_file);
+            false
+        }
+    } else {
+        false
+    };
+
+    if is_valid {
         picture.set_filename(Some(&cache_file));
         spinner.set_visible(false);
     } else {

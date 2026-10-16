@@ -91,69 +91,79 @@ impl AurGitRepo {
         if self.repo_dir.join(".git").exists() {
             // Already cloned, perform fetch & fast-forward to FETCH_HEAD
             tracing::info!("Pulling latest AUR git commits for {}", self.package_name);
-            let status = Command::new("git")
+            let fetch_status = Command::new("git")
                 .arg("-C")
                 .arg(&self.repo_dir)
                 .args(["fetch", "--depth=50", "origin"])
-                .status()
-                .map_err(|e| PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: format!("Failed to run git fetch: {e}"),
-                })?;
+                .status();
 
-            if !status.success() {
-                return Err(PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: format!("git fetch returned non-zero status for '{}'", self.package_name),
-                });
-            }
+            let fetch_ok = matches!(fetch_status, Ok(s) if s.success());
+            let reset_ok = if fetch_ok {
+                let reset_status = Command::new("git")
+                    .arg("-C")
+                    .arg(&self.repo_dir)
+                    .args(["reset", "--hard", "FETCH_HEAD"])
+                    .status();
+                matches!(reset_status, Ok(s) if s.success())
+            } else {
+                false
+            };
 
-            // QUAL-001 & CONC-004: Always reset to FETCH_HEAD so any default branch works without hardcoding
-            let status_reset = Command::new("git")
-                .arg("-C")
-                .arg(&self.repo_dir)
-                .args(["reset", "--hard", "FETCH_HEAD"])
-                .status()
-                .map_err(|e| PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: format!("Failed to run git reset: {e}"),
-                })?;
-
-            if !status_reset.success() {
-                return Err(PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: format!("git reset --hard FETCH_HEAD failed for '{}'", self.package_name),
-                });
+            if !fetch_ok || !reset_ok {
+                tracing::warn!(
+                    "AUR git cache for '{}' at {:?} is corrupted or update failed; removing old cache and recloning",
+                    self.package_name,
+                    self.repo_dir
+                );
+                let _ = std::fs::remove_dir_all(&self.repo_dir);
+                self.clone_repo(&repo_url)?;
             }
         } else {
-            // Fresh clone
-            if let Some(parent) = self.repo_dir.parent() {
-                let _ = std::fs::create_dir_all(parent);
+            // If directory exists but has no .git, it is an incomplete/corrupted cache in the way
+            if self.repo_dir.exists() {
+                tracing::warn!(
+                    "Found non-git directory in AUR cache for '{}' at {:?}; removing before clone",
+                    self.package_name,
+                    self.repo_dir
+                );
+                let _ = std::fs::remove_dir_all(&self.repo_dir);
             }
-            tracing::info!("Cloning AUR repository for {} from {}", self.package_name, repo_url);
-            let target_dir = self.repo_dir.to_string_lossy().to_string();
-            let status = Command::new("git")
-                .args([
-                    "clone",
-                    "--depth=50",
-                    &repo_url,
-                    &target_dir,
-                ])
-                .status()
-                .map_err(|e| PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: format!("Failed to run git clone: {e}"),
-                })?;
-
-            if !status.success() {
-                return Err(PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: format!("git clone failed for AUR package '{}'", self.package_name),
-                });
-            }
+            self.clone_repo(&repo_url)?;
         }
 
         self.current_commit()
+    }
+
+    fn clone_repo(&self, repo_url: &str) -> Result<(), PastorError> {
+        if let Some(parent) = self.repo_dir.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        tracing::info!("Cloning AUR repository for {} from {}", self.package_name, repo_url);
+        let target_dir = self.repo_dir.to_string_lossy().to_string();
+        let status = Command::new("git")
+            .args([
+                "clone",
+                "--depth=50",
+                repo_url,
+                &target_dir,
+            ])
+            .status()
+            .map_err(|e| {
+                let _ = std::fs::remove_dir_all(&self.repo_dir);
+                PastorError::BackendError {
+                    backend: "aur".into(),
+                    message: format!("Failed to run git clone: {e}"),
+                }
+            })?;
+
+        if !status.success() {
+            let _ = std::fs::remove_dir_all(&self.repo_dir);
+            return Err(PastorError::BackendError {
+                backend: "aur".into(),
+                message: format!("git clone failed for AUR package '{}'", self.package_name),
+            });
+        }
+        Ok(())
     }
 
     pub fn current_commit(&self) -> Result<String, PastorError> {

@@ -43,6 +43,8 @@ pub struct Store {
 
 impl Store {
     pub fn new() -> Self {
+        cleanup_stale_caches();
+
         let mut backends: Vec<Arc<dyn PackageBackend>> = Vec::new();
         let mut aur_backend: Option<Arc<AurBackend>> = None;
         let snapshot_backend: Arc<dyn SnapshotBackend> = Arc::new(NullSnapshotBackend);
