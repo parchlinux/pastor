@@ -189,9 +189,24 @@ fn find_sync_pkg<'a>(alpm: &'a alpm::Alpm, target: &str) -> Result<&'a alpm::Pac
             }
         }
     }
-    alpm.syncdbs()
-        .pkg(target)
-        .map_err(|e| format!("Package '{target}' not found in sync databases: {e}"))
+    if let Ok(pkg) = alpm.syncdbs().pkg(target) {
+        return Ok(pkg);
+    }
+    if let Some(pkg) = alpm.syncdbs().find_satisfier(target) {
+        return Ok(pkg);
+    }
+    let base_name = target
+        .split(|c| c == '>' || c == '<' || c == '=' || c == ':')
+        .next()
+        .unwrap_or(target)
+        .trim();
+    if let Ok(pkg) = alpm.syncdbs().pkg(base_name) {
+        return Ok(pkg);
+    }
+    if let Some(pkg) = alpm.syncdbs().find_satisfier(base_name) {
+        return Ok(pkg);
+    }
+    Err(format!("Package '{target}' not found in sync databases"))
 }
 
 pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {

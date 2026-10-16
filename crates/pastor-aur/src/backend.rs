@@ -273,162 +273,8 @@ impl PackageBackend for AurBackend {
         // Acquire lock so AUR operations queue strictly one after another
         let _permit = self.operation_lock.lock().await;
 
-        // 1. Synchronize Git repository and assess Trust
-        let _ = progress_tx
-            .send(TransactionEvent {
-                step: TransactionStep::SyncingDatabase,
-                progress_fraction: 0.05,
-                log_message: format!("[{}] Fetching AUR git repository...", pkg_name),
-            })
-            .await;
-
-        let repo = AurGitRepo::for_package(&pkg_name);
-        let current_commit = repo.sync()?;
-
-        let rpc_info = self.client.info(&pkg_name).await?;
-        let maintainer = rpc_info.as_ref().and_then(|r| r.maintainer.as_deref());
-
-        let trust = {
-            let store = self.state_store.read();
-            TrustReport::assess(&pkg_name, maintainer, &store)
-        };
-
-        let _ = progress_tx
-            .send(TransactionEvent {
-                step: TransactionStep::CheckingIntegrity,
-                progress_fraction: 0.15,
-                log_message: format!("[{}] Trust status: {}", pkg_name, trust.title),
-            })
-            .await;
-
-        // 2. Static Heuristic Scanner on PKGBUILD & .install
-        let pkgbuild_path = repo.repo_dir.join("PKGBUILD");
-        let mut findings = HeuristicScanner::scan_file(&pkgbuild_path)?;
-        for inst_file in repo.find_install_files() {
-            findings.extend(HeuristicScanner::scan_file(&inst_file)?);
-        }
-
-        let scan_report = ScanReport { findings };
-        if scan_report.has_critical() {
-            let critical_desc = scan_report
-                .findings
-                .iter()
-                .filter(|f| f.severity == crate::scanner::RuleSeverity::Critical)
-                .map(|f| format!("{}: {}", f.title, f.line_content))
-                .collect::<Vec<_>>()
-                .join(" | ");
-
-            let err = format!(
-                "AUR Security Alert: Critical threat detected in '{}' PKGBUILD / .install ({})",
-                pkg_name, critical_desc
-            );
-            tracing::error!("{}", err);
-            return Err(PastorError::TransactionFailed(err));
-        }
-
-        // 3. Compile package on host (Sandbox disabled by user configuration)
-        let _ = progress_tx
-            .send(TransactionEvent {
-                step: TransactionStep::ApplyingChanges {
-                    package: pkg_name.clone(),
-                    index: 1,
-                    total: 1,
-                },
-                progress_fraction: 0.3,
-                log_message: format!("[{}] Building AUR package on host with makepkg...", pkg_name),
-            })
-            .await;
-
-        let bdir = repo.repo_dir.clone();
-        let compiled_pkg_path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, PastorError> {
-            // Pre-clean any existing .pkg.tar.* files in the build directory to avoid picking up stale builds
-            if let Ok(entries) = std::fs::read_dir(&bdir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                    if name.contains(".pkg.tar.") {
-                        let _ = std::fs::remove_file(&path);
-                    }
-                }
-            }
-
-            // Run makepkg -f --noconfirm --nodeps
-            let status = std::process::Command::new("makepkg")
-                .current_dir(&bdir)
-                .args(["-f", "--noconfirm", "--nodeps"])
-                .status()
-                .map_err(|e| PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: format!("Failed to spawn makepkg: {e}"),
-                })?;
-
-            if !status.success() {
-                return Err(PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: format!("makepkg build failed with exit status: {:?}", status.code()),
-                });
-            }
-
-            // Find compiled package artifact, skipping debug packages
-            let mut candidates = Vec::new();
-            if let Ok(entries) = std::fs::read_dir(&bdir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                    if name.contains(".pkg.tar.") && !name.contains("-debug-") {
-                        candidates.push(path);
-                    }
-                }
-            }
-
-            candidates.into_iter().next().ok_or_else(|| PastorError::BackendError {
-                backend: "aur".into(),
-                message: "No compiled .pkg.tar package artifact found after makepkg build".into(),
-            })
-        })
-        .await
-        .map_err(|e| PastorError::BackendError {
-            backend: "aur".into(),
-            message: format!("makepkg build task error: {e}"),
-        })??;
-
-        // 4. Pre-Pacman verification of compiled package hooks
-        let _ = ArtifactVerifier::verify_package_install_hook(&compiled_pkg_path)?;
-
-        // 5. Install compiled artifact via ALPM privileged worker
-        let artifact_name = compiled_pkg_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("artifact");
-
-        let _ = progress_tx
-            .send(TransactionEvent {
-                step: TransactionStep::ApplyingChanges {
-                    package: pkg_name.clone(),
-                    index: 1,
-                    total: 1,
-                },
-                progress_fraction: 0.9,
-                log_message: format!("[{}] Installing verified package {} with ALPM...", pkg_name, artifact_name),
-            })
-            .await;
-
-        self.alpm
-            .install_local_package(&compiled_pkg_path, progress_tx.clone())
-            .await?;
-
-        // 6. Record successful install in local state
-        let _ = self.state_store.write().record_installed(&pkg_name, &current_commit, maintainer);
-
-        let _ = progress_tx
-            .send(TransactionEvent {
-                step: TransactionStep::Completed,
-                progress_fraction: 1.0,
-                log_message: format!("[{}] Successfully installed AUR package", pkg_name),
-            })
-            .await;
-
-        Ok(())
+        let mut visited = std::collections::HashSet::new();
+        self.install_internal(id, progress_tx, &mut visited).await
     }
 
     async fn remove(
@@ -460,4 +306,282 @@ impl PackageBackend for AurBackend {
             message: "Direct AUR downgrade not implemented; use local ALPM package cache".into(),
         })
     }
+}
+
+impl AurBackend {
+    fn install_internal<'a>(
+        &'a self,
+        id: &'a PackageId,
+        progress_tx: Sender<TransactionEvent>,
+        visited: &'a mut std::collections::HashSet<String>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), PastorError>> + Send + 'a>> {
+        Box::pin(async move {
+            let pkg_name = id.name.clone();
+            if visited.contains(&pkg_name) {
+                return Err(PastorError::TransactionFailed(format!(
+                    "Circular dependency loop detected involving AUR package '{pkg_name}'"
+                )));
+            }
+            visited.insert(pkg_name.clone());
+
+            // 1. Synchronize Git repository and assess Trust
+            let _ = progress_tx
+                .send(TransactionEvent {
+                    step: TransactionStep::SyncingDatabase,
+                    progress_fraction: 0.05,
+                    log_message: format!("[{}] Fetching AUR git repository...", pkg_name),
+                })
+                .await;
+
+            let repo = AurGitRepo::for_package(&pkg_name);
+            let current_commit = repo.sync()?;
+
+            let rpc_info = self.client.info(&pkg_name).await?;
+            let maintainer = rpc_info.as_ref().and_then(|r| r.maintainer.as_deref());
+
+            let trust = {
+                let store = self.state_store.read();
+                TrustReport::assess(&pkg_name, maintainer, &store)
+            };
+
+            let _ = progress_tx
+                .send(TransactionEvent {
+                    step: TransactionStep::CheckingIntegrity,
+                    progress_fraction: 0.15,
+                    log_message: format!("[{}] Trust status: {}", pkg_name, trust.title),
+                })
+                .await;
+
+            // 2. Static Heuristic Scanner on PKGBUILD & .install
+            let pkgbuild_path = repo.repo_dir.join("PKGBUILD");
+            let mut findings = HeuristicScanner::scan_file(&pkgbuild_path)?;
+            for inst_file in repo.find_install_files() {
+                findings.extend(HeuristicScanner::scan_file(&inst_file)?);
+            }
+
+            let scan_report = ScanReport { findings };
+            if scan_report.has_critical() {
+                let critical_desc = scan_report
+                    .findings
+                    .iter()
+                    .filter(|f| f.severity == crate::scanner::RuleSeverity::Critical)
+                    .map(|f| format!("{}: {}", f.title, f.line_content))
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+
+                let err = format!(
+                    "AUR Security Alert: Critical threat detected in '{}' PKGBUILD / .install ({})",
+                    pkg_name, critical_desc
+                );
+                tracing::error!("{}", err);
+                return Err(PastorError::TransactionFailed(err));
+            }
+
+            // 2b. Extract dependencies and install missing ones using ALPM worker
+            let all_deps = extract_dependencies(&repo.repo_dir);
+            let (missing_sync, missing_other) = self.alpm.find_missing_sync_dependencies(&all_deps);
+
+            if !missing_sync.is_empty() {
+                let _ = progress_tx
+                    .send(TransactionEvent {
+                        step: TransactionStep::CheckingDependencies,
+                        progress_fraction: 0.2,
+                        log_message: format!(
+                            "[{}] Installing {} missing sync dependency/dependencies with ALPM: {}",
+                            pkg_name,
+                            missing_sync.len(),
+                            missing_sync.join(", ")
+                        ),
+                    })
+                    .await;
+
+                self.alpm
+                    .install_sync_packages(&missing_sync, progress_tx.clone())
+                    .await?;
+            }
+
+            // 2c. Check if any missing non-sync dependencies exist on the AUR
+            for dep in missing_other {
+                let base_name = dep
+                    .split(|c| c == '>' || c == '<' || c == '=' || c == ':')
+                    .next()
+                    .unwrap_or(&dep)
+                    .trim();
+                if self.alpm.is_package_installed(base_name) || visited.contains(base_name) {
+                    continue;
+                }
+
+                if let Ok(Some(_)) = self.client.info(base_name).await {
+                    let _ = progress_tx
+                        .send(TransactionEvent {
+                            step: TransactionStep::CheckingDependencies,
+                            progress_fraction: 0.25,
+                            log_message: format!("[{}] Installing AUR dependency '{}'...", pkg_name, base_name),
+                        })
+                        .await;
+
+                    let dep_id = PackageId::new(base_name, PackageSource::Aur);
+                    self.install_internal(&dep_id, progress_tx.clone(), visited).await?;
+                }
+            }
+
+            // 3. Compile package on host (Sandbox disabled by user configuration)
+            let _ = progress_tx
+                .send(TransactionEvent {
+                    step: TransactionStep::ApplyingChanges {
+                        package: pkg_name.clone(),
+                        index: 1,
+                        total: 1,
+                    },
+                    progress_fraction: 0.35,
+                    log_message: format!("[{}] Building AUR package on host with makepkg...", pkg_name),
+                })
+                .await;
+
+            let bdir = repo.repo_dir.clone();
+            let compiled_pkg_path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, PastorError> {
+                // Pre-clean any existing .pkg.tar.* files in the build directory to avoid picking up stale builds
+                if let Ok(entries) = std::fs::read_dir(&bdir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                        if name.contains(".pkg.tar.") {
+                            let _ = std::fs::remove_file(&path);
+                        }
+                    }
+                }
+
+                // Run makepkg -f --noconfirm (deps are now installed by ALPM worker)
+                let output = std::process::Command::new("makepkg")
+                    .current_dir(&bdir)
+                    .args(["-f", "--noconfirm"])
+                    .output()
+                    .map_err(|e| PastorError::BackendError {
+                        backend: "aur".into(),
+                        message: format!("Failed to spawn makepkg: {e}"),
+                    })?;
+
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let details = if !stderr.trim().is_empty() {
+                        stderr.trim().to_string()
+                    } else {
+                        stdout.trim().to_string()
+                    };
+                    return Err(PastorError::BackendError {
+                        backend: "aur".into(),
+                        message: format!("makepkg build failed: {details}"),
+                    });
+                }
+
+                // Find compiled package artifact, skipping debug packages and picking the newest
+                let mut candidates = Vec::new();
+                if let Ok(entries) = std::fs::read_dir(&bdir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                        if name.contains(".pkg.tar.") && !name.contains("-debug-") {
+                            candidates.push(path);
+                        }
+                    }
+                }
+
+                candidates.sort_by_key(|p| p.metadata().and_then(|m| m.modified()).ok());
+                candidates.into_iter().next_back().ok_or_else(|| PastorError::BackendError {
+                    backend: "aur".into(),
+                    message: "No compiled .pkg.tar package artifact found after makepkg build".into(),
+                })
+            })
+            .await
+            .map_err(|e| PastorError::BackendError {
+                backend: "aur".into(),
+                message: format!("makepkg build task error: {e}"),
+            })??;
+
+            // 4. Pre-Pacman verification of compiled package hooks
+            let _ = ArtifactVerifier::verify_package_install_hook(&compiled_pkg_path)?;
+
+            // 5. Install compiled artifact via ALPM privileged worker
+            let artifact_name = compiled_pkg_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("artifact");
+
+            let _ = progress_tx
+                .send(TransactionEvent {
+                    step: TransactionStep::ApplyingChanges {
+                        package: pkg_name.clone(),
+                        index: 1,
+                        total: 1,
+                    },
+                    progress_fraction: 0.9,
+                    log_message: format!("[{}] Installing verified package {} with ALPM...", pkg_name, artifact_name),
+                })
+                .await;
+
+            self.alpm
+                .install_local_package(&compiled_pkg_path, progress_tx.clone())
+                .await?;
+
+            // 6. Record successful install in local state
+            let _ = self.state_store.write().record_installed(&pkg_name, &current_commit, maintainer);
+
+            let _ = progress_tx
+                .send(TransactionEvent {
+                    step: TransactionStep::Completed,
+                    progress_fraction: 1.0,
+                    log_message: format!("[{}] Successfully installed AUR package", pkg_name),
+                })
+                .await;
+
+            Ok(())
+        })
+    }
+}
+
+fn extract_dependencies(repo_dir: &std::path::Path) -> Vec<String> {
+    let mut deps = Vec::new();
+
+    // 1. Try makepkg --printsrcinfo (evaluated directly from PKGBUILD)
+    if let Ok(output) = std::process::Command::new("makepkg")
+        .current_dir(repo_dir)
+        .arg("--printsrcinfo")
+        .output()
+    {
+        if output.status.success() {
+            let text = String::from_utf8_lossy(&output.stdout);
+            for line in text.lines() {
+                let trimmed = line.trim();
+                if let Some(dep) = trimmed.strip_prefix("depends = ") {
+                    deps.push(dep.trim().to_string());
+                } else if let Some(dep) = trimmed.strip_prefix("makedepends = ") {
+                    deps.push(dep.trim().to_string());
+                } else if let Some(dep) = trimmed.strip_prefix("checkdepends = ") {
+                    deps.push(dep.trim().to_string());
+                }
+            }
+        }
+    }
+
+    // 2. Fallback: Parse .SRCINFO file if present
+    if deps.is_empty() {
+        let srcinfo_path = repo_dir.join(".SRCINFO");
+        if let Ok(content) = std::fs::read_to_string(&srcinfo_path) {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if let Some(dep) = trimmed.strip_prefix("depends = ") {
+                    deps.push(dep.trim().to_string());
+                } else if let Some(dep) = trimmed.strip_prefix("makedepends = ") {
+                    deps.push(dep.trim().to_string());
+                } else if let Some(dep) = trimmed.strip_prefix("checkdepends = ") {
+                    deps.push(dep.trim().to_string());
+                }
+            }
+        }
+    }
+
+    deps.sort();
+    deps.dedup();
+    deps
 }

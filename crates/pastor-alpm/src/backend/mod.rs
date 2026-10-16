@@ -17,6 +17,7 @@ use pastor_core::{
     package::{Package, PackageCategory, PackageId, PackageSource, PackageUpdate},
     transaction::{TransactionEvent, TransactionStep},
 };
+use alpm_utils::DbListExt;
 use tokio::sync::mpsc::Sender;
 
 use crate::appstream::AlpmCatalog;
@@ -96,6 +97,75 @@ impl AlpmBackend {
 
     pub fn is_package_installed(&self, name: &str) -> bool {
         self.get_installed_pkg_version(name).is_some()
+    }
+
+    pub fn find_missing_sync_dependencies(&self, deps: &[String]) -> (Vec<String>, Vec<String>) {
+        let handle = match privileged::create_alpm(&self.pacman_config) {
+            Ok(h) => h,
+            Err(_) => return (deps.to_vec(), vec![]),
+        };
+        let localdb = handle.localdb();
+        let syncdbs = handle.syncdbs();
+
+        let mut missing_sync = Vec::new();
+        let mut missing_other = Vec::new();
+
+        for dep in deps {
+            let dep_str = dep.trim();
+            if dep_str.is_empty() {
+                continue;
+            }
+
+            // 1. Is it already satisfied locally?
+            if localdb.pkgs().find_satisfier(dep_str).is_some() {
+                continue;
+            }
+            let base_name = dep_str
+                .split(|c| c == '>' || c == '<' || c == '=' || c == ':')
+                .next()
+                .unwrap_or(dep_str)
+                .trim();
+            if localdb.pkgs().find_satisfier(base_name).is_some() || localdb.pkg(base_name).is_ok() {
+                continue;
+            }
+
+            // 2. Is it available in official / active sync databases?
+            if let Some(pkg) = syncdbs.find_satisfier(dep_str) {
+                missing_sync.push(pkg.name().to_string());
+            } else if let Ok(pkg) = syncdbs.pkg(dep_str) {
+                missing_sync.push(pkg.name().to_string());
+            } else if let Some(pkg) = syncdbs.find_satisfier(base_name) {
+                missing_sync.push(pkg.name().to_string());
+            } else if let Ok(pkg) = syncdbs.pkg(base_name) {
+                missing_sync.push(pkg.name().to_string());
+            } else {
+                missing_other.push(dep.clone());
+            }
+        }
+
+        missing_sync.sort();
+        missing_sync.dedup();
+        (missing_sync, missing_other)
+    }
+
+    pub async fn install_sync_packages(
+        &self,
+        package_names: &[String],
+        progress_tx: Sender<TransactionEvent>,
+    ) -> Result<(), PastorError> {
+        if package_names.is_empty() {
+            return Ok(());
+        }
+        let args: Vec<String> = package_names.to_vec();
+        tokio::task::spawn_blocking(move || {
+            let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+            privileged::run_privileged("install", &arg_refs, progress_tx)
+        })
+        .await
+        .map_err(|e| PastorError::BackendError {
+            backend: "alpm".into(),
+            message: format!("Install sync packages task error: {e}"),
+        })?
     }
 
     pub async fn install_local_package(
