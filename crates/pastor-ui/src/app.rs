@@ -186,6 +186,15 @@ impl Application {
                     };
 
                     if let Some(rx) = rx_opt {
+                        let check_interval = store
+                            .module_config()
+                            .update_check_interval()
+                            .unwrap_or(std::time::Duration::from_secs(365 * 86400));
+                        let checker_opts = UpdateCheckerOptions {
+                            check_interval,
+                            startup_delay: std::time::Duration::from_secs(5),
+                        };
+
                         match spawn_indicator(state.clone(), sender.clone()).await {
                             Ok(tray_handle) => {
                                 tracing::info!("StatusNotifierItem tray initialized successfully");
@@ -195,7 +204,7 @@ impl Application {
                                     Some(tray_handle),
                                     sender,
                                     rx,
-                                    UpdateCheckerOptions::default(),
+                                    checker_opts,
                                 );
                             }
                             Err(e) => {
@@ -206,7 +215,7 @@ impl Application {
                                     None,
                                     sender,
                                     rx,
-                                    UpdateCheckerOptions::default(),
+                                    checker_opts,
                                 );
                             }
                         }

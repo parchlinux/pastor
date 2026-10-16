@@ -15,10 +15,10 @@ pub trait PackageBackend: Send + Sync {
     /// Search for packages matching query string
     async fn search(&self, query: &str) -> Result<Vec<Package>, PastorError>;
 
-    /// Retrieve packages belonging to a specific category
-    async fn get_by_category(&self, category: PackageCategory) -> Result<Vec<Package>, PastorError> {
-        let all = self.search("").await?;
-        Ok(all.into_iter().filter(|p| p.categories.contains(&category)).collect())
+    /// Retrieve packages belonging to a specific category. Backends supporting
+    /// categories should override this method; default returns empty list.
+    async fn get_by_category(&self, _category: PackageCategory) -> Result<Vec<Package>, PastorError> {
+        Ok(vec![])
     }
 
     /// Retrieve curated/featured picks (e.g. Flathub App-Picks of the week/day)
@@ -76,10 +76,17 @@ pub trait PackageBackend: Send + Sync {
         progress_tx: Sender<TransactionEvent>,
     ) -> Result<(), PastorError> {
         let ups = self.updates().await?;
+        let mut errs = Vec::new();
         for up in ups {
-            self.install(&up.id, progress_tx.clone()).await?;
+            if let Err(e) = self.install(&up.id, progress_tx.clone()).await {
+                errs.push(format!("{}: {}", up.id.name, e));
+            }
         }
-        Ok(())
+        if !errs.is_empty() {
+            Err(PastorError::TransactionFailed(errs.join(" | ")))
+        } else {
+            Ok(())
+        }
     }
 
     /// Refresh remote package databases (e.g. pacman -Sy)

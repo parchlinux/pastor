@@ -65,6 +65,11 @@ fn create_alpm() -> Result<alpm::Alpm, Box<dyn std::error::Error>> {
         handle.add_hookdir(SYSTEM_HOOK_DIR)?;
     }
 
+    let parallel = pastor_core::package::ModuleConfig::load().parallel_downloads;
+    if parallel > 0 {
+        handle.set_parallel_downloads(parallel);
+    }
+
     Ok(handle)
 }
 
@@ -342,8 +347,14 @@ pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             alpm.trans_init(TransFlag::NONE)?;
 
             let run_res: Result<(), String> = (|| {
+                let p = std::path::Path::new(pkg_path);
+                if !p.is_file() {
+                    return Err(format!("Package file does not exist or is not a regular file: {}", pkg_path));
+                }
                 let path_bytes = pkg_path.as_bytes();
-                let loaded_pkg = alpm.pkg_load(path_bytes, false, alpm::SigLevel::NONE).map_err(|e| e.to_string())?;
+                // SEC-002 & AUR-FIX: Pass full = true so ALPM reads all filelists and install scripts;
+                // use PACKAGE_OPTIONAL so packages with signatures are verified while locally built packages succeed.
+                let loaded_pkg = alpm.pkg_load(path_bytes, true, alpm::SigLevel::PACKAGE_OPTIONAL).map_err(|e| e.to_string())?;
                 alpm.trans_add_pkg(loaded_pkg).map_err(|e| e.to_string())?;
                 alpm.trans_prepare().map_err(|e| e.to_string())?;
                 alpm.trans_commit().map_err(|e| e.to_string())?;

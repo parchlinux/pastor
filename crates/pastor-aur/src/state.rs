@@ -33,16 +33,31 @@ impl AurStateStore {
             p.push("aur_state.json");
             p
         } else {
-            PathBuf::from("/tmp/pastor-aur-state.json")
+            let uid = unsafe { libc::getuid() };
+            let run_user = format!("/run/user/{}/pastor/aur_state.json", uid);
+            let run_path = PathBuf::from(&run_user);
+            if run_path.parent().map(|p| p.exists()).unwrap_or(false) {
+                run_path
+            } else {
+                PathBuf::from("/var/lib/pastor/aur_state.json")
+            }
         }
     }
 
     pub fn load() -> Self {
         let path = Self::default_path();
         if path.is_file() {
-            if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(store) = serde_json::from_str::<Self>(&content) {
-                    return store;
+            match fs::read_to_string(&path) {
+                Ok(content) => match serde_json::from_str::<Self>(&content) {
+                    Ok(store) => return store,
+                    Err(e) => {
+                        tracing::warn!("Failed to parse AUR state at {:?}: {e}; saving backup before reset", path);
+                        let backup = path.with_extension(format!("corrupted.{}.bak", chrono::Utc::now().timestamp()));
+                        let _ = fs::copy(&path, &backup);
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!("Failed to read AUR state at {:?}: {e}", path);
                 }
             }
         }
@@ -56,7 +71,10 @@ impl AurStateStore {
         }
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        fs::write(path, json)
+        // CONC-002: Atomic write via temporary file and rename
+        let tmp_path = path.with_extension(format!("tmp.{}", std::process::id()));
+        fs::write(&tmp_path, json)?;
+        fs::rename(tmp_path, path)
     }
 
     pub fn get_record(&self, pkg_name: &str) -> Option<&AurPackageRecord> {

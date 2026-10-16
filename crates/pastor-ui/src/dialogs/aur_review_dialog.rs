@@ -185,74 +185,34 @@ pub fn show_aur_review_dialog(
         .build();
     main_box.append(&scrolled_diff);
 
-    // -------------------------------------------------------------
-    // 4. Sandbox Isolation Option (Bubblewrap vs Host)
-    // -------------------------------------------------------------
-    let sandbox_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(6)
-        .css_classes(["card", "p-2"])
-        .build();
+    let has_critical = scan_report.has_critical();
 
-    let sandbox_row = adw::ActionRow::builder()
-        .title("Bubblewrap Sandbox (Filesystem & Credential Isolation)")
-        .subtitle("Builds inside an isolated unprivileged container (home files and credentials shielded, network enabled for source dependencies).")
-        .build();
+    if has_critical {
+        let block_box = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .spacing(10)
+            .css_classes(["card", "p-3", "destructive-action"])
+            .build();
 
-    let sandbox_switch = gtk4::Switch::builder()
-        .active(true)
-        .valign(gtk4::Align::Center)
-        .build();
-    sandbox_row.add_suffix(&sandbox_switch);
-    sandbox_box.append(&sandbox_row);
+        let block_icon = gtk4::Image::builder()
+            .icon_name("dialog-error-symbolic")
+            .pixel_size(24)
+            .build();
 
-    let host_warning = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .spacing(10)
-        .margin_start(12)
-        .margin_end(12)
-        .margin_bottom(8)
-        .visible(false)
-        .build();
+        let block_lbl = gtk4::Label::builder()
+            .label("⛔ Critical security threats detected in PKGBUILD / install script. Installation has been blocked for safety.")
+            .wrap(true)
+            .css_classes(["heading"])
+            .halign(gtk4::Align::Start)
+            .build();
 
-    let host_warn_icon = gtk4::Image::builder()
-        .icon_name("dialog-warning-symbolic")
-        .pixel_size(20)
-        .css_classes(["destructive-action"])
-        .build();
-
-    let host_warn_lbl = gtk4::Label::builder()
-        .label("⚠️ Warning: Building directly on the host machine without Bubblewrap sandbox. PKGBUILD scripts will execute with direct user privileges and network access.")
-        .wrap(true)
-        .css_classes(["caption", "destructive-action"])
-        .halign(gtk4::Align::Start)
-        .build();
-
-    host_warning.append(&host_warn_icon);
-    host_warning.append(&host_warn_lbl);
-    sandbox_box.append(&host_warning);
-    main_box.append(&sandbox_box);
-
-    let proceed_btn = gtk4::Button::builder()
-        .label(&format!("Build & Install v{}", pkg_version))
-        .css_classes(["suggested-action", "pill"])
-        .build();
-
-    let host_warn_clone = host_warning.clone();
-    let proceed_btn_clone = proceed_btn.clone();
-    let pkg_ver_clone = pkg_version.to_string();
-    sandbox_switch.connect_active_notify(move |sw| {
-        let is_sandbox = sw.is_active();
-        host_warn_clone.set_visible(!is_sandbox);
-        if is_sandbox {
-            proceed_btn_clone.set_label(&format!("Build in Sandbox & Install v{}", pkg_ver_clone));
-        } else {
-            proceed_btn_clone.set_label(&format!("Build on Host & Install v{}", pkg_ver_clone));
-        }
-    });
+        block_box.append(&block_icon);
+        block_box.append(&block_lbl);
+        main_box.append(&block_box);
+    }
 
     // -------------------------------------------------------------
-    // 5. Action Buttons & Confirmation
+    // 4. Action Buttons & Confirmation
     // -------------------------------------------------------------
     let action_bar = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
@@ -270,14 +230,22 @@ pub fn show_aur_review_dialog(
         win_cancel.close();
     });
 
+    let proceed_btn = gtk4::Button::builder()
+        .label(&format!("Build & Install v{}", pkg_version))
+        .css_classes(["suggested-action", "pill"])
+        .sensitive(!has_critical)
+        .build();
+
+    if has_critical {
+        proceed_btn.set_tooltip_text(Some("Installation is blocked due to critical security threats"));
+    }
+
     let win_proceed = window.clone();
     let on_confirm_cell = std::rc::Rc::new(std::cell::RefCell::new(Some(on_confirm)));
-    let switch_for_confirm = sandbox_switch.clone();
     proceed_btn.connect_clicked(move |_| {
-        let use_sandbox = switch_for_confirm.is_active();
         win_proceed.close();
         if let Some(cb) = on_confirm_cell.borrow_mut().take() {
-            cb(use_sandbox);
+            cb(false);
         }
     });
 

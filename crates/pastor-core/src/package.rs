@@ -301,6 +301,11 @@ impl ModuleConfig {
                 self.enable_parch_world = false;
             } else if lower == "void" {
                 self.enable_parch_void = false;
+            } else if lower == "core" || lower == "extra" || lower == "multilib" {
+                let arch_repos = ["core", "extra", "multilib"];
+                if arch_repos.iter().all(|r| self.disabled_alpm_repos.iter().any(|d| d.eq_ignore_ascii_case(r))) {
+                    self.enable_arch = false;
+                }
             }
         }
     }
@@ -317,6 +322,15 @@ impl ModuleConfig {
         }
     }
 
+    pub fn update_check_interval(&self) -> Option<std::time::Duration> {
+        match self.check_updates_interval {
+            0 => Some(std::time::Duration::from_secs(86400)), // Daily
+            1 => Some(std::time::Duration::from_secs(21600)), // 6 Hours
+            2 => Some(std::time::Duration::from_secs(604800)), // Weekly
+            _ => None, // Manual only
+        }
+    }
+
     pub fn config_path() -> std::path::PathBuf {
         if let Ok(config_home) = std::env::var("XDG_CONFIG_HOME") {
             let mut p = std::path::PathBuf::from(config_home);
@@ -330,17 +344,30 @@ impl ModuleConfig {
             p.push("config.json");
             p
         } else {
-            std::path::PathBuf::from("/tmp/pastor-config.json")
+            let uid = unsafe { libc::getuid() };
+            let run_user = format!("/run/user/{}/pastor/config.json", uid);
+            let run_path = std::path::PathBuf::from(&run_user);
+            if run_path.parent().map(|p| p.exists()).unwrap_or(false) {
+                run_path
+            } else {
+                std::path::PathBuf::from("/etc/pastor/config.json")
+            }
         }
     }
 
     pub fn load() -> Self {
         let path = Self::config_path();
         if path.is_file() {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                if let Ok(config) = serde_json::from_str::<Self>(&content) {
-                    return config;
-                }
+            match std::fs::read_to_string(&path) {
+                Ok(content) => match serde_json::from_str::<Self>(&content) {
+                    Ok(config) => return config,
+                    Err(e) => {
+                        tracing::warn!("Failed to parse config.json, backing up corrupted file: {e}");
+                        let backup = path.with_extension(format!("corrupted.{}.bak", chrono::Utc::now().timestamp()));
+                        let _ = std::fs::copy(&path, &backup);
+                    }
+                },
+                Err(_) => {}
             }
         }
         Self::default()
@@ -353,7 +380,55 @@ impl ModuleConfig {
         }
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-        std::fs::write(path, json)
+        // CONC-002: Atomic write via temporary file and rename
+        let tmp_path = path.with_extension(format!("tmp.{}", std::process::id()));
+        std::fs::write(&tmp_path, json)?;
+        std::fs::rename(tmp_path, path)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_module_config_repo_enabled_roundtrip() {
+        let mut cfg = ModuleConfig::default();
+        assert!(cfg.is_repo_enabled("world"));
+        assert!(cfg.is_repo_enabled("void"));
+        assert!(cfg.is_repo_enabled("core"));
+        assert!(cfg.is_repo_enabled("extra"));
+        assert!(cfg.is_repo_enabled("multilib"));
+
+        // Disable world
+        cfg.set_repo_enabled("world", false);
+        assert!(!cfg.is_repo_enabled("world"));
+        assert!(!cfg.enable_parch_world);
+
+        // Re-enable world
+        cfg.set_repo_enabled("world", true);
+        assert!(cfg.is_repo_enabled("world"));
+        assert!(cfg.enable_parch_world);
+
+        // Disable individual Arch repo
+        cfg.set_repo_enabled("core", false);
+        assert!(!cfg.is_repo_enabled("core"));
+        assert!(cfg.is_repo_enabled("extra"));
+        assert!(cfg.enable_arch);
+
+        // Disable remaining Arch repos
+        cfg.set_repo_enabled("extra", false);
+        cfg.set_repo_enabled("multilib", false);
+        assert!(!cfg.is_repo_enabled("core"));
+        assert!(!cfg.is_repo_enabled("extra"));
+        assert!(!cfg.is_repo_enabled("multilib"));
+        assert!(!cfg.enable_arch);
+
+        // Re-enabling one arch repo brings enable_arch back to true
+        cfg.set_repo_enabled("core", true);
+        assert!(cfg.is_repo_enabled("core"));
+        assert!(cfg.enable_arch);
+        assert!(!cfg.is_repo_enabled("extra"));
     }
 }
 

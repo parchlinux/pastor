@@ -1,4 +1,5 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
+use parking_lot::RwLock;
 use async_trait::async_trait;
 use pastor_alpm::AlpmBackend;
 use pastor_core::{
@@ -12,7 +13,6 @@ use tokio::sync::mpsc::Sender;
 use crate::{
     api::{rpc_pkg_to_package, AurClient},
     git::AurGitRepo,
-    sandbox::BwrapSandbox,
     scanner::{HeuristicScanner, ScanReport},
     state::AurStateStore,
     trust::TrustReport,
@@ -24,7 +24,7 @@ pub struct AurBackend {
     client: AurClient,
     alpm: Arc<AlpmBackend>,
     state_store: Arc<RwLock<AurStateStore>>,
-    skip_sandbox_packages: Arc<RwLock<std::collections::HashSet<String>>>,
+    operation_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl AurBackend {
@@ -34,7 +34,7 @@ impl AurBackend {
             client: AurClient::new(),
             alpm,
             state_store: Arc::new(RwLock::new(AurStateStore::load())),
-            skip_sandbox_packages: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            operation_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
@@ -46,14 +46,8 @@ impl AurBackend {
         self.state_store.clone()
     }
 
-    pub fn set_sandbox_for_package(&self, pkg_name: &str, enabled: bool) {
-        if let Ok(mut set) = self.skip_sandbox_packages.write() {
-            if enabled {
-                set.remove(pkg_name);
-            } else {
-                set.insert(pkg_name.to_string());
-            }
-        }
+    pub fn set_sandbox_for_package(&self, _pkg_name: &str, _enabled: bool) {
+        // Bubblewrap sandbox is intentionally disabled per user configuration
     }
 
     /// Perform pre-build security analysis and git synchronization
@@ -67,7 +61,7 @@ impl AurBackend {
         let rpc_info = self.client.info(package_name).await?;
         let maintainer = rpc_info.as_ref().and_then(|r| r.maintainer.as_deref());
 
-        let store = self.state_store.read().unwrap().clone();
+        let store = self.state_store.read().clone();
         let trust = TrustReport::assess(package_name, maintainer, &store);
 
         let pkgbuild_path = repo.repo_dir.join("PKGBUILD");
@@ -122,17 +116,28 @@ impl PackageBackend for AurBackend {
 
     async fn installed(&self) -> Result<Vec<Package>, PastorError> {
         let foreign_pkgs = self.alpm.get_foreign_packages();
-        let store = self.state_store.read().unwrap().clone();
+        let store = self.state_store.read().clone();
 
         let mut pkg_map = std::collections::HashMap::new();
         for (name, ver) in foreign_pkgs {
             pkg_map.insert(name, ver);
         }
-        for (name, _rec) in store.packages {
-            if !pkg_map.contains_key(&name) {
-                if let Some(ver) = self.alpm.get_installed_pkg_version(&name) {
-                    pkg_map.insert(name, ver);
+
+        let mut stale_packages = Vec::new();
+        for (name, _rec) in &store.packages {
+            if !pkg_map.contains_key(name) {
+                if let Some(ver) = self.alpm.get_installed_pkg_version(name) {
+                    pkg_map.insert(name.clone(), ver);
+                } else {
+                    stale_packages.push(name.clone());
                 }
+            }
+        }
+
+        if !stale_packages.is_empty() {
+            let mut write_guard = self.state_store.write();
+            for stale in stale_packages {
+                let _ = write_guard.remove_record(&stale);
             }
         }
 
@@ -183,7 +188,7 @@ impl PackageBackend for AurBackend {
 
     async fn updates(&self) -> Result<Vec<PackageUpdate>, PastorError> {
         let foreign_pkgs = self.alpm.get_foreign_packages();
-        let store = self.state_store.read().unwrap().clone();
+        let store = self.state_store.read().clone();
 
         let mut pkg_map = std::collections::HashMap::new();
         for (name, ver) in foreign_pkgs {
@@ -202,7 +207,7 @@ impl PackageBackend for AurBackend {
         }
 
         let names: Vec<String> = pkg_map.keys().cloned().collect();
-        let rpc_pkgs = self.client.multi_info(&names).await.unwrap_or_default();
+        let rpc_pkgs = self.client.multi_info(&names).await?;
 
         let mut updates = Vec::new();
         for rpc in rpc_pkgs {
@@ -253,12 +258,27 @@ impl PackageBackend for AurBackend {
     ) -> Result<(), PastorError> {
         let pkg_name = id.name.clone();
 
+        // Check if an operation is already running; if so, notify the UI that this package is queued
+        let is_busy = self.operation_lock.try_lock().is_err();
+        if is_busy {
+            let _ = progress_tx
+                .send(TransactionEvent {
+                    step: TransactionStep::SyncingDatabase,
+                    progress_fraction: 0.0,
+                    log_message: format!("[{}] Queued — waiting for active transaction to finish...", pkg_name),
+                })
+                .await;
+        }
+
+        // Acquire lock so AUR operations queue strictly one after another
+        let _permit = self.operation_lock.lock().await;
+
         // 1. Synchronize Git repository and assess Trust
         let _ = progress_tx
             .send(TransactionEvent {
                 step: TransactionStep::SyncingDatabase,
                 progress_fraction: 0.05,
-                log_message: format!("Fetching AUR git repository for '{}'...", pkg_name),
+                log_message: format!("[{}] Fetching AUR git repository...", pkg_name),
             })
             .await;
 
@@ -269,7 +289,7 @@ impl PackageBackend for AurBackend {
         let maintainer = rpc_info.as_ref().and_then(|r| r.maintainer.as_deref());
 
         let trust = {
-            let store = self.state_store.read().unwrap();
+            let store = self.state_store.read();
             TrustReport::assess(&pkg_name, maintainer, &store)
         };
 
@@ -277,7 +297,7 @@ impl PackageBackend for AurBackend {
             .send(TransactionEvent {
                 step: TransactionStep::CheckingIntegrity,
                 progress_fraction: 0.15,
-                log_message: format!("Trust status: {}", trust.title),
+                log_message: format!("[{}] Trust status: {}", pkg_name, trust.title),
             })
             .await;
 
@@ -306,100 +326,81 @@ impl PackageBackend for AurBackend {
             return Err(PastorError::TransactionFailed(err));
         }
 
-        // 3. Check sandbox preference (Bubblewrap vs Host)
-        let use_sandbox = {
-            let mut guard = self.skip_sandbox_packages.write().unwrap();
-            !guard.remove(&pkg_name)
-        };
+        // 3. Compile package on host (Sandbox disabled by user configuration)
+        let _ = progress_tx
+            .send(TransactionEvent {
+                step: TransactionStep::ApplyingChanges {
+                    package: pkg_name.clone(),
+                    index: 1,
+                    total: 1,
+                },
+                progress_fraction: 0.3,
+                log_message: format!("[{}] Building AUR package on host with makepkg...", pkg_name),
+            })
+            .await;
 
-        let compiled_pkg_path = if use_sandbox {
-            if !BwrapSandbox::is_available() {
+        let bdir = repo.repo_dir.clone();
+        let compiled_pkg_path = tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, PastorError> {
+            // Pre-clean any existing .pkg.tar.* files in the build directory to avoid picking up stale builds
+            if let Ok(entries) = std::fs::read_dir(&bdir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if name.contains(".pkg.tar.") {
+                        let _ = std::fs::remove_file(&path);
+                    }
+                }
+            }
+
+            // Run makepkg -f --noconfirm --nodeps
+            let status = std::process::Command::new("makepkg")
+                .current_dir(&bdir)
+                .args(["-f", "--noconfirm", "--nodeps"])
+                .status()
+                .map_err(|e| PastorError::BackendError {
+                    backend: "aur".into(),
+                    message: format!("Failed to spawn makepkg: {e}"),
+                })?;
+
+            if !status.success() {
                 return Err(PastorError::BackendError {
                     backend: "aur".into(),
-                    message: "bubblewrap (bwrap) sandbox utility is not available on host system".into(),
+                    message: format!("makepkg build failed with exit status: {:?}", status.code()),
                 });
             }
 
-            // Phase A: Fetch upstream sources (network allowed)
-            BwrapSandbox::run_phase_a_fetch(&repo.repo_dir, progress_tx.clone()).await?;
-
-            // Phase B: Sandboxed build and package (ZERO NETWORK ACCESS)
-            BwrapSandbox::run_phase_b_build(&repo.repo_dir, progress_tx.clone()).await?
-        } else {
-            let _ = progress_tx
-                .send(TransactionEvent {
-                    step: TransactionStep::ApplyingChanges {
-                        package: pkg_name.clone(),
-                        index: 1,
-                        total: 1,
-                    },
-                    progress_fraction: 0.4,
-                    log_message: "Compiling AUR package on host (Sandbox disabled by user request)...".to_string(),
-                })
-                .await;
-
-            let bdir = repo.repo_dir.clone();
-            tokio::task::spawn_blocking(move || {
-                let status = std::process::Command::new("makepkg")
-                    .current_dir(&bdir)
-                    .args(["--nobuild", "--noconfirm", "--nodeps"])
-                    .status()
-                    .map_err(|e| PastorError::BackendError {
-                        backend: "aur".into(),
-                        message: format!("Host source fetch failed: {e}"),
-                    })?;
-
-                if !status.success() {
-                    return Err(PastorError::BackendError {
-                        backend: "aur".into(),
-                        message: "Host makepkg source fetch returned non-zero status".into(),
-                    });
-                }
-
-                let status_build = std::process::Command::new("makepkg")
-                    .current_dir(&bdir)
-                    .args(["--noextract", "--nocheck", "--noconfirm", "--nodeps"])
-                    .status()
-                    .map_err(|e| PastorError::BackendError {
-                        backend: "aur".into(),
-                        message: format!("Host compilation failed: {e}"),
-                    })?;
-
-                if !status_build.success() {
-                    return Err(PastorError::BackendError {
-                        backend: "aur".into(),
-                        message: "Host makepkg build returned non-zero status".into(),
-                    });
-                }
-
-                let mut found = None;
-                if let Ok(entries) = std::fs::read_dir(&bdir) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                        if name.contains(".pkg.tar.") {
-                            found = Some(path);
-                            break;
-                        }
+            // Find compiled package artifact, skipping debug packages
+            let mut candidates = Vec::new();
+            if let Ok(entries) = std::fs::read_dir(&bdir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    if name.contains(".pkg.tar.") && !name.contains("-debug-") {
+                        candidates.push(path);
                     }
                 }
+            }
 
-                found.ok_or_else(|| PastorError::BackendError {
-                    backend: "aur".into(),
-                    message: "No compiled .pkg.tar artifact found after host makepkg".into(),
-                })
-            })
-            .await
-            .map_err(|e| PastorError::BackendError {
+            candidates.into_iter().next().ok_or_else(|| PastorError::BackendError {
                 backend: "aur".into(),
-                message: format!("Host makepkg task error: {e}"),
-            })??
-        };
+                message: "No compiled .pkg.tar package artifact found after makepkg build".into(),
+            })
+        })
+        .await
+        .map_err(|e| PastorError::BackendError {
+            backend: "aur".into(),
+            message: format!("makepkg build task error: {e}"),
+        })??;
 
         // 4. Pre-Pacman verification of compiled package hooks
         let _ = ArtifactVerifier::verify_package_install_hook(&compiled_pkg_path)?;
 
         // 5. Install compiled artifact via ALPM privileged worker
+        let artifact_name = compiled_pkg_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("artifact");
+
         let _ = progress_tx
             .send(TransactionEvent {
                 step: TransactionStep::ApplyingChanges {
@@ -408,10 +409,7 @@ impl PackageBackend for AurBackend {
                     total: 1,
                 },
                 progress_fraction: 0.9,
-                log_message: format!(
-                    "Installing verified package {} with ALPM...",
-                    compiled_pkg_path.file_name().and_then(|n| n.to_str()).unwrap_or("artifact")
-                ),
+                log_message: format!("[{}] Installing verified package {} with ALPM...", pkg_name, artifact_name),
             })
             .await;
 
@@ -420,15 +418,13 @@ impl PackageBackend for AurBackend {
             .await?;
 
         // 6. Record successful install in local state
-        if let Ok(mut store) = self.state_store.write() {
-            let _ = store.record_installed(&pkg_name, &current_commit, maintainer);
-        }
+        let _ = self.state_store.write().record_installed(&pkg_name, &current_commit, maintainer);
 
         let _ = progress_tx
             .send(TransactionEvent {
                 step: TransactionStep::Completed,
                 progress_fraction: 1.0,
-                log_message: format!("Successfully installed AUR package '{}'", pkg_name),
+                log_message: format!("[{}] Successfully installed AUR package", pkg_name),
             })
             .await;
 
@@ -441,11 +437,10 @@ impl PackageBackend for AurBackend {
         progress_tx: Sender<TransactionEvent>,
     ) -> Result<(), PastorError> {
         let pkg_name = id.name.clone();
+        let _permit = self.operation_lock.lock().await;
         self.alpm.remove_package_by_name(&pkg_name, progress_tx).await?;
 
-        if let Ok(mut store) = self.state_store.write() {
-            let _ = store.remove_record(&pkg_name);
-        }
+        let _ = self.state_store.write().remove_record(&pkg_name);
 
         Ok(())
     }

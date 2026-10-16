@@ -766,7 +766,9 @@ impl Store {
         let backends = self.backends.clone();
 
         tokio::spawn(async move {
+            let mut handled = false;
             for b in backends.iter().filter(|b| b.handles(&id)) {
+                handled = true;
                 if let Err(e) = b.downgrade(&id, &target_version, tx.clone()).await {
                     let _ = tx
                         .send(TransactionEvent {
@@ -776,6 +778,16 @@ impl Store {
                         })
                         .await;
                 }
+                break;
+            }
+            if !handled {
+                let _ = tx
+                    .send(TransactionEvent {
+                        step: TransactionStep::Failed("No backend available for downgrade".to_string()),
+                        progress_fraction: 1.0,
+                        log_message: "No backend available for downgrade".to_string(),
+                    })
+                    .await;
             }
         });
 
@@ -802,7 +814,7 @@ impl Store {
                 })
                 .await;
 
-            let mut has_errors = false;
+            let mut errors = Vec::new();
             for b in enabled_backends {
                 let (b_tx, mut b_rx) = mpsc::channel(100);
                 let b_clone = b.clone();
@@ -811,14 +823,48 @@ impl Store {
                 });
 
                 while let Some(evt) = b_rx.recv().await {
-                    let _ = tx.send(evt).await;
+                    match evt.step {
+                        TransactionStep::Completed => {
+                            let _ = tx.send(TransactionEvent {
+                                step: TransactionStep::ApplyingChanges {
+                                    package: b.name().to_string(),
+                                    index: 1,
+                                    total: 1,
+                                },
+                                progress_fraction: evt.progress_fraction,
+                                log_message: evt.log_message,
+                            }).await;
+                        }
+                        TransactionStep::Failed(ref msg) => {
+                            errors.push(format!("{}: {}", b.name(), msg));
+                            let _ = tx.send(TransactionEvent {
+                                step: TransactionStep::ApplyingChanges {
+                                    package: b.name().to_string(),
+                                    index: 1,
+                                    total: 1,
+                                },
+                                progress_fraction: evt.progress_fraction,
+                                log_message: format!("Error in {}: {}", b.name(), msg),
+                            }).await;
+                        }
+                        _ => {
+                            let _ = tx.send(evt).await;
+                        }
+                    }
                 }
 
                 if let Ok(Err(e)) = join_h.await {
-                    has_errors = true;
+                    let err_msg = format!("{}: {}", b.name(), e);
+                    if !errors.contains(&err_msg) {
+                        errors.push(err_msg.clone());
+                    }
                     let _ = tx
                         .send(TransactionEvent {
-                            step: TransactionStep::Failed(e.to_string()),
+                            step: TransactionStep::ApplyingChanges {
+                                package: b.name().to_string(),
+                                index: 1,
+                                total: 1,
+                            },
                             progress_fraction: 1.0,
                             log_message: format!("Update error in {}: {}", b.name(), e),
                         })
@@ -826,12 +872,20 @@ impl Store {
                 }
             }
 
-            if !has_errors {
+            if errors.is_empty() {
                 let _ = tx
                     .send(TransactionEvent {
                         step: TransactionStep::Completed,
                         progress_fraction: 1.0,
                         log_message: "All updates completed successfully".to_string(),
+                    })
+                    .await;
+            } else {
+                let _ = tx
+                    .send(TransactionEvent {
+                        step: TransactionStep::Failed(errors.join("; ")),
+                        progress_fraction: 1.0,
+                        log_message: format!("Updates completed with errors: {}", errors.join("; ")),
                     })
                     .await;
             }

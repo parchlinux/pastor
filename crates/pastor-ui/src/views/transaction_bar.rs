@@ -1,5 +1,5 @@
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 
 use adw::prelude::*;
@@ -19,7 +19,7 @@ pub struct TransactionBar {
     expander: gtk4::Revealer,
     expand_btn: gtk4::ToggleButton,
     cancel_btn: gtk4::Button,
-    active_ops: Arc<AtomicU32>,
+    active_ops: Arc<AtomicI32>,
 }
 
 impl TransactionBar {
@@ -137,7 +137,7 @@ impl TransactionBar {
             expander,
             expand_btn,
             cancel_btn,
-            active_ops: Arc::new(AtomicU32::new(0)),
+            active_ops: Arc::new(AtomicI32::new(0)),
         }
     }
 
@@ -173,10 +173,19 @@ impl TransactionBar {
         self.container.add_css_class("transaction-bar-active");
         self.container.set_visible(true);
         self.spinner.start();
-        self.cancel_btn.set_visible(true);
-        self.log_buffer.set_text("");
-        self.progress_bar.set_fraction(0.0);
-        self.status_label.set_text("Transaction starting...");
+        let active_ops = self.active_ops.clone();
+        let was_active = active_ops.fetch_add(1, Ordering::SeqCst);
+
+        // Only clear the log buffer and reset status if this is the only active transaction.
+        // If another transaction is already in progress, append a queue delimiter without wiping out active logs.
+        if was_active <= 0 {
+            self.log_buffer.set_text("");
+            self.progress_bar.set_fraction(0.0);
+            self.status_label.set_text("Transaction starting...");
+        } else {
+            let mut end_iter = self.log_buffer.end_iter();
+            self.log_buffer.insert(&mut end_iter, "\n--- Additional transaction queued ---\n");
+        }
 
         let status_label = self.status_label.clone();
         let progress_bar = self.progress_bar.clone();
@@ -187,8 +196,6 @@ impl TransactionBar {
         let scrolled = self.scrolled.clone();
         let container = self.container.clone();
         let expander = self.expander.clone();
-        let active_ops = self.active_ops.clone();
-        active_ops.fetch_add(1, Ordering::SeqCst);
 
         glib::spawn_future_local(async move {
             let mut last_message = String::new();
@@ -233,7 +240,8 @@ impl TransactionBar {
             // batch (e.g. update_all) legitimately contains many intermediate
             // Completed events, one per package, so we must not stop early.
             let remaining = active_ops.fetch_sub(1, Ordering::SeqCst) - 1;
-            if remaining == 0 {
+            if remaining <= 0 {
+                active_ops.store(0, Ordering::SeqCst);
                 spinner.stop();
                 cancel_btn.set_visible(false);
                 if !has_failed {
