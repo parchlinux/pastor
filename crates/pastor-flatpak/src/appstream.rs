@@ -6,7 +6,7 @@ use std::{
 };
 
 use flate2::read::GzDecoder;
-use pastor_core::{PackageCategory, PackageIcon};
+use pastor_core::{LocaleMatcher, LocalizedDescription, LocalizedField, PackageCategory, PackageIcon};
 use quick_xml::{events::Event, reader::Reader};
 use serde::{Deserialize, Serialize};
 
@@ -75,7 +75,11 @@ struct FlatpakCacheFile {
 }
 
 fn compute_flatpak_appstream_signature(effective_dir: &Path, appstream_dir: &Path) -> u64 {
-    let mut sig: u64 = 0;
+    let mut sig: u64 = 0x464c415450414b_u64.wrapping_add(3);
+    let matcher = LocaleMatcher::from_env();
+    for byte in matcher.primary_locale().bytes() {
+        sig = sig.wrapping_mul(31).wrapping_add(byte as u64);
+    }
     for dir in &[effective_dir, appstream_dir] {
         for fname in &["appstream.xml", "appstream.xml.gz"] {
             let p = dir.join(fname);
@@ -101,7 +105,7 @@ pub(crate) fn get_flatpak_cache_file(remote_name: &str) -> PathBuf {
         });
     let dir = cache_home.join("pastor");
     let _ = std::fs::create_dir_all(&dir);
-    dir.join(format!("flatpak_{remote_name}.bin"))
+    dir.join(format!("flatpak_v3_{remote_name}.bin"))
 }
 
 impl AppstreamCatalog {
@@ -211,22 +215,25 @@ impl AppstreamCatalog {
         let mut reader = Reader::from_reader(buf_reader);
         reader.config_mut().trim_text(true);
 
+        let matcher = LocaleMatcher::from_env();
         let mut buf = Vec::with_capacity(4096);
         let mut in_component = false;
         let mut is_desktop_app = false;
         let mut current_tag = String::new();
+        let mut current_lang: Option<String> = None;
         let mut current_icon_type = String::new();
         let mut current_image_type = String::new();
         let mut current_url_type = String::new();
-        let mut in_ignored_description = false;
-        let mut is_tag_ignored_locale = false;
+
+        // Localized fields
+        let mut loc_name = LocalizedField::new();
+        let mut loc_summary = LocalizedField::new();
+        let mut loc_desc = LocalizedDescription::new();
+        let mut loc_dev = LocalizedField::new();
+        let mut loc_rel_desc = LocalizedDescription::new();
 
         // Temporary builder fields
         let mut id = String::new();
-        let mut name = String::new();
-        let mut summary = String::new();
-        let mut description = String::new();
-        let mut developer_name = String::new();
         let mut project_license = String::new();
         let mut homepage = String::new();
         let mut icon_filename: Option<String> = None;
@@ -244,7 +251,6 @@ impl AppstreamCatalog {
         let mut in_release = false;
         let mut current_rel_ver = String::new();
         let mut current_rel_date: Option<String> = None;
-        let mut current_rel_desc = String::new();
 
         loop {
             match reader.read_event_into(&mut buf) {
@@ -253,14 +259,14 @@ impl AppstreamCatalog {
                     if tag_name == "component" {
                         in_component = true;
                         is_desktop_app = false;
-                        in_ignored_description = false;
-                        is_tag_ignored_locale = false;
                         in_release = false;
+                        loc_name = LocalizedField::new();
+                        loc_summary = LocalizedField::new();
+                        loc_desc = LocalizedDescription::new();
+                        loc_dev = LocalizedField::new();
+                        loc_rel_desc = LocalizedDescription::new();
+
                         id.clear();
-                        name.clear();
-                        summary.clear();
-                        description.clear();
-                        developer_name.clear();
                         project_license.clear();
                         homepage.clear();
                         icon_filename = None;
@@ -272,7 +278,6 @@ impl AppstreamCatalog {
                         dependencies.clear();
                         current_rel_ver.clear();
                         current_rel_date = None;
-                        current_rel_desc.clear();
 
                         for attr in e.attributes().flatten() {
                             if attr.key.as_ref() == b"type" {
@@ -287,28 +292,38 @@ impl AppstreamCatalog {
                         }
                     } else if in_component {
                         current_tag = tag_name.clone();
+                        current_lang = None;
 
-                        // Check xml:lang attribute
-                        let mut lang_val: Option<String> = None;
                         for attr in e.attributes().flatten() {
                             if attr.key.as_ref() == b"xml:lang" {
-                                lang_val = Some(String::from_utf8_lossy(&attr.value).to_string());
+                                current_lang = Some(String::from_utf8_lossy(&attr.value).to_string());
                             }
                         }
 
-                        // We accept default English (no lang or en / en_US)
-                        let is_allowed_lang = match &lang_val {
-                            None => true,
-                            Some(l) => l.starts_with("en"),
-                        };
-
                         if tag_name == "description" {
-                            in_ignored_description = !is_allowed_lang;
-                        } else {
-                            is_tag_ignored_locale = !is_allowed_lang;
-                        }
-
-                        if tag_name == "bundle" {
+                            let lang_score = matcher.score(current_lang.as_deref());
+                            if in_release {
+                                loc_rel_desc.start_description_tag(lang_score);
+                            } else {
+                                loc_desc.start_description_tag(lang_score);
+                            }
+                        } else if tag_name == "release" {
+                            in_release = true;
+                            current_rel_ver.clear();
+                            current_rel_date = None;
+                            loc_rel_desc = LocalizedDescription::new();
+                            for attr in e.attributes().flatten() {
+                                if attr.key.as_ref() == b"version" {
+                                    current_rel_ver =
+                                        String::from_utf8_lossy(&attr.value).to_string();
+                                } else if attr.key.as_ref() == b"date"
+                                    || attr.key.as_ref() == b"timestamp"
+                                {
+                                    current_rel_date =
+                                        Some(String::from_utf8_lossy(&attr.value).to_string());
+                                }
+                            }
+                        } else if tag_name == "bundle" {
                             current_bundle_type.clear();
                             current_bundle_runtime = None;
                             current_bundle_sdk = None;
@@ -362,57 +377,42 @@ impl AppstreamCatalog {
                                         String::from_utf8_lossy(&attr.value).to_string();
                                 }
                             }
-                        } else if tag_name == "release" {
-                            in_release = true;
-                            current_rel_ver.clear();
-                            current_rel_date = None;
-                            current_rel_desc.clear();
-                            for attr in e.attributes().flatten() {
-                                if attr.key.as_ref() == b"version" {
-                                    current_rel_ver =
-                                        String::from_utf8_lossy(&attr.value).to_string();
-                                } else if attr.key.as_ref() == b"date"
-                                    || attr.key.as_ref() == b"timestamp"
-                                {
-                                    current_rel_date =
-                                        Some(String::from_utf8_lossy(&attr.value).to_string());
-                                }
-                            }
                         }
                     }
                 }
                 Ok(Event::Text(ref e)) if in_component && is_desktop_app => {
-                    if in_ignored_description || is_tag_ignored_locale {
-                        // Skip foreign language text
-                        continue;
-                    }
                     if let Ok(text) = e.unescape() {
                         let text_val = text.trim();
                         if !text_val.is_empty() {
                             match current_tag.as_str() {
                                 "id" if id.is_empty() => id = text_val.to_string(),
-                                "name" if name.is_empty() => name = text_val.to_string(),
-                                "summary" if summary.is_empty() => summary = text_val.to_string(),
+                                "name" => {
+                                    if let Some(s) = matcher.score(current_lang.as_deref()) {
+                                        loc_name.update(s, text_val);
+                                    }
+                                }
+                                "summary" => {
+                                    if let Some(s) = matcher.score(current_lang.as_deref()) {
+                                        loc_summary.update(s, text_val);
+                                    }
+                                }
                                 "bundle" => {
                                     if current_bundle_type == "flatpak" && current_bundle_ref.is_empty() {
                                         current_bundle_ref = text_val.to_string();
                                     }
                                 }
-                                "p" => {
+                                "p" | "li" => {
+                                    let p_score = matcher.score(current_lang.as_deref());
                                     if in_release {
-                                        if !current_rel_desc.is_empty() {
-                                            current_rel_desc.push('\n');
-                                        }
-                                        current_rel_desc.push_str(text_val);
+                                        loc_rel_desc.add_paragraph(p_score, text_val);
                                     } else {
-                                        if !description.is_empty() {
-                                            description.push('\n');
-                                        }
-                                        description.push_str(text_val);
+                                        loc_desc.add_paragraph(p_score, text_val);
                                     }
                                 }
-                                "developer_name" if developer_name.is_empty() => {
-                                    developer_name = text_val.to_string();
+                                "developer_name" => {
+                                    if let Some(s) = matcher.score(current_lang.as_deref()) {
+                                        loc_dev.update(s, text_val);
+                                    }
                                 }
                                 "project_license" if project_license.is_empty() => {
                                     project_license = text_val.to_string();
@@ -456,27 +456,32 @@ impl AppstreamCatalog {
                 Ok(Event::End(ref e)) => {
                     let tag_name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     if tag_name == "description" {
-                        in_ignored_description = false;
+                        if in_release {
+                            loc_rel_desc.end_description_tag();
+                        } else {
+                            loc_desc.end_description_tag();
+                        }
                     }
                     if tag_name == "release" {
                         if !current_rel_ver.is_empty() {
                             releases.push(AppstreamRelease {
                                 version: current_rel_ver.clone(),
                                 date: current_rel_date.clone(),
-                                description: if current_rel_desc.is_empty() {
-                                    None
-                                } else {
-                                    Some(current_rel_desc.clone())
-                                },
+                                description: loc_rel_desc.finish(),
                             });
                         }
                         in_release = false;
                         current_rel_ver.clear();
                         current_rel_date = None;
-                        current_rel_desc.clear();
+                        loc_rel_desc = LocalizedDescription::new();
                     }
                     if tag_name == "component" {
-                        if in_component && is_desktop_app && !id.is_empty() && !name.is_empty() {
+                        let comp_name = loc_name.take().unwrap_or(id.clone());
+                        let comp_summary = loc_summary.take().unwrap_or_default();
+                        let comp_description = loc_desc.finish();
+                        let comp_developer = loc_dev.take();
+
+                        if in_component && is_desktop_app && !id.is_empty() && !comp_name.is_empty() {
                             if categories.is_empty() {
                                 categories.push(PackageCategory::Utilities);
                             }
@@ -488,18 +493,10 @@ impl AppstreamCatalog {
                             };
                             let comp = AppstreamComponent {
                                 id: id.clone(),
-                                name: name.clone(),
-                                summary: summary.clone(),
-                                description: if description.is_empty() {
-                                    None
-                                } else {
-                                    Some(description.clone())
-                                },
-                                developer_name: if developer_name.is_empty() {
-                                    None
-                                } else {
-                                    Some(developer_name.clone())
-                                },
+                                name: comp_name,
+                                summary: comp_summary,
+                                description: comp_description,
+                                developer_name: comp_developer,
                                 project_license: if project_license.is_empty() {
                                     None
                                 } else {
@@ -551,9 +548,7 @@ impl AppstreamCatalog {
                         }
                         in_component = false;
                         is_desktop_app = false;
-                        in_ignored_description = false;
                     }
-                    is_tag_ignored_locale = false;
                     current_tag.clear();
                 }
                 Ok(Event::Eof) => break,

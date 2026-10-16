@@ -6,7 +6,7 @@ use std::{
 };
 
 use flate2::read::GzDecoder;
-use pastor_core::{PackageCategory, PackageIcon};
+use pastor_core::{LocaleMatcher, LocalizedDescription, LocalizedField, PackageCategory, PackageIcon};
 use quick_xml::{events::Event, reader::Reader};
 use serde::{Deserialize, Serialize};
 
@@ -46,7 +46,11 @@ struct AlpmCacheFile {
 }
 
 fn compute_swcatalog_signature() -> u64 {
-    let mut sig: u64 = 0x53574b5744; // SWKWD v2 cache salt
+    let mut sig: u64 = 0x53574b5744_u64.wrapping_add(3); // SWKWD v3 cache salt
+    let matcher = LocaleMatcher::from_env();
+    for byte in matcher.primary_locale().bytes() {
+        sig = sig.wrapping_mul(31).wrapping_add(byte as u64);
+    }
     let xml_dir = Path::new("/usr/share/swcatalog/xml");
     if let Ok(entries) = std::fs::read_dir(xml_dir) {
         for entry in entries.flatten() {
@@ -79,7 +83,7 @@ fn get_catalog_cache_file() -> PathBuf {
         });
     let dir = cache_home.join("pastor");
     let _ = std::fs::create_dir_all(&dir);
-    dir.join("alpm_catalog_v2.bin")
+    dir.join("alpm_catalog_v3.bin")
 }
 
 impl AlpmCatalog {
@@ -203,15 +207,21 @@ impl AlpmCatalog {
         let mut reader = Reader::from_reader(buf_reader);
         reader.config_mut().trim_text(true);
 
+        let matcher = LocaleMatcher::from_env();
         let mut buf = Vec::with_capacity(4096);
         let mut in_component = false;
         let mut in_provides = false;
         let mut comp = AlpmAppMetadata::default();
 
+        let mut loc_name = LocalizedField::new();
+        let mut loc_summary = LocalizedField::new();
+        let mut loc_desc = LocalizedDescription::new();
+        let mut loc_developer = LocalizedField::new();
+
         let mut current_tag = String::new();
         let mut current_type = String::new();
+        let mut current_lang: Option<String> = None;
         let mut current_text = String::new();
-        let mut is_default_lang = true;
 
         while let Ok(event) = reader.read_event_into(&mut buf) {
             match event {
@@ -219,26 +229,32 @@ impl AlpmCatalog {
                     let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     current_tag = name.clone();
                     current_type.clear();
+                    current_lang = None;
 
-                    if name == "component" {
-                        in_component = true;
-                        comp = AlpmAppMetadata::default();
-                    } else if name == "provides" {
-                        in_provides = true;
-                    } else if in_component {
-                        is_default_lang = true;
+                    if in_component {
                         for attr in e.attributes().flatten() {
                             let key = String::from_utf8_lossy(attr.key.as_ref());
                             let val = String::from_utf8_lossy(&attr.value);
                             if key == "xml:lang" {
-                                let lang = val.trim();
-                                if !lang.is_empty() && lang != "C" && !lang.starts_with("en") {
-                                    is_default_lang = false;
-                                }
+                                current_lang = Some(val.trim().to_string());
                             } else if key == "type" {
                                 current_type = val.to_string();
                             }
                         }
+                    }
+
+                    if name == "component" {
+                        in_component = true;
+                        comp = AlpmAppMetadata::default();
+                        loc_name = LocalizedField::new();
+                        loc_summary = LocalizedField::new();
+                        loc_desc = LocalizedDescription::new();
+                        loc_developer = LocalizedField::new();
+                    } else if name == "provides" {
+                        in_provides = true;
+                    } else if name == "description" && in_component {
+                        let lang_score = matcher.score(current_lang.as_deref());
+                        loc_desc.start_description_tag(lang_score);
                     }
                     current_text.clear();
                 }
@@ -252,6 +268,18 @@ impl AlpmCatalog {
                     let name = String::from_utf8_lossy(name_bytes.as_ref()).to_string();
 
                     if name == "component" {
+                        if let Some(n) = loc_name.take() {
+                            comp.name = n;
+                        }
+                        if let Some(s) = loc_summary.take() {
+                            comp.summary = s;
+                        }
+                        if let Some(d) = loc_desc.finish() {
+                            comp.description = Some(d);
+                        }
+                        if let Some(dev) = loc_developer.take() {
+                            comp.developer = Some(dev);
+                        }
                         self.index_component(comp.clone());
                         in_component = false;
                     } else if name == "provides" {
@@ -279,27 +307,25 @@ impl AlpmCatalog {
                                 }
                             }
                             "name" => {
-                                if is_default_lang && !text.is_empty() && comp.name.is_empty() {
-                                    comp.name = text.to_string();
+                                if let Some(score) = matcher.score(current_lang.as_deref()) {
+                                    loc_name.update(score, text);
                                 }
                             }
                             "summary" => {
-                                if is_default_lang && !text.is_empty() && comp.summary.is_empty() {
-                                    comp.summary = text.to_string();
+                                if let Some(score) = matcher.score(current_lang.as_deref()) {
+                                    loc_summary.update(score, text);
                                 }
                             }
-                            "p" => {
-                                if is_default_lang && !text.is_empty() {
-                                    let prev = comp.description.get_or_insert_with(String::new);
-                                    if !prev.is_empty() {
-                                        prev.push_str("\n\n");
-                                    }
-                                    prev.push_str(text);
-                                }
+                            "p" | "li" => {
+                                let p_score = matcher.score(current_lang.as_deref());
+                                loc_desc.add_paragraph(p_score, text);
+                            }
+                            "description" => {
+                                loc_desc.end_description_tag();
                             }
                             "developer_name" => {
-                                if is_default_lang && !text.is_empty() {
-                                    comp.developer = Some(text.to_string());
+                                if let Some(score) = matcher.score(current_lang.as_deref()) {
+                                    loc_developer.update(score, text);
                                 }
                             }
                             "project_license" => {
@@ -433,6 +459,7 @@ impl AlpmCatalog {
             return;
         };
 
+        let matcher = LocaleMatcher::from_env();
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) != Some("desktop") {
@@ -445,8 +472,8 @@ impl AlpmCatalog {
             };
 
             let mut in_desktop_entry = false;
-            let mut name = String::new();
-            let mut comment = String::new();
+            let mut loc_name = LocalizedField::new();
+            let mut loc_comment = LocalizedField::new();
             let mut icon = String::new();
             let mut categories_str = String::new();
             let mut nodisplay = false;
@@ -464,16 +491,34 @@ impl AlpmCatalog {
                 if let Some((k, v)) = trimmed.split_once('=') {
                     let k = k.trim();
                     let v = v.trim();
-                    match k {
-                        "Name" if name.is_empty() => name = v.to_string(),
-                        "Comment" if comment.is_empty() => comment = v.to_string(),
-                        "Icon" if icon.is_empty() => icon = v.to_string(),
-                        "Categories" => categories_str = v.to_string(),
-                        "NoDisplay" if v.eq_ignore_ascii_case("true") => nodisplay = true,
-                        _ => {}
+                    if k == "Name" {
+                        if let Some(s) = matcher.score(None) {
+                            loc_name.update(s, v);
+                        }
+                    } else if let Some(lang) = k.strip_prefix("Name[").and_then(|s| s.strip_suffix(']')) {
+                        if let Some(s) = matcher.score(Some(lang)) {
+                            loc_name.update(s, v);
+                        }
+                    } else if k == "Comment" {
+                        if let Some(s) = matcher.score(None) {
+                            loc_comment.update(s, v);
+                        }
+                    } else if let Some(lang) = k.strip_prefix("Comment[").and_then(|s| s.strip_suffix(']')) {
+                        if let Some(s) = matcher.score(Some(lang)) {
+                            loc_comment.update(s, v);
+                        }
+                    } else if k == "Icon" && icon.is_empty() {
+                        icon = v.to_string();
+                    } else if k == "Categories" {
+                        categories_str = v.to_string();
+                    } else if k == "NoDisplay" && v.eq_ignore_ascii_case("true") {
+                        nodisplay = true;
                     }
                 }
             }
+
+            let name = loc_name.take().unwrap_or_default();
+            let comment = loc_comment.take().unwrap_or_default();
 
             if nodisplay || name.is_empty() {
                 continue;

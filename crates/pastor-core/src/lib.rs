@@ -1,11 +1,13 @@
 pub mod backend;
 pub mod error;
+pub mod locale;
 pub mod package;
 pub mod snapshot;
 pub mod transaction;
 
 pub use backend::PackageBackend;
 pub use error::PastorError;
+pub use locale::{LocaleMatcher, LocalizedDescription, LocalizedField};
 pub use package::{
     format_size, ModuleConfig, Package, PackageCategory, PackageIcon, PackageId, PackageSource,
     PackageState, PackageUpdate, ParchRepoType,
