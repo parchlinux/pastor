@@ -69,15 +69,17 @@ impl TransactionBar {
         let expand_btn = gtk4::ToggleButton::builder()
             .icon_name("utilities-terminal-symbolic")
             .tooltip_text("Show native transaction console")
-            .css_classes(["flat", "circular"])
+            .css_classes(["flat", "circular", "trx-expand-btn"])
             .build();
+        expand_btn.update_property(&[gtk4::accessible::Property::Label("Show native transaction console")]);
         top_row.append(&expand_btn);
 
         let close_btn = gtk4::Button::builder()
             .icon_name("window-close-symbolic")
             .tooltip_text("Dismiss transaction")
-            .css_classes(["flat", "circular"])
+            .css_classes(["flat", "circular", "trx-close-btn"])
             .build();
+        close_btn.update_property(&[gtk4::accessible::Property::Label("Dismiss transaction")]);
         let container_for_close = container.clone();
         close_btn.connect_clicked(move |_| {
             container_for_close.set_visible(false);
@@ -165,6 +167,18 @@ impl TransactionBar {
         self.cancel_btn.connect_clicked(move |_| {
             f();
         });
+    }
+
+    /// Show/hide the bar-level cancel affordance (previously dead code — the
+    /// button was constructed hidden and never revealed).
+    pub fn set_cancel_visible(&self, visible: bool) {
+        self.cancel_btn.set_visible(visible);
+    }
+
+    /// Compact mode for narrow windows: the console stays reachable through the
+    /// operations popover, so the bar keeps only status + progress + close.
+    pub fn set_narrow(&self, narrow: bool) {
+        self.expand_btn.set_visible(!narrow);
     }
 
     pub fn monitor_transaction(&self, mut rx: Receiver<TransactionEvent>) {

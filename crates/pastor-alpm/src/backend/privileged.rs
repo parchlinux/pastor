@@ -93,6 +93,23 @@ pub fn run_privileged(
     })?;
 
     let is_root = unsafe { geteuid() == 0 };
+    if !is_root {
+        // pkexec will execute the binary as root. Refuse-to-warn when running
+        // from a user-writable path (dev builds) — root must never execute a
+        // binary the user could have replaced between checks.
+        if let Ok(exe) = std::fs::canonicalize(&current_exe) {
+            let path_str = exe.to_string_lossy();
+            if path_str.starts_with("/home/")
+                || path_str.starts_with("/tmp/")
+                || path_str.contains("/target/")
+            {
+                tracing::warn!(
+                    "Running privileged worker from user-writable path ({path_str}); \
+                     production installs must live under /usr/bin"
+                );
+            }
+        }
+    }
     let mut cmd = if is_root {
         let mut c = std::process::Command::new(&current_exe);
         c.arg("--alpm-worker");

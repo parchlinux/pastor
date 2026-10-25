@@ -6,6 +6,7 @@ use gtk4::glib;
 use pastor_core::Package;
 use pastor_store::Store;
 
+use crate::models::TxMonitor;
 use crate::views::{create_loading_view, create_package_list_view};
 
 pub struct SearchController {
@@ -16,7 +17,8 @@ pub struct SearchController {
 pub fn setup_search_controller(
     search_entry: &gtk4::SearchEntry,
     store: &Store,
-    navigate_to_view: Rc<dyn Fn(&str, gtk4::Widget)>,
+    monitor: &TxMonitor,
+    navigate_to_view: Rc<dyn Fn(&str, Option<gtk4::Widget>)>,
     on_select_pkg: impl Fn(Package) + 'static + Clone,
     on_tx_start: impl Fn(tokio::sync::mpsc::Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
     go_back: Rc<dyn Fn()>,
@@ -31,6 +33,7 @@ pub fn setup_search_controller(
     let execute_search = {
         let nav = navigate_to_view.clone();
         let store = store.clone();
+        let monitor = monitor.clone();
         let on_sel = on_select_pkg.clone();
         let on_tx = on_tx_start.clone();
         let cur_t = active_section_title.clone();
@@ -60,6 +63,7 @@ pub fn setup_search_controller(
 
             let nav_s = nav.clone();
             let store_s = store.clone();
+            let monitor_s = monitor.clone();
             let on_sel_s = on_sel.clone();
             let on_tx_s = on_tx.clone();
             let q_title = format!("Search results for \"{}\"", trimmed);
@@ -70,10 +74,10 @@ pub fn setup_search_controller(
 
             nav_s(
                 "search",
-                create_loading_view(
+                Some(create_loading_view(
                     &q_title,
                     "Searching repositories and Flathub catalog…",
-                ),
+                )),
             );
 
             glib::spawn_future_local(async move {
@@ -96,10 +100,13 @@ pub fn setup_search_controller(
                         "Filtered packages matching your search query across all active ecosystems",
                         results,
                         store_s,
+                        monitor_s,
                         on_sel_s,
                         on_tx_s,
-                    );
-                    nav_s("search", list_view);
+                        false,
+                    )
+                    .widget;
+                    nav_s("search", Some(list_view));
                 }
             });
         })
@@ -132,10 +139,10 @@ pub fn setup_search_controller(
 
             nav_c(
                 "details",
-                create_loading_view(
+                Some(create_loading_view(
                     &format!("Loading {}…", target_name),
                     "Querying repositories, AUR, and Flathub catalog…",
-                ),
+                )),
             );
 
             glib::spawn_future_local(async move {
@@ -160,7 +167,7 @@ pub fn setup_search_controller(
                             .title(format!("Package '{}' Not Found", target_name))
                             .description("The requested package was not found in active repositories, AUR, or Flatpak.")
                             .build();
-                        nav_c("details", not_found_page.upcast());
+                        nav_c("details", Some(not_found_page.upcast()));
                     }
                 }
             });

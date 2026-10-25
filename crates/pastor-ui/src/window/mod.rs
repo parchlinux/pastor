@@ -4,8 +4,9 @@ use std::rc::Rc;
 use adw::prelude::*;
 use gtk4::{gio, glib};
 use pastor_core::{Package, PackageCategory};
-use pastor_store::{ActiveTransactionEvent, Store};
+use pastor_store::Store;
 
+use crate::models::{TxMonitor, TxPhase};
 use crate::{
     dialogs::show_shortcuts_dialog,
     views::{
@@ -83,6 +84,7 @@ impl MainWindow {
             .visible(false)
             .valign(gtk4::Align::Center)
             .build();
+        reveal_sidebar_btn.update_property(&[gtk4::accessible::Property::Label("Open sidebar")]);
         content_header.pack_start(&reveal_sidebar_btn);
 
         // Standard GNOME HeaderBar Back Button
@@ -92,6 +94,7 @@ impl MainWindow {
             .tooltip_text("Back")
             .visible(false)
             .build();
+        header_back_btn.update_property(&[gtk4::accessible::Property::Label("Go back")]);
         content_header.pack_start(&header_back_btn);
 
         // Dynamic AdwWindowTitle for modern GNOME header
@@ -150,15 +153,46 @@ impl MainWindow {
 
         let transaction_bar = TransactionBar::new();
 
+        // Narrow-window adaptive mode: applies .pastor-narrow so CSS can compact
+        // chips below 550 px and collapses the transaction bar console button.
+        let narrow_bp = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
+            adw::BreakpointConditionLengthType::MaxWidth,
+            550.0,
+            adw::LengthUnit::Px,
+        ));
+        {
+            let w = window.clone();
+            let bar = transaction_bar.clone();
+            narrow_bp.connect_apply(move |_| {
+                w.add_css_class("pastor-narrow");
+                bar.set_narrow(true);
+            });
+        }
+        {
+            let w = window.clone();
+            let bar = transaction_bar.clone();
+            narrow_bp.connect_unapply(move |_| {
+                w.remove_css_class("pastor-narrow");
+                bar.set_narrow(false);
+            });
+        }
+        window.add_breakpoint(narrow_bp);
+
         content_container.append(&content_stack);
         content_container.append(transaction_bar.widget());
-        content_toolbar.set_content(Some(&content_container));
+
+        // Toasts for terminal transaction outcomes
+        let toast_overlay = adw::ToastOverlay::new();
+        toast_overlay.set_child(Some(&content_container));
+
+        content_toolbar.set_content(Some(&toast_overlay));
 
         split_view.set_content(Some(&content_toolbar));
         window.set_content(Some(&split_view));
 
         // Shared Navigation Controller State
         let store_rc = store.clone();
+        let tx_monitor = TxMonitor::new(&store_rc);
         let content_stack_rc = content_stack.clone();
         let tx_bar_rc = transaction_bar.clone();
 
@@ -204,8 +238,10 @@ impl MainWindow {
             });
         }
 
-        let reload_inst_holder: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
-        let reload_inst_holder_back = reload_inst_holder.clone();
+        // Holder for the Installed view's in-place data setter (kept alive while
+        // the keep-alive "installed" stack child exists).
+        let installed_setter: Rc<RefCell<Option<Rc<dyn Fn(Vec<Package>)>>>> =
+            Rc::new(RefCell::new(None));
 
         let go_back = {
             let history_rc = nav_history.clone();
@@ -215,7 +251,6 @@ impl MainWindow {
             let cur_t = active_section_title.clone();
             let cur_s = active_section_sub.clone();
             let sync_fn = sync_title.clone();
-            let r_holder = reload_inst_holder_back.clone();
             Rc::new(move || {
                 let (prev_opt, is_empty) = {
                     let mut hist = history_rc.borrow_mut();
@@ -228,11 +263,6 @@ impl MainWindow {
                     *page_ref.borrow_mut() = prev.clone();
                     if is_empty {
                         back_btn_clone.set_visible(false);
-                    }
-                    if prev == "installed" {
-                        if let Some(ref r) = *r_holder.borrow() {
-                            r();
-                        }
                     }
                     let (t, s) = match prev.as_str() {
                         "explore" => ("Explore", ""),
@@ -325,7 +355,8 @@ impl MainWindow {
         });
         window.add_controller(key_controller);
 
-        // Helper to switch page views
+        // Helper to switch page views. `Some(widget)` replaces/creates the named
+        // child; `None` only reveals an existing keep-alive view.
         let navigate_to_view = {
             let content_stack = content_stack_rc.clone();
             let page_ref = current_page_name.clone();
@@ -334,7 +365,7 @@ impl MainWindow {
             let cur_t = active_section_title.clone();
             let cur_s = active_section_sub.clone();
             let sync_fn = sync_title.clone();
-            Rc::new(move |name: &str, widget: gtk4::Widget| {
+            Rc::new(move |name: &str, widget: Option<gtk4::Widget>| {
                 let cur = page_ref.borrow().clone();
                 if cur != name {
                     if name == "details" || name == "snapshots" || name == "downgrade" || name == "settings" {
@@ -359,11 +390,20 @@ impl MainWindow {
                 *cur_s.borrow_mut() = s.to_string();
                 sync_fn();
 
-                if let Some(existing) = content_stack.child_by_name(name) {
-                    content_stack.remove(&existing);
+                match widget {
+                    Some(w) => {
+                        if let Some(existing) = content_stack.child_by_name(name) {
+                            content_stack.remove(&existing);
+                        }
+                        content_stack.add_named(&w, Some(name));
+                        content_stack.set_visible_child_name(name);
+                    }
+                    None => {
+                        if content_stack.child_by_name(name).is_some() {
+                            content_stack.set_visible_child_name(name);
+                        }
+                    }
                 }
-                content_stack.add_named(&widget, Some(name));
-                content_stack.set_visible_child_name(name);
                 *page_ref.borrow_mut() = name.to_string();
             })
         };
@@ -389,6 +429,7 @@ impl MainWindow {
         let on_select_pkg = {
             let nav = navigate_to_view.clone();
             let store = store_rc.clone();
+            let monitor = tx_monitor.clone();
             let on_tx = on_tx_start.clone();
             let go_back_pkg = go_back.clone();
             let cur_t = active_section_title.clone();
@@ -415,7 +456,7 @@ impl MainWindow {
                         },
                         tx_dw.clone(),
                     );
-                    nav_dw("downgrade", down_view);
+                    nav_dw("downgrade", Some(down_view));
                 };
 
                 let holder_c = holder_for_closure.clone();
@@ -428,11 +469,12 @@ impl MainWindow {
                 let details_view = create_package_details_view(
                     pkg,
                     store.clone(),
+                    monitor.clone(),
                     on_sel_recurse,
                     on_downgrade,
                     on_tx.clone(),
                 );
-                nav("details", details_view);
+                nav("details", Some(details_view));
             }
         };
 
@@ -467,33 +509,134 @@ impl MainWindow {
         let on_category_select = {
             let nav_inner_c = navigate_to_view.clone();
             let store_inner_c = store_rc.clone();
+            let monitor_inner_c = tx_monitor.clone();
             let on_sel_inner_c = on_select_pkg.clone();
             let on_tx_inner_c = on_tx_start.clone();
             let cur_t = active_section_title.clone();
             let cur_s = active_section_sub.clone();
             let sync_fn = sync_title.clone();
+            let page_ref_guard = current_page_name.clone();
             move |cat: PackageCategory| {
                 let nav_inner = nav_inner_c.clone();
                 let store_inner = store_inner_c.clone();
+                let monitor_inner = monitor_inner_c.clone();
                 let on_sel_inner = on_sel_inner_c.clone();
                 let on_tx_inner = on_tx_inner_c.clone();
+                let page_guard = page_ref_guard.clone();
                 *cur_t.borrow_mut() = cat.title().to_string();
                 *cur_s.borrow_mut() = "Category".to_string();
                 sync_fn();
+                nav_inner(
+                    "category",
+                    Some(create_loading_view(
+                        cat.title(),
+                        &format!("Fetching all {} applications…", cat.title()),
+                    )),
+                );
                 glib::spawn_future_local(async move {
                     if let Ok(pkgs) = store_inner.get_by_category(cat).await {
+                        if page_guard.borrow().as_str() != "category" {
+                            return;
+                        }
                         let list_view = create_package_list_view(
                             cat.title(),
                             "Browse applications in this category",
                             pkgs,
                             store_inner,
+                            monitor_inner,
                             on_sel_inner,
                             on_tx_inner,
-                        );
-                        nav_inner("category", list_view);
+                            false,
+                        )
+                        .widget;
+                        if page_guard.borrow().as_str() != "category" {
+                            return;
+                        }
+                        nav_inner("category", Some(list_view));
                     }
                 });
             }
+        };
+
+        // In-place data refresh for the keep-alive Installed view.
+        let refresh_installed_data = {
+            let store = store_rc.clone();
+            let setter = installed_setter.clone();
+            Rc::new(move || {
+                let s = store.clone();
+                let setter = setter.clone();
+                glib::spawn_future_local(async move {
+                    if let Ok(mut pkgs) = s.get_installed().await {
+                        // Include any actively installing packages in the list as live rows
+                        let active = s.get_active_transactions();
+                        for act in active {
+                            if !pkgs.iter().any(|p| p.id == act.package_id) {
+                                if let Ok(Some(pkg)) = s.get_package(&act.package_id).await {
+                                    pkgs.insert(0, pkg);
+                                }
+                            }
+                        }
+                        if let Some(set) = setter.borrow().as_ref() {
+                            set(pkgs);
+                        }
+                    }
+                });
+            })
+        };
+
+        // Build (or reveal + refresh) the keep-alive Installed view.
+        let show_installed_impl = {
+            let nav = navigate_to_view.clone();
+            let store = store_rc.clone();
+            let monitor = tx_monitor.clone();
+            let sel = on_select_pkg.clone();
+            let tx = on_tx_start.clone();
+            let setter = installed_setter.clone();
+            let refresh_data = refresh_installed_data.clone();
+            Rc::new(move || {
+                if setter.borrow().is_some() {
+                    nav("installed", None);
+                    refresh_data();
+                } else {
+                    nav(
+                        "installed",
+                        Some(create_loading_view(
+                            "Installed Software",
+                            "Scanning installed packages and Flatpaks on your system…",
+                        )),
+                    );
+                    let s = store.clone();
+                    let monitor = monitor.clone();
+                    let sel = sel.clone();
+                    let tx = tx.clone();
+                    let nav_c = nav.clone();
+                    let setter = setter.clone();
+                    glib::spawn_future_local(async move {
+                        if let Ok(mut pkgs) = s.get_installed().await {
+                            let active = s.get_active_transactions();
+                            for act in active {
+                                if !pkgs.iter().any(|p| p.id == act.package_id) {
+                                    if let Ok(Some(pkg)) = s.get_package(&act.package_id).await {
+                                        pkgs.insert(0, pkg);
+                                    }
+                                }
+                            }
+                            let view = create_package_list_view(
+                                "Installed Software",
+                                "Applications and system packages currently installed on your ParchLinux system",
+                                pkgs,
+                                s,
+                                monitor,
+                                sel,
+                                tx,
+                                true,
+                            );
+                            *setter.borrow_mut() = Some(view.set_packages.clone());
+                            nav_c("installed", Some(view.widget));
+                        }
+                    });
+                }
+            })
         };
 
         // Connect Transaction Bar Cancel Button
@@ -524,133 +667,86 @@ impl MainWindow {
             on_tx_start.clone(),
         );
 
-        let reload_installed = {
-            let nav_i = navigate_to_view.clone();
-            let store_i = store_rc.clone();
-            let sel = on_select_pkg.clone();
-            let tx = on_tx_start.clone();
-            Rc::new(move || {
-                let n = nav_i.clone();
-                let s = store_i.clone();
-                let sel_c = sel.clone();
-                let tx_c = tx.clone();
-                glib::spawn_future_local(async move {
-                    if let Ok(mut pkgs) = s.get_installed().await {
-                        // Include any actively installing packages in the list as live rows
-                        let active = s.get_active_transactions();
-                        for act in active {
-                            if !pkgs.iter().any(|p| p.id == act.package_id) {
-                                if let Ok(Some(pkg)) = s.get_package(&act.package_id).await {
-                                    pkgs.insert(0, pkg);
-                                }
-                            }
-                        }
-
-                        let list_view = create_package_list_view(
-                            "Installed Software",
-                            "Applications and system packages currently installed on your ParchLinux system",
-                            pkgs,
-                            s,
-                            sel_c,
-                            tx_c,
-                        );
-                        n("installed", list_view);
-                    }
-                });
-            })
-        };
-
-        *reload_inst_holder.borrow_mut() = Some(reload_installed.clone());
-
-        // Reactive stream from store
+        // Reactive stream: single TxMonitor drives ops popover, cancel affordance,
+        // toasts, and installed-view refresh.
         {
-            let mut sub = store_rc.subscribe_transactions();
-            let update_ops = update_ops_ui.clone();
-            let reload_on_tx = reload_installed.clone();
+
+            let upd1 = update_ops_ui.clone();
+            let bar1 = transaction_bar.clone();
+            let monitor_for_started = tx_monitor.clone();
+            monitor_for_started.connect_started(move |_| {
+                upd1();
+                bar1.set_cancel_visible(true);
+            });
+
+            let upd2 = update_ops_ui.clone();
+            let monitor_for_progress = tx_monitor.clone();
+            monitor_for_progress.connect_progress(move |_| {
+                upd2();
+            });
+
+            let upd3 = update_ops_ui.clone();
+            let bar3 = transaction_bar.clone();
+            let toast_overlay_c = toast_overlay.clone();
             let page_chk = current_page_name.clone();
-            glib::spawn_future_local(async move {
-                loop {
-                    match sub.recv().await {
-                        Ok(evt) => {
-                            update_ops();
-                            if let ActiveTransactionEvent::Completed(_) = evt {
-                                if *page_chk.borrow() == "installed" {
-                                    reload_on_tx();
-                                }
+            let refresh_installed = refresh_installed_data.clone();
+            let monitor_for_count = tx_monitor.clone();
+            let monitor_in = monitor_for_count.clone();
+            monitor_for_count.connect_terminal(move |key, phase| {
+                upd3();
+                if monitor_in.active_count() == 0 {
+                    bar3.set_cancel_visible(false);
+                }
+
+                if *page_chk.borrow() == "installed" && phase == TxPhase::Success {
+                    refresh_installed();
+                }
+
+                // Toast feedback for terminal outcomes (install/remove paths only;
+                // batch update_all events do not pass through the broadcast bus).
+                let tx_name = monitor_in
+                    .tx_for_key(key)
+                    .map(|tx| tx.property::<String>("name"))
+                    .unwrap_or_else(|| key.to_string());
+                match phase {
+                    TxPhase::Success => {
+                        let toast = adw::Toast::new(&format!("✓ {}", tx_name));
+                        toast.set_timeout(4);
+                        toast_overlay_c.add_toast(toast);
+                    }
+                    TxPhase::Failed => {
+                        let detail = monitor_in
+                            .tx_for_key(key)
+                            .map(|tx| tx.property::<String>("log"))
+                            .unwrap_or_default();
+                        let title = if detail.is_empty() {
+                            format!("Failed: {}", tx_name)
+                        } else {
+                            let first_line = detail.lines().next().unwrap_or("").to_string();
+                            let mut line = first_line;
+                            if line.len() > 160 {
+                                line.truncate(160);
+                                line.push('…');
                             }
-                        }
-                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
-                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                            format!("Failed: {} — {}", tx_name, line)
+                        };
+                        let toast = adw::Toast::new(&title);
+                        toast.set_timeout(6);
+                        toast.set_priority(adw::ToastPriority::High);
+                        toast_overlay_c.add_toast(toast);
                     }
+                    TxPhase::Cancelled | TxPhase::Active => {}
                 }
             });
         }
 
-        // Initial explore view
-        {
-            let on_cat = on_category_select.clone();
-            let explore_view = create_explore_view(
-                store_rc.clone(),
-                on_select_pkg.clone(),
-                on_cat,
-                on_tx_start.clone(),
-            );
-            navigate_to_view("explore", explore_view);
-        }
-
-        // Connect Sidebar Nav List
-        {
+        // Keep-alive show impls: create the view on first visit, reveal + refresh
+        // on subsequent visits (data refreshes in place, widget tree is reused).
+        let show_explore_impl: Rc<dyn Fn()> = {
             let nav = navigate_to_view.clone();
+            let stack = content_stack_rc.clone();
             let store = store_rc.clone();
-            let on_sel = on_select_pkg.clone();
-            let on_tx = on_tx_start.clone();
-            let on_cat = on_category_select.clone();
-            let split_for_nav = split_view.clone();
-            let reload_inst_for_sidebar = reload_installed.clone();
-
-            sidebar.nav_list.connect_row_activated(move |_, row| {
-                if split_for_nav.is_collapsed() {
-                    split_for_nav.set_show_sidebar(false);
-                }
-                let idx = row.index();
-                match idx {
-                    0 => {
-                        let explore = create_explore_view(
-                            store.clone(),
-                            on_sel.clone(),
-                            on_cat.clone(),
-                            on_tx.clone(),
-                        );
-                        nav("explore", explore);
-                    }
-                    1 => {
-                        let nav_i = nav.clone();
-                        let r_inst = reload_inst_for_sidebar.clone();
-                        nav_i(
-                            "installed",
-                            create_loading_view(
-                                "Installed Software",
-                                "Scanning installed packages and Flatpaks on your system…",
-                            ),
-                        );
-                        r_inst();
-                    }
-                    2 => {
-                        let updates_view = create_updates_view(
-                            store.clone(),
-                            on_sel.clone(),
-                            on_tx.clone(),
-                        );
-                        nav("updates", updates_view);
-                    }
-                    _ => {}
-                }
-            });
-        }
-
-        let show_explore_fn: Rc<dyn Fn()> = {
-            let nav = navigate_to_view.clone();
-            let store = store_rc.clone();
+            let monitor = tx_monitor.clone();
             let on_sel = on_select_pkg.clone();
             let on_cat_c = on_category_select.clone();
             let on_tx = on_tx_start.clone();
@@ -659,55 +755,72 @@ impl MainWindow {
                 if let Some(row) = nav_list.row_at_index(0) {
                     nav_list.select_row(Some(&row));
                 }
-                let explore = create_explore_view(
-                    store.clone(),
-                    on_sel.clone(),
-                    on_cat_c.clone(),
-                    on_tx.clone(),
-                );
-                nav("explore", explore);
-            })
-        };
-
-        let show_installed_fn: Rc<dyn Fn()> = {
-            let nav = navigate_to_view.clone();
-            let r_holder = reload_inst_holder.clone();
-            let nav_list = sidebar.nav_list.clone();
-            Rc::new(move || {
-                if let Some(row) = nav_list.row_at_index(1) {
-                    nav_list.select_row(Some(&row));
-                }
-                nav(
-                    "installed",
-                    create_loading_view(
-                        "Installed Software",
-                        "Scanning installed packages and Flatpaks on your system…",
-                    ),
-                );
-                if let Some(r_inst) = r_holder.borrow().as_ref() {
-                    r_inst();
+                if stack.child_by_name("explore").is_some() {
+                    nav("explore", None);
+                } else {
+                    let explore = create_explore_view(
+                        store.clone(),
+                        monitor.clone(),
+                        on_sel.clone(),
+                        on_cat_c.clone(),
+                        on_tx.clone(),
+                    );
+                    nav("explore", Some(explore));
                 }
             })
         };
 
-        let show_updates_fn: Rc<dyn Fn()> = {
+        let updates_refresh_holder: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
+        let show_updates_impl: Rc<dyn Fn()> = {
             let nav = navigate_to_view.clone();
             let store = store_rc.clone();
+            let monitor = tx_monitor.clone();
             let on_sel = on_select_pkg.clone();
             let on_tx = on_tx_start.clone();
             let nav_list = sidebar.nav_list.clone();
+            let holder = updates_refresh_holder.clone();
             Rc::new(move || {
                 if let Some(row) = nav_list.row_at_index(2) {
                     nav_list.select_row(Some(&row));
                 }
-                let updates_view = create_updates_view(
-                    store.clone(),
-                    on_sel.clone(),
-                    on_tx.clone(),
-                );
-                nav("updates", updates_view);
+                if let Some(refresh) = holder.borrow().as_ref() {
+                    nav("updates", None);
+                    refresh();
+                } else {
+                    let updates_view = create_updates_view(
+                        store.clone(),
+                        monitor.clone(),
+                        on_sel.clone(),
+                        on_tx.clone(),
+                    );
+                    *holder.borrow_mut() = Some(updates_view.refresh.clone());
+                    nav("updates", Some(updates_view.widget));
+                }
             })
         };
+
+        // Initial explore view
+        show_explore_impl();
+
+        // Connect Sidebar Nav List
+        {
+            let split_for_nav = split_view.clone();
+            let show_explore = show_explore_impl.clone();
+            let show_installed = show_installed_impl.clone();
+            let show_updates = show_updates_impl.clone();
+
+            sidebar.nav_list.connect_row_activated(move |_, row| {
+                if split_for_nav.is_collapsed() {
+                    split_for_nav.set_show_sidebar(false);
+                }
+                match row.index() {
+                    0 => show_explore(),
+                    1 => show_installed(),
+                    2 => show_updates(),
+                    _ => {}
+                }
+            });
+        }
 
         let app_handle = app.clone();
         let show_settings_fn: Rc<dyn Fn()> = {
@@ -735,6 +848,7 @@ impl MainWindow {
         let search_controller = setup_search_controller(
             &sidebar.search_entry,
             &store_rc,
+            &tx_monitor,
             navigate_to_view.clone(),
             on_select_pkg.clone(),
             on_tx_start.clone(),
@@ -749,6 +863,7 @@ impl MainWindow {
         {
             let nav = navigate_to_view.clone();
             let store = store_rc.clone();
+            let monitor = tx_monitor.clone();
             let on_sel = on_select_pkg.clone();
             let on_tx = on_tx_start.clone();
             let split_for_cat = split_view.clone();
@@ -766,15 +881,16 @@ impl MainWindow {
                     wt_cat.set_subtitle(cat.title());
                     let nav_c = nav.clone();
                     let store_c = store.clone();
+                    let monitor_c = monitor.clone();
                     let on_sel_c = on_sel.clone();
                     let on_tx_c = on_tx.clone();
 
                     nav_c(
                         "category",
-                        create_loading_view(
+                        Some(create_loading_view(
                             cat.title(),
                             &format!("Fetching all {} applications…", cat.title()),
-                        ),
+                        )),
                     );
 
                     let page_ref_cat = page_ref_for_cat.clone();
@@ -788,10 +904,16 @@ impl MainWindow {
                                 "Browse applications in this category",
                                 pkgs,
                                 store_c,
+                                monitor_c,
                                 on_sel_c,
                                 on_tx_c,
-                            );
-                            nav_c("category", list_view);
+                                false,
+                            )
+                            .widget;
+                            if page_ref_cat.borrow().as_str() != "category" {
+                                return;
+                            }
+                            nav_c("category", Some(list_view));
                         }
                     });
                 }
@@ -800,9 +922,9 @@ impl MainWindow {
 
         Self {
             window,
-            show_updates_fn,
-            show_explore_fn,
-            show_installed_fn,
+            show_updates_fn: show_updates_impl,
+            show_explore_fn: show_explore_impl,
+            show_installed_fn: show_installed_impl,
             show_settings_fn,
             show_snapshots_fn,
             show_downgrade_fn,

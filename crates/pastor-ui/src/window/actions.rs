@@ -14,7 +14,7 @@ pub fn setup_app_actions(
     window: &adw::ApplicationWindow,
     split_view: &adw::OverlaySplitView,
     store: &Store,
-    navigate_to_view: Rc<dyn Fn(&str, gtk4::Widget)>,
+    navigate_to_view: Rc<dyn Fn(&str, Option<gtk4::Widget>)>,
     go_back: Rc<dyn Fn()>,
     on_tx_start: impl Fn(tokio::sync::mpsc::Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
 ) {
@@ -45,7 +45,7 @@ pub fn setup_app_actions(
             let snaps_view = create_snapshots_view(s_backend.clone(), move || {
                 go_back_c();
             });
-            nav_snaps_cb("snapshots", snaps_view);
+            nav_snaps_cb("snapshots", Some(snaps_view));
         };
 
         crate::views::show_settings_window(
@@ -70,7 +70,7 @@ pub fn setup_app_actions(
                 go_back_c();
             },
         );
-        nav_snapshots("snapshots", snaps_view);
+        nav_snapshots("snapshots", Some(snaps_view));
     });
     app.add_action(&action_snapshots);
 
@@ -90,7 +90,7 @@ pub fn setup_app_actions(
             },
             tx_down.clone(),
         );
-        nav_downgrade("downgrade", down_view);
+        nav_downgrade("downgrade", Some(down_view));
     });
     app.add_action(&action_downgrade);
 

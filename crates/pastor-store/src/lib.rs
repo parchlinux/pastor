@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 
 use futures::future::join_all;
@@ -38,12 +38,21 @@ pub struct Store {
     snapshot_backend: Arc<dyn SnapshotBackend>,
     modules: Arc<RwLock<ModuleConfig>>,
     active_transactions: Arc<RwLock<HashMap<PackageId, ActiveTransactionInfo>>>,
+    /// Transactions cancelled by the user. Both the event key and the cleaned
+    /// package name are recorded so loosely-matched events are also stopped;
+    /// checked in every install/remove event loop to prevent the transaction
+    /// from resurrecting after a cancel.
+    cancelled: Arc<RwLock<HashSet<String>>>,
     tx_broadcaster: broadcast::Sender<ActiveTransactionEvent>,
 }
 
 impl Store {
     pub fn new() -> Self {
-        cleanup_stale_caches();
+        // Cache cleanup touches many files; do it off the startup path.
+        std::thread::Builder::new()
+            .name("pastor-cache-cleanup".into())
+            .spawn(cleanup_stale_caches)
+            .ok();
 
         let mut backends: Vec<Arc<dyn PackageBackend>> = Vec::new();
         let mut aur_backend: Option<Arc<AurBackend>> = None;
@@ -100,6 +109,7 @@ impl Store {
             snapshot_backend,
             modules: Arc::new(RwLock::new(ModuleConfig::load())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
+            cancelled: Arc::new(RwLock::new(HashSet::new())),
             tx_broadcaster,
         }
     }
@@ -112,6 +122,7 @@ impl Store {
             snapshot_backend: Arc::new(NullSnapshotBackend),
             modules: Arc::new(RwLock::new(ModuleConfig::default())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
+            cancelled: Arc::new(RwLock::new(HashSet::new())),
             tx_broadcaster,
         }
     }
@@ -127,6 +138,7 @@ impl Store {
             snapshot_backend,
             modules: Arc::new(RwLock::new(ModuleConfig::load())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
+            cancelled: Arc::new(RwLock::new(HashSet::new())),
             tx_broadcaster,
         }
     }
@@ -142,6 +154,7 @@ impl Store {
             snapshot_backend: snap,
             modules: Arc::new(RwLock::new(ModuleConfig::load())),
             active_transactions: Arc::new(RwLock::new(HashMap::new())),
+            cancelled: Arc::new(RwLock::new(HashSet::new())),
             tx_broadcaster,
         }
     }
@@ -457,7 +470,10 @@ impl Store {
     pub async fn prepare_aur_scan(
         &self,
         package_name: &str,
-    ) -> Result<(String, pastor_aur::TrustReport, pastor_aur::ScanReport, String), PastorError> {
+    ) -> Result<
+        (String, pastor_aur::TrustReport, pastor_aur::ScanReport, String, Vec<String>),
+        PastorError,
+    > {
         if let Some(ref aur) = self.aur_backend {
             aur.prepare_and_scan(package_name).await
         } else {
@@ -505,9 +521,23 @@ impl Store {
         self.get_active_transaction(id).is_some()
     }
 
+    /// Check whether a transaction for `id` (or a clean-name match) is already
+    /// running — guards against double-clicks spawning duplicate pipelines.
+    fn is_transaction_active(&self, id: &PackageId) -> bool {
+        self.get_active_transaction(id).is_some()
+    }
+
     pub async fn cancel_installation(&self, id: &PackageId) -> Result<(), PastorError> {
         for b in &self.backends {
             let _ = b.cancel(id).await;
+        }
+        // Record the cancellation so in-flight install/remove event loops stop
+        // forwarding events and stop re-inserting into the active map (which
+        // used to resurrect the transaction in the UI after a cancel).
+        {
+            let mut set = self.cancelled.write().unwrap();
+            set.insert(id.event_key());
+            set.insert(id.clean_name());
         }
         let mut was_active = false;
         if let Ok(mut guard) = self.active_transactions.write() {
@@ -535,8 +565,32 @@ impl Store {
     /// Trigger installation and return a stream of transaction events
     pub fn install(&self, id: PackageId) -> Receiver<TransactionEvent> {
         let (tx, rx): (Sender<TransactionEvent>, Receiver<TransactionEvent>) = mpsc::channel(100);
+        let config = self.module_config();
+
+        // Guard against double-clicks / duplicate dispatch spawning concurrent
+        // pipelines (pacman db lock contention, double AUR builds in one dir).
+        if self.is_transaction_active(&id) {
+            let failed = TransactionEvent {
+                step: TransactionStep::Failed(format!(
+                    "'{}' is already being processed; wait for the active operation to finish",
+                    id.name
+                )),
+                progress_fraction: 1.0,
+                log_message: format!("Refused duplicate transaction for '{}'", id.name),
+            };
+            let _ = self.tx_broadcaster.send(ActiveTransactionEvent::Failed(
+                id.clone(),
+                "duplicate transaction refused".to_string(),
+            ));
+            tokio::spawn(async move {
+                let _ = tx.send(failed).await;
+            });
+            return rx;
+        }
+
         let backends = self.backends.clone();
         let active_map = self.active_transactions.clone();
+        let cancelled = self.cancelled.clone();
         let broadcaster = self.tx_broadcaster.clone();
 
         let pkg_name = id.name.clone();
@@ -555,7 +609,11 @@ impl Store {
 
         tokio::spawn(async move {
             let (backend_tx, mut backend_rx) = mpsc::channel::<TransactionEvent>(100);
-            let b_clone = backends.iter().filter(|b| b.handles(&id)).cloned().collect::<Vec<_>>();
+            let b_clone = backends
+                .iter()
+                .filter(|b| b.handles(&id) && is_backend_enabled_for(b.as_ref(), &config))
+                .cloned()
+                .collect::<Vec<_>>();
             let id_clone = id.clone();
 
             if b_clone.is_empty() {
@@ -578,6 +636,8 @@ impl Store {
             }
 
             let join_handle = tokio::spawn(async move {
+                // Source-based routing means exactly one backend should handle
+                // the id; never fan out to further backends after the first.
                 for b in b_clone {
                     if let Err(e) = b.install(&id_clone, backend_tx.clone()).await {
                         let _ = backend_tx
@@ -588,10 +648,17 @@ impl Store {
                             })
                             .await;
                     }
+                    break;
                 }
             });
 
             while let Some(evt) = backend_rx.recv().await {
+                if is_cancelled_for(&cancelled, &id) {
+                    // User cancelled: stop forwarding events and leave the map
+                    // cleared. The backend pipeline may still finish in the
+                    // background; its remaining events are dropped.
+                    break;
+                }
                 match &evt.step {
                     TransactionStep::Completed => {
                         if let Ok(mut guard) = active_map.write() {
@@ -634,6 +701,13 @@ impl Store {
             if let Ok(mut guard) = active_map.write() {
                 guard.remove(&id);
             }
+            // Clear this transaction's cancellation entries so a later install
+            // of the same package is not refused at its first event.
+            {
+                let mut set = cancelled.write().unwrap();
+                set.remove(&id.event_key());
+                set.remove(&id.clean_name());
+            }
         });
 
         rx
@@ -642,8 +716,30 @@ impl Store {
     /// Trigger removal and return a stream of transaction events
     pub fn remove(&self, id: PackageId) -> Receiver<TransactionEvent> {
         let (tx, rx): (Sender<TransactionEvent>, Receiver<TransactionEvent>) = mpsc::channel(100);
+        let config = self.module_config();
+
+        if self.is_transaction_active(&id) {
+            let failed = TransactionEvent {
+                step: TransactionStep::Failed(format!(
+                    "'{}' is already being processed; wait for the active operation to finish",
+                    id.name
+                )),
+                progress_fraction: 1.0,
+                log_message: format!("Refused duplicate transaction for '{}'", id.name),
+            };
+            let _ = self.tx_broadcaster.send(ActiveTransactionEvent::Failed(
+                id.clone(),
+                "duplicate transaction refused".to_string(),
+            ));
+            tokio::spawn(async move {
+                let _ = tx.send(failed).await;
+            });
+            return rx;
+        }
+
         let backends = self.backends.clone();
         let active_map = self.active_transactions.clone();
+        let cancelled = self.cancelled.clone();
         let broadcaster = self.tx_broadcaster.clone();
 
         let pkg_name = id.name.clone();
@@ -666,7 +762,11 @@ impl Store {
 
         tokio::spawn(async move {
             let (backend_tx, mut backend_rx) = mpsc::channel::<TransactionEvent>(100);
-            let b_clone = backends.iter().filter(|b| b.handles(&id)).cloned().collect::<Vec<_>>();
+            let b_clone = backends
+                .iter()
+                .filter(|b| b.handles(&id) && is_backend_enabled_for(b.as_ref(), &config))
+                .cloned()
+                .collect::<Vec<_>>();
             let id_clone = id.clone();
 
             if b_clone.is_empty() {
@@ -699,10 +799,17 @@ impl Store {
                             })
                             .await;
                     }
+                    break;
                 }
             });
 
             while let Some(evt) = backend_rx.recv().await {
+                if is_cancelled_for(&cancelled, &id) {
+                    // User cancelled: stop forwarding events and leave the map
+                    // cleared. The backend pipeline may still finish in the
+                    // background; its remaining events are dropped.
+                    break;
+                }
                 match &evt.step {
                     TransactionStep::Completed => {
                         if let Ok(mut guard) = active_map.write() {
@@ -745,6 +852,13 @@ impl Store {
             if let Ok(mut guard) = active_map.write() {
                 guard.remove(&id);
             }
+            // Clear this transaction's cancellation entries so a later install
+            // of the same package is not refused at its first event.
+            {
+                let mut set = cancelled.write().unwrap();
+                set.remove(&id.event_key());
+                set.remove(&id.clean_name());
+            }
         });
 
         rx
@@ -752,10 +866,13 @@ impl Store {
 
     /// Retrieve available downgrade versions
     pub async fn get_downgrade_versions(&self, id: &PackageId) -> Result<Vec<String>, PastorError> {
+        let config = self.module_config();
         for b in &self.backends {
-            if let Ok(versions) = b.downgrade_versions(id).await {
-                if !versions.is_empty() {
-                    return Ok(versions);
+            if is_backend_enabled_for(b.as_ref(), &config) {
+                if let Ok(versions) = b.downgrade_versions(id).await {
+                    if !versions.is_empty() {
+                        return Ok(versions);
+                    }
                 }
             }
         }
@@ -916,7 +1033,7 @@ impl Store {
                 })
                 .await;
 
-            let mut has_errors = false;
+            let mut errors: Vec<String> = Vec::new();
             for b in enabled_backends {
                 let (b_tx, mut b_rx) = mpsc::channel(100);
                 let b_clone = b.clone();
@@ -929,18 +1046,24 @@ impl Store {
                 }
 
                 if let Ok(Err(e)) = join_h.await {
-                    has_errors = true;
+                    errors.push(format!("{}: {}", b.name(), e));
+                    // Non-terminal mid-stream error so the UI does not treat the
+                    // whole batch as finished; one terminal event follows below.
                     let _ = tx
                         .send(TransactionEvent {
-                            step: TransactionStep::Failed(e.to_string()),
-                            progress_fraction: 1.0,
+                            step: TransactionStep::ApplyingChanges {
+                                package: b.name().to_string(),
+                                index: 1,
+                                total: 1,
+                            },
+                            progress_fraction: 0.9,
                             log_message: format!("Database refresh error in {}: {}", b.name(), e),
                         })
                         .await;
                 }
             }
 
-            if !has_errors {
+            if errors.is_empty() {
                 let _ = tx
                     .send(TransactionEvent {
                         step: TransactionStep::Completed,
@@ -948,9 +1071,32 @@ impl Store {
                         log_message: "Package databases synchronized successfully".to_string(),
                     })
                     .await;
+            } else {
+                let _ = tx
+                    .send(TransactionEvent {
+                        step: TransactionStep::Failed(errors.join("; ")),
+                        progress_fraction: 1.0,
+                        log_message: format!("Database refresh completed with errors: {}", errors.join("; ")),
+                    })
+                    .await;
             }
         });
 
         rx
     }
+}
+
+/// Module-config check usable from spawned tasks (mirrors `Store::is_backend_enabled`).
+fn is_backend_enabled_for(b: &dyn PackageBackend, config: &ModuleConfig) -> bool {
+    match b.name() {
+        "alpm" => config.enable_alpm,
+        "flatpak" => config.enable_flatpak,
+        "aur" => config.enable_aur,
+        _ => true,
+    }
+}
+
+fn is_cancelled_for(cancelled: &RwLock<HashSet<String>>, id: &PackageId) -> bool {
+    let set = cancelled.read().unwrap();
+    set.contains(&id.event_key()) || set.contains(&id.clean_name())
 }

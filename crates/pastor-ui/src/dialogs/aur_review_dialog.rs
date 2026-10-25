@@ -8,6 +8,7 @@ pub fn show_aur_review_dialog(
     trust: &TrustReport,
     scan_report: &ScanReport,
     diff_text: &str,
+    missing_deps: &[String],
     on_confirm: impl FnOnce(bool) + 'static,
 ) {
     let window = adw::Window::builder()
@@ -155,6 +156,44 @@ pub fn show_aur_review_dialog(
     main_box.append(&scanner_box);
 
     // -------------------------------------------------------------
+    // 2b. Dependency disclosure: packages that will be installed as ROOT
+    // -------------------------------------------------------------
+    if !missing_deps.is_empty() {
+        let deps_box = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .spacing(8)
+            .css_classes(["card", "p-3"])
+            .build();
+
+        let deps_title = gtk4::Label::builder()
+            .label("Dependencies to be installed with elevated privileges")
+            .css_classes(["heading"])
+            .halign(gtk4::Align::Start)
+            .wrap(true)
+            .build();
+        deps_box.append(&deps_title);
+
+        let deps_body = gtk4::Label::builder()
+            .label(missing_deps.join(", "))
+            .css_classes(["caption"])
+            .halign(gtk4::Align::Start)
+            .wrap(true)
+            .wrap_mode(gtk4::pango::WrapMode::WordChar)
+            .build();
+        deps_box.append(&deps_body);
+
+        let deps_note = gtk4::Label::builder()
+            .label("These are official-repository packages required by the PKGBUILD. They will be installed via the pacman worker (marked as dependencies, removable later via `pacman -Qdt`). AUR dependencies are resolved and shown during the build.")
+            .css_classes(["caption", "dim-label"])
+            .halign(gtk4::Align::Start)
+            .wrap(true)
+            .build();
+        deps_box.append(&deps_note);
+
+        main_box.append(&deps_box);
+    }
+
+    // -------------------------------------------------------------
     // 3. Diff & Source Code Viewer (Monospace)
     // -------------------------------------------------------------
     let diff_title = gtk4::Label::builder()
@@ -186,6 +225,12 @@ pub fn show_aur_review_dialog(
     main_box.append(&scrolled_diff);
 
     let has_critical = scan_report.has_critical();
+    // S-004 gate: high-risk installs (first install / maintainer changed) must
+    // scroll through the full PKGBUILD review before Proceed unlocks.
+    let high_risk = matches!(
+        &trust.status,
+        TrustStatus::FirstInstall | TrustStatus::MaintainerChanged { .. }
+    );
 
     if has_critical {
         let block_box = gtk4::Box::builder()
@@ -238,6 +283,45 @@ pub fn show_aur_review_dialog(
 
     if has_critical {
         proceed_btn.set_tooltip_text(Some("Installation is blocked due to critical security threats"));
+    } else if high_risk {
+        proceed_btn.set_sensitive(false);
+        proceed_btn.set_tooltip_text(Some("Scroll through the full PKGBUILD review below to continue"));
+        proceed_btn.update_property(&[gtk4::accessible::Property::Description(
+            "Scroll through the full PKGBUILD review to enable this button",
+        )]);
+
+        let proceed_for_scroll = proceed_btn.clone();
+        let unlocked = std::rc::Rc::new(std::cell::Cell::new(false));
+        let unlocked_scroll = unlocked.clone();
+        let vadj = scrolled_diff.vadjustment();
+        vadj.connect_value_changed(move |adj| {
+            if unlocked_scroll.get() {
+                return;
+            }
+            let at_bottom = adj.value() + adj.page_size() >= adj.upper() - 4.0;
+            if at_bottom {
+                unlocked_scroll.set(true);
+                proceed_for_scroll.set_sensitive(true);
+                proceed_for_scroll.set_tooltip_text(None);
+            }
+        });
+        // Short diffs that fit without scrolling unlock on the next idle tick.
+        {
+            let proceed_for_idle = proceed_btn.clone();
+            let unlocked = unlocked.clone();
+            let vadj = vadj.clone();
+            glib::idle_add_local_once(move || {
+                if unlocked.get() {
+                    return;
+                }
+                let fits = vadj.upper() <= vadj.page_size() + 4.0 || vadj.page_size() == 0.0;
+                if fits {
+                    unlocked.set(true);
+                    proceed_for_idle.set_sensitive(true);
+                    proceed_for_idle.set_tooltip_text(None);
+                }
+            });
+        }
     }
 
     let win_proceed = window.clone();

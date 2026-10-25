@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use async_trait::async_trait;
@@ -25,6 +26,9 @@ pub struct AurBackend {
     alpm: Arc<AlpmBackend>,
     state_store: Arc<RwLock<AurStateStore>>,
     operation_lock: Arc<tokio::sync::Mutex<()>>,
+    /// Package names queued for cancellation; checked at every phase boundary
+    /// of the install pipeline (fetch, scan, deps, build, artifact install).
+    cancellations: Arc<RwLock<HashSet<String>>>,
 }
 
 impl AurBackend {
@@ -35,6 +39,7 @@ impl AurBackend {
             alpm,
             state_store: Arc::new(RwLock::new(AurStateStore::load())),
             operation_lock: Arc::new(tokio::sync::Mutex::new(())),
+            cancellations: Arc::new(RwLock::new(HashSet::new())),
         }
     }
 
@@ -50,11 +55,13 @@ impl AurBackend {
         // Bubblewrap sandbox is intentionally disabled per user configuration
     }
 
-    /// Perform pre-build security analysis and git synchronization
+    /// Perform pre-build security analysis and git synchronization. Also returns
+    /// the missing official-repo dependencies that the install pipeline would
+    /// install with elevated privileges, so the UI can show them for approval.
     pub async fn prepare_and_scan(
         &self,
         package_name: &str,
-    ) -> Result<(String, TrustReport, ScanReport, String), PastorError> {
+    ) -> Result<(String, TrustReport, ScanReport, String, Vec<String>), PastorError> {
         let repo = AurGitRepo::for_package(package_name);
         let current_commit = repo.sync()?;
 
@@ -73,8 +80,11 @@ impl AurBackend {
         let base_commit = store.get_record(package_name).map(|r| r.last_installed_commit.as_str());
         let diff = repo.get_diff(base_commit)?;
 
+        let all_deps = extract_dependencies(&repo.repo_dir);
+        let (missing_sync, _missing_other) = self.alpm.find_missing_sync_dependencies(&all_deps);
+
         let scan_report = ScanReport { findings };
-        Ok((current_commit, trust, scan_report, diff))
+        Ok((current_commit, trust, scan_report, diff, missing_sync))
     }
 }
 
@@ -233,6 +243,7 @@ impl PackageBackend for AurBackend {
     ) -> Result<(), PastorError> {
         let ups = self.updates().await?;
         let total = ups.len();
+        let mut errs: Vec<String> = Vec::new();
         for (idx, up) in ups.into_iter().enumerate() {
             let _ = progress_tx
                 .send(TransactionEvent {
@@ -246,9 +257,17 @@ impl PackageBackend for AurBackend {
                 })
                 .await;
 
-            self.install(&up.id, progress_tx.clone()).await?;
+            // Continue past failures so one broken package doesn't abandon the
+            // rest of the batch; errors are aggregated into one terminal event.
+            if let Err(e) = self.install(&up.id, progress_tx.clone()).await {
+                errs.push(format!("{}: {}", up.id.name, e));
+            }
         }
-        Ok(())
+        if errs.is_empty() {
+            Ok(())
+        } else {
+            Err(PastorError::TransactionFailed(errs.join(" | ")))
+        }
     }
 
     async fn install(
@@ -291,6 +310,16 @@ impl PackageBackend for AurBackend {
         Ok(())
     }
 
+    /// Queue cancellation for an AUR package. The flag is honoured at every
+    /// phase boundary of `install_internal` (fetch, scan, deps, build), so a
+    /// queued or in-flight build stops before its next elevated step. A makepkg
+    /// already running cannot be killed safely; it will run to completion but
+    /// its artifact is not installed afterwards.
+    async fn cancel(&self, id: &PackageId) -> Result<(), PastorError> {
+        self.cancellations.write().insert(id.name.clone());
+        Ok(())
+    }
+
     async fn downgrade_versions(&self, _id: &PackageId) -> Result<Vec<String>, PastorError> {
         Ok(vec![])
     }
@@ -317,6 +346,17 @@ impl AurBackend {
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), PastorError>> + Send + 'a>> {
         Box::pin(async move {
             let pkg_name = id.name.clone();
+
+            // Cancellation check helper: honoured at every phase boundary so a
+            // queued or in-flight build stops before the next root-reaching step.
+            let cancelled = |name: &str| self.cancellations.read().contains(name);
+            if cancelled(&pkg_name) {
+                self.cancellations.write().remove(&pkg_name);
+                return Err(PastorError::Cancelled(format!(
+                    "Installation of '{pkg_name}' was cancelled"
+                )));
+            }
+
             if visited.contains(&pkg_name) {
                 return Err(PastorError::TransactionFailed(format!(
                     "Circular dependency loop detected involving AUR package '{pkg_name}'"
@@ -335,6 +375,13 @@ impl AurBackend {
 
             let repo = AurGitRepo::for_package(&pkg_name);
             let current_commit = repo.sync()?;
+
+            if cancelled(&pkg_name) {
+                self.cancellations.write().remove(&pkg_name);
+                return Err(PastorError::Cancelled(format!(
+                    "Installation of '{pkg_name}' was cancelled"
+                )));
+            }
 
             let rpc_info = self.client.info(&pkg_name).await?;
             let maintainer = rpc_info.as_ref().and_then(|r| r.maintainer.as_deref());
@@ -381,6 +428,13 @@ impl AurBackend {
             let all_deps = extract_dependencies(&repo.repo_dir);
             let (missing_sync, missing_other) = self.alpm.find_missing_sync_dependencies(&all_deps);
 
+            if cancelled(&pkg_name) {
+                self.cancellations.write().remove(&pkg_name);
+                return Err(PastorError::Cancelled(format!(
+                    "Installation of '{pkg_name}' was cancelled"
+                )));
+            }
+
             if !missing_sync.is_empty() {
                 let _ = progress_tx
                     .send(TransactionEvent {
@@ -426,6 +480,13 @@ impl AurBackend {
             }
 
             // 3. Compile package on host (Sandbox disabled by user configuration)
+            if cancelled(&pkg_name) {
+                self.cancellations.write().remove(&pkg_name);
+                return Err(PastorError::Cancelled(format!(
+                    "Installation of '{pkg_name}' was cancelled"
+                )));
+            }
+
             let _ = progress_tx
                 .send(TransactionEvent {
                     step: TransactionStep::ApplyingChanges {

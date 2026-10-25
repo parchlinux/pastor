@@ -4,9 +4,11 @@ use pastor_core::{Package, PackageCategory, PackageSource};
 use pastor_store::Store;
 
 use super::package_row::create_package_row;
+use crate::models::TxMonitor;
 
 pub fn create_explore_view(
     store: Store,
+    monitor: TxMonitor,
     on_select: impl Fn(Package) + 'static + Clone,
     on_category_select: impl Fn(PackageCategory) + 'static + Clone,
     on_transaction_start: impl Fn(tokio::sync::mpsc::Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
@@ -114,6 +116,7 @@ pub fn create_explore_view(
         8,
         false,
         store.clone(),
+        monitor.clone(),
         on_select.clone(),
         on_category_select.clone(),
         on_transaction_start.clone(),
@@ -127,6 +130,7 @@ pub fn create_explore_view(
         6,
         false,
         store.clone(),
+        monitor.clone(),
         on_select.clone(),
         on_category_select.clone(),
         on_transaction_start.clone(),
@@ -140,6 +144,7 @@ pub fn create_explore_view(
         6,
         true,
         store.clone(),
+        monitor.clone(),
         on_select.clone(),
         on_category_select.clone(),
         on_transaction_start.clone(),
@@ -153,6 +158,7 @@ pub fn create_explore_view(
         6,
         true,
         store.clone(),
+        monitor.clone(),
         on_select.clone(),
         on_category_select.clone(),
         on_transaction_start.clone(),
@@ -166,6 +172,7 @@ pub fn create_explore_view(
         6,
         true,
         store.clone(),
+        monitor.clone(),
         on_select.clone(),
         on_category_select.clone(),
         on_transaction_start.clone(),
@@ -179,6 +186,7 @@ pub fn create_explore_view(
         6,
         true,
         store.clone(),
+        monitor.clone(),
         on_select.clone(),
         on_category_select.clone(),
         on_transaction_start.clone(),
@@ -195,6 +203,7 @@ fn create_category_section(
     max_items: usize,
     show_see_all: bool,
     store: Store,
+    monitor: TxMonitor,
     on_select: impl Fn(Package) + 'static + Clone,
     on_category_select: impl Fn(PackageCategory) + 'static + Clone,
     on_transaction_start: impl Fn(tokio::sync::mpsc::Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
@@ -245,6 +254,7 @@ fn create_category_section(
         .build();
 
     let store_c = store.clone();
+    let monitor_c = monitor.clone();
     let list_c = list.clone();
     let skeleton_c = skeleton_box.clone();
     let group_c = group.clone();
@@ -259,6 +269,7 @@ fn create_category_section(
                     let row = create_package_row(
                         &p,
                         &store_c,
+                        &monitor_c,
                         on_select.clone(),
                         on_transaction_start.clone(),
                     );

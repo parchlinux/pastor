@@ -2,6 +2,7 @@ mod app;
 mod dialogs;
 mod icons;
 mod indicator;
+mod models;
 mod notifications;
 mod styles;
 mod update_checker;

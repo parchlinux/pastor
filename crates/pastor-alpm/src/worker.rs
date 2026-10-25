@@ -274,6 +274,50 @@ pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             }
             .emit();
         }
+        "install-deps" => {
+            // Same as "install" but marks every target with a dependency install
+            // reason (ALPM_TRANS_FLAG_ALLDEPS) so AUR build dependencies stay
+            // queryable via `pacman -Qdt` and are autoremovable.
+            let targets = &args[1..];
+            if targets.is_empty() {
+                return Err("No package targets provided for dependency installation".into());
+            }
+
+            WorkerEvent {
+                step: "CheckingDependencies".to_string(),
+                progress_fraction: 0.1,
+                log_message: format!(
+                    "Installing {} dependency/dependencies with ALPM (as-deps)...",
+                    targets.len()
+                ),
+            }
+            .emit();
+
+            alpm.trans_init(TransFlag::ALL_DEPS)?;
+
+            let run_res: Result<(), String> = (|| {
+                for t in targets {
+                    let pkg = find_sync_pkg(&alpm, t)?;
+                    alpm.trans_add_pkg(pkg).map_err(|e| e.to_string())?;
+                }
+
+                alpm.trans_prepare().map_err(|e| e.to_string())?;
+                alpm.trans_commit().map_err(|e| e.to_string())?;
+                Ok(())
+            })();
+
+            let _ = alpm.trans_release();
+            if let Err(e) = run_res {
+                return Err(e.into());
+            }
+
+            WorkerEvent {
+                step: "Completed".to_string(),
+                progress_fraction: 1.0,
+                log_message: format!("Successfully installed {} dependency/dependencies", targets.len()),
+            }
+            .emit();
+        }
         "upgrade" => {
             WorkerEvent {
                 step: "CheckingDependencies".to_string(),

@@ -14,6 +14,9 @@ pub enum PastorError {
     #[error("Transaction failed: {0}")]
     TransactionFailed(String),
 
+    #[error("Transaction cancelled: {0}")]
+    Cancelled(String),
+
     #[error("Snapshot failed ({provider}): {message}")]
     SnapshotFailed {
         provider: String,

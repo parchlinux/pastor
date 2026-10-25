@@ -102,7 +102,11 @@ impl AlpmBackend {
     pub fn find_missing_sync_dependencies(&self, deps: &[String]) -> (Vec<String>, Vec<String>) {
         let handle = match privileged::create_alpm(&self.pacman_config) {
             Ok(h) => h,
-            Err(_) => return (deps.to_vec(), vec![]),
+            // Failure to open the ALPM handle must NOT report every dependency as
+            // missing — that would trigger a blind root install of the whole list.
+            // Treat them as unsatisfied non-sync deps instead; makepkg will then
+            // fail with a clear error if they truly are required.
+            Err(_) => return (vec![], deps.to_vec()),
         };
         let localdb = handle.localdb();
         let syncdbs = handle.syncdbs();
@@ -159,7 +163,9 @@ impl AlpmBackend {
         let args: Vec<String> = package_names.to_vec();
         tokio::task::spawn_blocking(move || {
             let arg_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
-            privileged::run_privileged("install", &arg_refs, progress_tx)
+            // install-deps marks targets with a dependency reason so build deps
+            // don't pollute the explicit package list (pacman -Qe).
+            privileged::run_privileged("install-deps", &arg_refs, progress_tx)
         })
         .await
         .map_err(|e| PastorError::BackendError {

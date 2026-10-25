@@ -3,14 +3,16 @@ use std::{cell::RefCell, rc::Rc};
 use adw::prelude::*;
 use gtk4::glib;
 use pastor_core::{Package, PackageSource, PackageState};
-use pastor_store::{ActiveTransactionEvent, Store};
+use pastor_store::Store;
 
+use crate::models::{TxMonitor, TxPhase};
 use crate::views::CircularProgress;
 
 pub fn setup_actions(
     actions_box: &gtk4::Box,
     pkg: &Package,
     store: &Store,
+    monitor: &TxMonitor,
     on_downgrade: impl Fn(String) + 'static + Clone,
     on_transaction_start: impl Fn(tokio::sync::mpsc::Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
 ) {
@@ -22,6 +24,12 @@ pub fn setup_actions(
     let render_actions_holder: Rc<RefCell<Option<Rc<dyn Fn(PackageState)>>>> =
         Rc::new(RefCell::new(None));
 
+    // Live progress widgets (circle + label) and the current verb, populated by
+    // render_actions and updated from the shared TxMonitor.
+    let progress_ref: Rc<RefCell<Option<(CircularProgress, gtk4::Label)>>> =
+        Rc::new(RefCell::new(None));
+    let verb_ref: Rc<RefCell<String>> = Rc::new(RefCell::new("Installing… ".to_string()));
+
     let render_actions = {
         let target_box = actions_box.clone();
         let pkg = pkg.clone();
@@ -29,6 +37,8 @@ pub fn setup_actions(
         let store = store_clone.clone();
         let on_tx = on_tx_start.clone();
         let on_downgrade = on_downgrade.clone();
+        let progress_ref = progress_ref.clone();
+        let verb_ref = verb_ref.clone();
 
         Rc::new(move |current_state: PackageState| {
             while let Some(child) = target_box.first_child() {
@@ -92,6 +102,8 @@ pub fn setup_actions(
                     progress_box.append(circle.widget());
                     progress_box.append(&pct_label);
                     progress_box.append(&cancel_btn);
+                    *progress_ref.borrow_mut() = Some((circle.clone(), pct_label.clone()));
+                    *verb_ref.borrow_mut() = "Uninstalling… ".to_string();
 
                     let uninstall_btn = gtk4::Button::builder()
                         .icon_name("user-trash-symbolic")
@@ -207,6 +219,8 @@ pub fn setup_actions(
                     progress_box.append(circle.widget());
                     progress_box.append(&pct_label);
                     progress_box.append(&cancel_btn);
+                    *progress_ref.borrow_mut() = Some((circle.clone(), pct_label.clone()));
+                    *verb_ref.borrow_mut() = if is_update { "Updating… ".to_string() } else { "Installing… ".to_string() };
 
                     let store_i = store.clone();
                     let pkg_i = pkg_id.clone();
@@ -228,7 +242,7 @@ pub fn setup_actions(
 
                             glib::spawn_future_local(async move {
                                 match s_aur.prepare_aur_scan(&p_id.name).await {
-                                    Ok((_commit, trust, scan_report, diff)) => {
+                                    Ok((_commit, trust, scan_report, diff, missing_deps)) => {
                                         btn_c.set_sensitive(true);
                                         let p_id_install = p_id.clone();
                                         crate::dialogs::show_aur_review_dialog(
@@ -238,6 +252,7 @@ pub fn setup_actions(
                                             &trust,
                                             &scan_report,
                                             &diff,
+                                            &missing_deps,
                                             move |use_sandbox| {
                                                 s_aur.set_aur_sandbox_enabled(&p_id_install.name, use_sandbox);
                                                 btn_c.set_visible(false);
@@ -311,63 +326,87 @@ pub fn setup_actions(
     *render_actions_holder.borrow_mut() = Some(render_actions.clone());
     render_actions(state);
 
-    // Global transaction subscription for this package details view
+    // Transaction subscription for this package details view, via the shared
+    // lag-safe TxMonitor (single broadcast subscriber for the whole app).
     {
-        let mut tx_sub = store_clone.subscribe_transactions();
-        let target_pkg_id = pkg_id.clone();
-        let target_clean_name = target_pkg_id.name.strip_suffix(".desktop").unwrap_or(&target_pkg_id.name).to_string();
+        let pkg_key = pkg_id.event_key();
+        let target_clean_name = pkg_id.clean_name();
         let s_chk = store_clone.clone();
         let holder_c = render_actions_holder.clone();
+        let monitor_c = monitor.clone();
 
-        glib::spawn_future_local(async move {
-            while let Ok(event) = tx_sub.recv().await {
-                match event {
-                    ActiveTransactionEvent::Started(info) | ActiveTransactionEvent::Progress(info) => {
-                        let info_clean = info.package_id.name.strip_suffix(".desktop").unwrap_or(&info.package_id.name);
-                        if info.package_id == target_pkg_id || info_clean == target_clean_name {
-                            // Progress is tracked via the store and global ops center
-                        }
+        let refresh_state: Rc<dyn Fn()> = {
+            let s_chk = s_chk.clone();
+            let pid = pkg_id.clone();
+            let holder = holder_c.clone();
+            Rc::new(move || {
+                let s = s_chk.clone();
+                let pid = pid.clone();
+                let holder = holder.clone();
+                glib::spawn_future_local(async move {
+                    let updated_pkg = s.get_package(&pid).await.ok().flatten();
+                    let new_state = updated_pkg
+                        .map(|p| p.state)
+                        .unwrap_or(PackageState::NotInstalled);
+                    if let Some(renderer) = holder.borrow().as_ref() {
+                        renderer(new_state);
                     }
-                    ActiveTransactionEvent::Completed(id) => {
-                        let id_clean = id.name.strip_suffix(".desktop").unwrap_or(&id.name);
-                        if id == target_pkg_id || id_clean == target_clean_name {
-                            let s = s_chk.clone();
-                            let pid = target_pkg_id.clone();
-                            let h = holder_c.clone();
-                            glib::timeout_add_local_once(
-                                std::time::Duration::from_millis(300),
-                                move || {
-                                    glib::spawn_future_local(async move {
-                                        let updated_pkg = s.get_package(&pid).await.ok().flatten();
-                                        let new_state = updated_pkg
-                                            .map(|p| p.state)
-                                            .unwrap_or(PackageState::NotInstalled);
-                                        if let Some(renderer) = h.borrow().as_ref() {
-                                            renderer(new_state);
-                                        }
-                                    });
-                                },
-                            );
-                        }
-                    }
-                    ActiveTransactionEvent::Failed(id, _) | ActiveTransactionEvent::Cancelled(id) => {
-                        let id_clean = id.name.strip_suffix(".desktop").unwrap_or(&id.name);
-                        if id == target_pkg_id || id_clean == target_clean_name {
-                            let s = s_chk.clone();
-                            let pid = target_pkg_id.clone();
-                            let h = holder_c.clone();
-                            glib::spawn_future_local(async move {
-                                let updated_pkg = s.get_package(&pid).await.ok().flatten();
-                                let cur_st = updated_pkg
-                                    .map(|p| p.state)
-                                    .unwrap_or(PackageState::NotInstalled);
-                                if let Some(renderer) = h.borrow().as_ref() {
-                                    renderer(cur_st);
-                                }
-                            });
-                        }
-                    }
+                });
+            })
+        };
+
+        let progress_ref_c = progress_ref.clone();
+        let verb_ref_c = verb_ref.clone();
+        let key_for_progress = pkg_key.clone();
+        let clean_for_progress = target_clean_name.clone();
+        let monitor_for_progress = monitor_c.clone();
+        let update_progress = move |evt_key: &str| {
+            let matches = evt_key == key_for_progress.as_str()
+                || evt_key
+                    .rsplit(':')
+                    .next()
+                    .map(|n| n.eq_ignore_ascii_case(&clean_for_progress))
+                    .unwrap_or(false);
+            if !matches {
+                return;
+            }
+            if let Some(tx) = monitor_for_progress.tx_for_key(evt_key) {
+                let frac = tx.property::<f32>("fraction");
+                if let Some((circle, label)) = progress_ref_c.borrow().as_ref() {
+                    circle.set_fraction(frac as f64);
+                    let verb = verb_ref_c.borrow().clone();
+                    label.set_text(&format!("{}{}%", verb, (frac * 100.0) as u32));
                 }
+            }
+        };
+        monitor_c.connect_progress(update_progress.clone());
+        monitor_c.connect_started(update_progress.clone());
+
+        let delayed_refresh = refresh_state.clone();
+        let terminal_h = monitor_c.connect_terminal(move |evt_key, phase| {
+            let matches = evt_key == pkg_key.as_str()
+                || evt_key
+                    .rsplit(':')
+                    .next()
+                    .map(|n| n.eq_ignore_ascii_case(&target_clean_name))
+                    .unwrap_or(false);
+            if !matches || phase == TxPhase::Active {
+                return;
+            }
+            if phase == TxPhase::Success {
+                // Small delay so the store has settled before re-querying.
+                let refresh = delayed_refresh.clone();
+                glib::timeout_add_local_once(std::time::Duration::from_millis(300), move || {
+                    refresh();
+                });
+            } else {
+                (refresh_state)();
+            }
+        });
+        let th_cell = std::cell::Cell::new(Some(terminal_h));
+        actions_box.connect_destroy(move |_| {
+            if let Some(h) = th_cell.take() {
+                monitor_c.disconnect(h);
             }
         });
     }

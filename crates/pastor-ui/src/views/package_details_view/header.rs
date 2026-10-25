@@ -222,7 +222,23 @@ pub fn create_hero_box(
     (hero_box, actions_box)
 }
 
-pub fn create_preview_canvas(pkg: &Package, _slide_index: usize) -> gtk4::Widget {
+/// Category-tinted art class for placeholder screenshot slides (DET-003).
+pub fn category_art_class(pkg: &Package) -> &'static str {
+    let cat = pkg.categories.first().copied().unwrap_or(PackageCategory::Utilities);
+    match cat {
+        PackageCategory::Development => "cat-art-development",
+        PackageCategory::Games => "cat-art-games",
+        PackageCategory::Graphics => "cat-art-graphics",
+        PackageCategory::Internet => "cat-art-internet",
+        PackageCategory::Multimedia => "cat-art-multimedia",
+        PackageCategory::Office => "cat-art-office",
+        PackageCategory::System => "cat-art-system",
+        PackageCategory::Android => "cat-art-android",
+        _ => "cat-art-utilities",
+    }
+}
+
+pub fn create_preview_art(pkg: &Package, _slide_index: usize) -> gtk4::Widget {
     let card = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .spacing(12)

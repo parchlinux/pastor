@@ -176,6 +176,24 @@ button.dependency-tag:hover {
     color: @accent_color;
 }
 
+/* Narrow-window compact mode (transaction bar, filters) — applied via Breakpoint;
+   button hiding is done programmatically via TransactionBar::set_narrow */
+.pastor-narrow .category-chip {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+
+/* Category-tinted placeholder screenshot art (DET-003) */
+.cat-art-development { background-image: linear-gradient(160deg, alpha(@blue_3, 0.35), alpha(@purple_3, 0.25)); }
+.cat-art-games       { background-image: linear-gradient(160deg, alpha(@orange_3, 0.35), alpha(@red_3, 0.25)); }
+.cat-art-graphics    { background-image: linear-gradient(160deg, alpha(@purple_3, 0.35), alpha(@pink_3, 0.25)); }
+.cat-art-internet    { background-image: linear-gradient(160deg, alpha(@teal_3, 0.35), alpha(@blue_3, 0.25)); }
+.cat-art-multimedia  { background-image: linear-gradient(160deg, alpha(@purple_3, 0.35), alpha(@blue_3, 0.25)); }
+.cat-art-office      { background-image: linear-gradient(160deg, alpha(@green_3, 0.35), alpha(@teal_3, 0.25)); }
+.cat-art-system      { background-image: linear-gradient(160deg, alpha(@slate_3, 0.35), alpha(@window_fg_color, 0.12)); }
+.cat-art-android     { background-image: linear-gradient(160deg, alpha(@green_4, 0.35), alpha(@green_3, 0.25)); }
+.cat-art-utilities   { background-image: linear-gradient(160deg, alpha(@accent_color, 0.30), alpha(@accent_color, 0.10)); }
+
 /* Hero Screenshot Overlay (EXP-004) */
 .hero-screenshot-overlay {
     border-radius: 16px;

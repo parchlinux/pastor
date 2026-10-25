@@ -72,6 +72,27 @@ impl PackageId {
             source,
         }
     }
+
+    /// Stable string key combining source and name, used for matching
+    /// transaction events to UI rows even when callers pass loosely-typed ids.
+    pub fn event_key(&self) -> String {
+        let src = match &self.source {
+            PackageSource::Parch(ParchRepoType::World) => "parch-world",
+            PackageSource::Parch(ParchRepoType::Void) => "parch-void",
+            PackageSource::Arch(_) => "arch",
+            PackageSource::Aur => "aur",
+            PackageSource::Flatpak { remote } => return format!("flatpak:{remote}:{}", self.name),
+            PackageSource::Bootc => "bootc",
+            PackageSource::Waydroid => "waydroid",
+        };
+        format!("{src}:{}", self.name)
+    }
+
+    /// Package name with a trailing `.desktop` suffix removed and lowercased.
+    pub fn clean_name(&self) -> String {
+        let n = self.name.strip_suffix(".desktop").unwrap_or(&self.name);
+        n.to_ascii_lowercase()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
