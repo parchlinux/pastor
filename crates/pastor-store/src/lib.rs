@@ -638,7 +638,7 @@ impl Store {
             let join_handle = tokio::spawn(async move {
                 // Source-based routing means exactly one backend should handle
                 // the id; never fan out to further backends after the first.
-                for b in b_clone {
+                if let Some(b) = b_clone.first() {
                     if let Err(e) = b.install(&id_clone, backend_tx.clone()).await {
                         let _ = backend_tx
                             .send(TransactionEvent {
@@ -648,7 +648,6 @@ impl Store {
                             })
                             .await;
                     }
-                    break;
                 }
             });
 
@@ -789,7 +788,7 @@ impl Store {
             }
 
             let join_handle = tokio::spawn(async move {
-                for b in b_clone {
+                if let Some(b) = b_clone.first() {
                     if let Err(e) = b.remove(&id_clone, backend_tx.clone()).await {
                         let _ = backend_tx
                             .send(TransactionEvent {
@@ -799,7 +798,6 @@ impl Store {
                             })
                             .await;
                     }
-                    break;
                 }
             });
 
@@ -885,9 +883,7 @@ impl Store {
         let backends = self.backends.clone();
 
         tokio::spawn(async move {
-            let mut handled = false;
-            for b in backends.iter().filter(|b| b.handles(&id)) {
-                handled = true;
+            if let Some(b) = backends.iter().find(|b| b.handles(&id)) {
                 if let Err(e) = b.downgrade(&id, &target_version, tx.clone()).await {
                     let _ = tx
                         .send(TransactionEvent {
@@ -897,9 +893,7 @@ impl Store {
                         })
                         .await;
                 }
-                break;
-            }
-            if !handled {
+            } else {
                 let _ = tx
                     .send(TransactionEvent {
                         step: TransactionStep::Failed("No backend available for downgrade".to_string()),
