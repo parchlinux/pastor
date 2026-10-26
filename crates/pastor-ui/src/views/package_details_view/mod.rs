@@ -2,6 +2,7 @@ pub mod actions;
 pub mod header;
 pub mod info_rows;
 pub mod screenshots;
+pub mod share;
 
 use adw::prelude::*;
 use pastor_core::Package;

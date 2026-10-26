@@ -50,7 +50,7 @@ pub fn setup_actions(
                     let is_runtime = pkg_id.name.starts_with("runtime/");
                     if !is_runtime {
                         let launch_btn = gtk4::Button::builder()
-                            .label("Open")
+                            .label(pastor_core::tr("Open"))
                             .icon_name("media-playback-start-symbolic")
                             .css_classes(["suggested-action", "pill"])
                             .build();
@@ -81,13 +81,13 @@ pub fn setup_actions(
                         .build();
                     let circle = CircularProgress::new(26);
                     let pct_label = gtk4::Label::builder()
-                        .label("Uninstalling… 0%")
+                        .label(&format!("{} 0%", pastor_core::tr("Uninstalling…")))
                         .css_classes(["caption", "heading"])
                         .valign(gtk4::Align::Center)
                         .build();
                     let cancel_btn = gtk4::Button::builder()
                         .icon_name("process-stop-symbolic")
-                        .tooltip_text("Cancel uninstallation")
+                        .tooltip_text(pastor_core::tr("Cancel uninstallation"))
                         .css_classes(["flat", "circular"])
                         .build();
                     let store_c = store.clone();
@@ -103,12 +103,12 @@ pub fn setup_actions(
                     progress_box.append(&pct_label);
                     progress_box.append(&cancel_btn);
                     *progress_ref.borrow_mut() = Some((circle.clone(), pct_label.clone()));
-                    *verb_ref.borrow_mut() = "Uninstalling… ".to_string();
+                    *verb_ref.borrow_mut() = format!("{} ", pastor_core::tr("Uninstalling…"));
 
                     let uninstall_btn = gtk4::Button::builder()
                         .icon_name("user-trash-symbolic")
                         .css_classes(["destructive-action", "flat", "circular"])
-                        .tooltip_text("Uninstall software")
+                        .tooltip_text(pastor_core::tr("Uninstall"))
                         .build();
                     let store_u = store.clone();
                     let pkg_u = pkg_id.clone();
@@ -124,11 +124,14 @@ pub fn setup_actions(
                     target_box.append(&uninstall_btn);
                     target_box.append(&progress_box);
 
+                    let share_btn = super::share::create_share_button(&pkg, &store);
+                    target_box.append(&share_btn);
+
                     if !is_runtime {
                         let more_menu_btn = gtk4::MenuButton::builder()
                             .icon_name("view-more-symbolic")
                             .css_classes(["flat", "circular"])
-                            .tooltip_text("More Options")
+                            .tooltip_text(pastor_core::tr("More Options"))
                             .build();
 
                         let popover = gtk4::Popover::new();
@@ -142,7 +145,7 @@ pub fn setup_actions(
                             .build();
 
                         let downgrade_item = gtk4::Button::builder()
-                            .label("Downgrade Version…")
+                            .label(pastor_core::tr("Downgrade Version…"))
                             .icon_name("edit-undo-symbolic")
                             .css_classes(["flat"])
                             .halign(gtk4::Align::Fill)
@@ -159,7 +162,7 @@ pub fn setup_actions(
                         if let Some(ref url) = pkg.homepage {
                             let web_item = gtk4::LinkButton::builder()
                                 .uri(url)
-                                .label("Project Website")
+                                .label(pastor_core::tr("Project Website"))
                                 .css_classes(["flat"])
                                 .halign(gtk4::Align::Fill)
                                 .build();
@@ -173,7 +176,7 @@ pub fn setup_actions(
                 }
                 PackageState::NotInstalled | PackageState::UpdateAvailable => {
                     let is_update = matches!(current_state, PackageState::UpdateAvailable);
-                    let btn_label = if is_update { "Update" } else { "Install" };
+                    let btn_label = if is_update { pastor_core::tr("Update") } else { pastor_core::tr("Install") };
                     let btn_icon = if is_update {
                         crate::icons::update_icon()
                     } else {
@@ -195,15 +198,16 @@ pub fn setup_actions(
                         .build();
 
                     let circle = CircularProgress::new(26);
+                    let initial_verb = if is_update { pastor_core::tr("Updating…") } else { pastor_core::tr("Installing…") };
                     let pct_label = gtk4::Label::builder()
-                        .label(if is_update { "Updating… 0%" } else { "Installing… 0%" })
+                        .label(&format!("{initial_verb} 0%"))
                         .css_classes(["caption", "heading"])
                         .valign(gtk4::Align::Center)
                         .build();
 
                     let cancel_btn = gtk4::Button::builder()
                         .icon_name("process-stop-symbolic")
-                        .tooltip_text("Cancel installation")
+                        .tooltip_text(pastor_core::tr("Cancel installation"))
                         .css_classes(["flat", "circular"])
                         .build();
                     let store_c = store.clone();
@@ -220,7 +224,7 @@ pub fn setup_actions(
                     progress_box.append(&pct_label);
                     progress_box.append(&cancel_btn);
                     *progress_ref.borrow_mut() = Some((circle.clone(), pct_label.clone()));
-                    *verb_ref.borrow_mut() = if is_update { "Updating… ".to_string() } else { "Installing… ".to_string() };
+                    *verb_ref.borrow_mut() = format!("{initial_verb} ");
 
                     let store_i = store.clone();
                     let pkg_i = pkg_id.clone();
@@ -283,7 +287,7 @@ pub fn setup_actions(
                         let uninstall_btn = gtk4::Button::builder()
                             .icon_name("user-trash-symbolic")
                             .css_classes(["destructive-action", "flat", "circular"])
-                            .tooltip_text("Uninstall application")
+                            .tooltip_text(pastor_core::tr("Uninstall"))
                             .build();
                         let store_u = store.clone();
                         let pkg_u = pkg_id.clone();
@@ -298,14 +302,20 @@ pub fn setup_actions(
                         });
                         target_box.append(&uninstall_btn);
                     }
+
+                    let share_btn = super::share::create_share_button(&pkg, &store);
+                    target_box.append(&share_btn);
                 }
                 PackageState::Processing => {
                     let proc_btn = gtk4::Button::builder()
-                        .label("Processing…")
+                        .label(pastor_core::tr("Processing…"))
                         .css_classes(["pill"])
                         .sensitive(false)
                         .build();
                     target_box.append(&proc_btn);
+
+                    let share_btn = super::share::create_share_button(&pkg, &store);
+                    target_box.append(&share_btn);
                 }
             }
 
