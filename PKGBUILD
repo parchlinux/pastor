@@ -2,7 +2,7 @@
 # Maintainer: ParchLinux Team <contact@parchlinux.com>
 
 pkgname=pastor
-pkgver=0.3.0
+pkgver=0.3.1
 pkgrel=1
 pkgdesc="Modern, native software management center for ParchLinux"
 arch=('x86_64')
@@ -18,6 +18,7 @@ depends=(
 makedepends=(
     'cargo'
     'git'
+    'gettext'
 )
 optdepends=(
     'snapper: for btrfs system snapshot protection and recovery'
@@ -36,6 +37,17 @@ build() {
     cd "${srcdir}/${pkgname}"
     export RUSTUP_TOOLCHAIN=stable
     export CARGO_TARGET_DIR=target
+
+    # Compile gettext translation catalogs
+    if [ -f po/LINGUAS ]; then
+        while read -r lang; do
+            [ -z "$lang" ] && continue
+            if [ -f "po/${lang}.po" ]; then
+                msgfmt -c "po/${lang}.po" -o "po/${lang}.mo"
+            fi
+        done < po/LINGUAS
+    fi
+
     cargo build --frozen --release -p pastor-ui
 }
 
@@ -52,6 +64,16 @@ package() {
     install -Dm755 "target/release/pastor-ui" "${pkgdir}/usr/bin/pastor"
     ln -sf /usr/bin/pastor "${pkgdir}/usr/bin/pastor-ui"
     ln -sf /usr/bin/pastor "${pkgdir}/usr/bin/pastor-store"
+
+    # Install translations
+    if [ -f po/LINGUAS ]; then
+        while read -r lang; do
+            [ -z "$lang" ] && continue
+            if [ -f "po/${lang}.mo" ]; then
+                install -Dm644 "po/${lang}.mo" "${pkgdir}/usr/share/locale/${lang}/LC_MESSAGES/${pkgname}.mo"
+            fi
+        done < po/LINGUAS
+    fi
 
     # Install desktop entry
     install -Dm644 "data/com.parchlinux.pastor.desktop" \
