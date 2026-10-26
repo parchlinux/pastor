@@ -30,7 +30,7 @@ pub fn create_screenshot_widget(url: &str) -> gtk4::Widget {
         .build();
 
     let picture = gtk4::Picture::builder()
-        .keep_aspect_ratio(true)
+        .content_fit(gtk4::ContentFit::Contain)
         .can_shrink(true)
         .vexpand(true)
         .hexpand(true)

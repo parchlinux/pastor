@@ -127,7 +127,7 @@ mod tests {
         check_now(&store, &state, &None, &cmd_tx).await;
 
         assert_eq!(state.update_count.load(Ordering::SeqCst), 0);
-        assert_eq!(state.is_checking.load(Ordering::SeqCst), false);
+        assert!(!state.is_checking.load(Ordering::SeqCst));
         // With 0 updates, no notification should be sent
         assert!(cmd_rx.try_recv().is_err());
     }

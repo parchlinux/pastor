@@ -39,7 +39,9 @@ impl CircularProgress {
 
             // 2. Draw active progress arc using theme accent color (VIS-004)
             if frac > 0.001 {
+                #[allow(deprecated)]
                 let ctx = area.style_context();
+                #[allow(deprecated)]
                 let (r, g, b) = if let Some(color) = ctx.lookup_color("accent_color") {
                     (color.red() as f64, color.green() as f64, color.blue() as f64)
                 } else {
