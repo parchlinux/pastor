@@ -10,8 +10,9 @@ pub use backend::PackageBackend;
 pub use cache::{cleanup_stale_caches, pastor_cache_dir};
 pub use error::PastorError;
 pub use locale::{
-    is_persian, persian_po_catalog, set_persian_mode, tr, tr_static, LocaleMatcher,
-    LocalizedDescription, LocalizedField, PoCatalog,
+    active_language, clean_locale, is_persian, is_rtl, is_rtl_language, persian_po_catalog,
+    set_language, set_persian_mode, tr, tr_static, LocaleMatcher, LocalizedDescription,
+    LocalizedField, PoCatalog,
 };
 pub use package::{
     format_size, ModuleConfig, Package, PackageCategory, PackageIcon, PackageId, PackageSource,

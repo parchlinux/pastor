@@ -71,6 +71,11 @@ package() {
             [ -z "$lang" ] && continue
             if [ -f "po/${lang}.mo" ]; then
                 install -Dm644 "po/${lang}.mo" "${pkgdir}/usr/share/locale/${lang}/LC_MESSAGES/${pkgname}.mo"
+                if [ "$lang" = "fa" ]; then
+                    install -d "${pkgdir}/usr/share/locale/fa_IR/LC_MESSAGES"
+                    ln -sf "../../../locale/fa/LC_MESSAGES/${pkgname}.mo" \
+                        "${pkgdir}/usr/share/locale/fa_IR/LC_MESSAGES/${pkgname}.mo"
+                fi
             fi
         done < po/LINGUAS
     fi

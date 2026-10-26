@@ -28,6 +28,7 @@ impl Application {
 
         let store = Store::new();
         let main_window: Rc<RefCell<Option<MainWindow>>> = Rc::new(RefCell::new(None));
+        let window_language: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
         let indicator_state = IndicatorState::default();
 
         // Channel for commands from tray, background workers, and notifications
@@ -38,16 +39,22 @@ impl Application {
 
         let get_or_create_window = {
             let main_window = main_window.clone();
+            let window_language = window_language.clone();
             let store = store.clone();
             move |app: &adw::Application| -> MainWindow {
+                let current_lang = pastor_core::active_language();
                 let mut win_ref = main_window.borrow_mut();
                 if let Some(w) = win_ref.as_ref() {
-                    w.clone()
-                } else {
-                    let w = MainWindow::new(app, store.clone());
-                    *win_ref = Some(w.clone());
-                    w
+                    if window_language.borrow().as_deref() == Some(&current_lang) {
+                        return w.clone();
+                    }
+                    w.destroy();
+                    *win_ref = None;
                 }
+                let w = MainWindow::new(app, store.clone());
+                *win_ref = Some(w.clone());
+                *window_language.borrow_mut() = Some(current_lang);
+                w
             }
         };
 
@@ -162,8 +169,10 @@ impl Application {
                 adw::init().expect("Failed to initialize Libadwaita");
                 adw::StyleManager::default().set_color_scheme(adw::ColorScheme::Default);
 
-                if pastor_core::is_persian() {
+                if pastor_core::is_rtl() {
                     gtk4::Widget::set_default_direction(gtk4::TextDirection::Rtl);
+                } else {
+                    gtk4::Widget::set_default_direction(gtk4::TextDirection::Ltr);
                 }
 
                 // Load custom CSS
@@ -239,6 +248,54 @@ impl Application {
                     .into_iter()
                     .map(|a| a.to_string_lossy().to_string())
                     .collect();
+
+                // Check if the command line invocation explicitly specifies or implies a locale
+                let mut requested_lang: Option<String> = None;
+
+                for (i, arg) in args.iter().enumerate() {
+                    if arg == "--lang" || arg == "--locale" || arg == "--language" {
+                        if let Some(val) = args.get(i + 1) {
+                            requested_lang = Some(val.clone());
+                        }
+                    } else if let Some(val) = arg.strip_prefix("--lang=").or_else(|| arg.strip_prefix("--locale=")) {
+                        requested_lang = Some(val.to_string());
+                    }
+                }
+
+                if requested_lang.is_none() {
+                    for var in &["LC_ALL", "LC_MESSAGES", "LANG"] {
+                        if let Some(val) = cmdline.getenv(var) {
+                            let val = val.to_string();
+                            let clean = pastor_core::clean_locale(val.trim());
+                            if !clean.is_empty() && clean != "C" && clean != "POSIX" {
+                                requested_lang = Some(clean);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if requested_lang.is_none() {
+                    if let Some(val) = cmdline.getenv("LANGUAGE") {
+                        for part in val.split(':') {
+                            let clean = pastor_core::clean_locale(part.trim());
+                            if !clean.is_empty() && clean != "C" && clean != "POSIX" {
+                                requested_lang = Some(clean);
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if let Some(ref lang) = requested_lang {
+                    pastor_core::set_language(Some(lang));
+                    let dir = if pastor_core::is_rtl() {
+                        gtk4::TextDirection::Rtl
+                    } else {
+                        gtk4::TextDirection::Ltr
+                    };
+                    gtk4::Widget::set_default_direction(dir);
+                }
 
                 if args.iter().any(|a| a == "--version" || a == "-v") {
                     println!("pastor {}", env!("CARGO_PKG_VERSION"));

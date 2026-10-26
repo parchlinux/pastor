@@ -1,3 +1,10 @@
+use std::collections::HashMap;
+use std::sync::RwLock;
+
+static LANGUAGE_OVERRIDE: RwLock<Option<String>> = RwLock::new(None);
+static CATALOG_REGISTRY: RwLock<Option<HashMap<String, Option<&'static HashMap<String, &'static str>>>>> =
+    RwLock::new(None);
+
 #[derive(Debug, Clone)]
 pub struct LocaleMatcher {
     preferred: Vec<String>,
@@ -13,17 +20,17 @@ impl LocaleMatcher {
     pub fn from_env() -> Self {
         let mut preferred = Vec::new();
 
-        // 1. LANGUAGE can be colon-separated list (e.g. "fa_IR:fa:en_US:en")
-        if let Ok(lang_var) = std::env::var("LANGUAGE") {
-            for part in lang_var.split(':') {
-                let trimmed = clean_locale(part);
-                if !trimmed.is_empty() && !preferred.contains(&trimmed) {
-                    preferred.push(trimmed);
+        // 1. Explicit runtime override if set
+        if let Ok(guard) = LANGUAGE_OVERRIDE.read() {
+            if let Some(ref lang) = *guard {
+                let cleaned = clean_locale(lang);
+                if !cleaned.is_empty() {
+                    preferred.push(cleaned);
                 }
             }
         }
 
-        // 2. LC_ALL, LC_MESSAGES, LANG
+        // 2. POSIX locale message priorities: LC_ALL > LC_MESSAGES > LANG
         for var in &["LC_ALL", "LC_MESSAGES", "LANG"] {
             if let Ok(val) = std::env::var(var) {
                 let trimmed = clean_locale(&val);
@@ -33,7 +40,17 @@ impl LocaleMatcher {
             }
         }
 
-        // 3. For each locale like "fa_IR", also add the primary language code "fa"
+        // 3. GNU LANGUAGE variable (may be colon-separated fallback list e.g. "fa_IR:fa:en")
+        if let Ok(lang_var) = std::env::var("LANGUAGE") {
+            for part in lang_var.split(':') {
+                let trimmed = clean_locale(part);
+                if !trimmed.is_empty() && trimmed != "C" && trimmed != "POSIX" && !preferred.contains(&trimmed) {
+                    preferred.push(trimmed);
+                }
+            }
+        }
+
+        // 4. For each locale like "fa_IR", also add the primary language code "fa"
         let mut with_bases = Vec::new();
         for loc in &preferred {
             with_bases.push(loc.clone());
@@ -45,7 +62,7 @@ impl LocaleMatcher {
             }
         }
 
-        // 4. Always add English fallbacks at the end if not already present
+        // 5. Always add English fallbacks at the end if not already present
         for fallback in &["en_US", "en"] {
             let fb = fallback.to_string();
             if !with_bases.contains(&fb) {
@@ -109,17 +126,88 @@ pub fn clean_locale(raw: &str) -> String {
     s.replace('-', "_")
 }
 
-static PERSIAN_OVERRIDE: std::sync::atomic::AtomicI8 = std::sync::atomic::AtomicI8::new(0);
+/// Returns the currently active language code (e.g. "fa_IR", "fa", "en_US").
+pub fn active_language() -> String {
+    // 1. Explicit runtime override
+    if let Ok(guard) = LANGUAGE_OVERRIDE.read() {
+        if let Some(ref lang) = *guard {
+            let cleaned = clean_locale(lang);
+            if !cleaned.is_empty() {
+                return cleaned;
+            }
+        }
+    }
+
+    // 2. POSIX locale message priority: LC_ALL > LC_MESSAGES > LANG
+    for var in &["LC_ALL", "LC_MESSAGES", "LANG"] {
+        if let Ok(val) = std::env::var(var) {
+            let val = val.trim();
+            if !val.is_empty() && val != "C" && val != "POSIX" {
+                let cleaned = clean_locale(val);
+                if !cleaned.is_empty() {
+                    return cleaned;
+                }
+            }
+        }
+    }
+
+    // 3. GNU LANGUAGE variable (colon-separated fallback list)
+    if let Ok(lang_var) = std::env::var("LANGUAGE") {
+        for part in lang_var.split(':') {
+            let trimmed = clean_locale(part);
+            if !trimmed.is_empty() && trimmed != "C" && trimmed != "POSIX" {
+                return trimmed;
+            }
+        }
+    }
+
+    "en_US".to_string()
+}
+
+/// Sets an explicit language override (e.g. `Some("fa")`, `Some("de")`, or `None` to reset).
+pub fn set_language(lang: Option<&str>) {
+    if let Ok(mut ov) = LANGUAGE_OVERRIDE.write() {
+        *ov = lang.map(clean_locale);
+    }
+}
+
+/// Checks whether a given language uses right-to-left (RTL) script.
+pub fn is_rtl_language(lang: &str) -> bool {
+    let clean = clean_locale(lang).to_lowercase();
+    let base = clean.split('_').next().unwrap_or(&clean);
+    matches!(base, "fa" | "ar" | "he" | "ur" | "ckb" | "sd" | "ps" | "ug" | "yi")
+}
+
+/// Returns true if the currently active language is a right-to-left language.
+pub fn is_rtl() -> bool {
+    is_rtl_language(&active_language())
+}
+
+/// Checks whether the user's active locale is Persian (Farsi).
+pub fn is_persian() -> bool {
+    let lang = active_language();
+    let clean = clean_locale(&lang).to_lowercase();
+    clean == "fa" || clean.starts_with("fa_") || clean.starts_with("fa-")
+}
+
+/// Allows overriding Persian mode explicitly (useful for backward compatibility and testing).
+pub fn set_persian_mode(enabled: Option<bool>) {
+    match enabled {
+        Some(true) => set_language(Some("fa_IR")),
+        Some(false) => set_language(Some("en_US")),
+        None => set_language(None),
+    }
+}
 
 /// Parsed GNU gettext `.po` catalog.
 #[derive(Debug, Clone)]
 pub struct PoCatalog {
-    entries: std::collections::HashMap<String, String>,
+    entries: HashMap<String, String>,
 }
 
 impl PoCatalog {
     pub fn parse(po_content: &str) -> Self {
-        let mut entries = std::collections::HashMap::new();
+        let mut entries = HashMap::new();
         let mut current_id = String::new();
         let mut current_str = String::new();
         let mut in_id = false;
@@ -168,6 +256,49 @@ impl PoCatalog {
         Self { entries }
     }
 
+    /// Parse compiled GNU gettext `.mo` binary format.
+    pub fn parse_mo(data: &[u8]) -> Option<Self> {
+        if data.len() < 24 {
+            return None;
+        }
+        let magic = u32::from_le_bytes(data[0..4].try_into().ok()?);
+        if magic != 0x950412de && magic != 0xde120495 {
+            return None;
+        }
+        let is_le = magic == 0x950412de;
+        let read_u32 = |offset: usize| -> Option<usize> {
+            let bytes: [u8; 4] = data.get(offset..offset + 4)?.try_into().ok()?;
+            if is_le {
+                Some(u32::from_le_bytes(bytes) as usize)
+            } else {
+                Some(u32::from_be_bytes(bytes) as usize)
+            }
+        };
+
+        let num_strings = read_u32(8)?;
+        let orig_table_offset = read_u32(12)?;
+        let trans_table_offset = read_u32(16)?;
+
+        let mut entries = HashMap::with_capacity(num_strings);
+        for i in 0..num_strings {
+            let orig_len = read_u32(orig_table_offset + i * 8)?;
+            let orig_off = read_u32(orig_table_offset + i * 8 + 4)?;
+            let trans_len = read_u32(trans_table_offset + i * 8)?;
+            let trans_off = read_u32(trans_table_offset + i * 8 + 4)?;
+
+            let orig_bytes = data.get(orig_off..orig_off + orig_len)?;
+            let trans_bytes = data.get(trans_off..trans_off + trans_len)?;
+
+            let orig = std::str::from_utf8(orig_bytes).ok()?;
+            let trans = std::str::from_utf8(trans_bytes).ok()?;
+
+            if !orig.is_empty() && !trans.is_empty() {
+                entries.insert(orig.to_string(), trans.to_string());
+            }
+        }
+        Some(Self { entries })
+    }
+
     pub fn get(&self, msgid: &str) -> Option<&str> {
         self.entries.get(msgid).map(|s| s.as_str())
     }
@@ -209,45 +340,109 @@ fn unescape_po_string(raw: &str) -> String {
 
 static PERSIAN_CATALOG: std::sync::OnceLock<PoCatalog> = std::sync::OnceLock::new();
 
-/// Returns the Persian translation catalog parsed from `po/fa.po`.
+/// Returns the Persian translation catalog parsed from system `.mo` file or embedded `po/fa.po`.
 pub fn persian_po_catalog() -> &'static PoCatalog {
     PERSIAN_CATALOG.get_or_init(|| {
+        for path in &[
+            "/usr/share/locale/fa/LC_MESSAGES/pastor.mo",
+            "/usr/share/locale/fa_IR/LC_MESSAGES/pastor.mo",
+            "/usr/local/share/locale/fa/LC_MESSAGES/pastor.mo",
+            "po/fa.mo",
+        ] {
+            if let Ok(bytes) = std::fs::read(path) {
+                if let Some(cat) = PoCatalog::parse_mo(&bytes) {
+                    if !cat.is_empty() {
+                        return cat;
+                    }
+                }
+            }
+        }
         const EMBEDDED_FA_PO: &str = include_str!("../../../po/fa.po");
         PoCatalog::parse(EMBEDDED_FA_PO)
     })
 }
 
-/// Checks whether the user's active locale is Persian (Farsi).
-pub fn is_persian() -> bool {
-    let ov = PERSIAN_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed);
-    if ov == 1 {
-        return true;
+fn load_catalog_for_lang(lang: &str) -> Option<&'static HashMap<String, &'static str>> {
+    let clean = clean_locale(lang);
+    let base = clean.split('_').next().unwrap_or(&clean);
+
+    let search_paths = [
+        format!("/usr/share/locale/{clean}/LC_MESSAGES/pastor.mo"),
+        format!("/usr/share/locale/{base}/LC_MESSAGES/pastor.mo"),
+        format!("/usr/local/share/locale/{clean}/LC_MESSAGES/pastor.mo"),
+        format!("/usr/local/share/locale/{base}/LC_MESSAGES/pastor.mo"),
+        format!("po/{clean}.mo"),
+        format!("po/{base}.mo"),
+    ];
+
+    let mut parsed: Option<PoCatalog> = None;
+    for path in &search_paths {
+        if let Ok(bytes) = std::fs::read(path) {
+            if let Some(cat) = PoCatalog::parse_mo(&bytes) {
+                if !cat.is_empty() {
+                    parsed = Some(cat);
+                    break;
+                }
+            }
+        }
     }
-    if ov == -1 {
-        return false;
+
+    if parsed.is_none() && base == "fa" {
+        const EMBEDDED_FA_PO: &str = include_str!("../../../po/fa.po");
+        parsed = Some(PoCatalog::parse(EMBEDDED_FA_PO));
     }
-    LocaleMatcher::from_env().primary_locale().starts_with("fa")
+
+    let cat = parsed?;
+    let mut map: HashMap<String, &'static str> = HashMap::with_capacity(cat.entries.len());
+    for (k, v) in cat.entries {
+        let v_static: &'static str = Box::leak(v.into_boxed_str());
+        map.insert(k, v_static);
+    }
+    let map_static: &'static HashMap<String, &'static str> = Box::leak(Box::new(map));
+    Some(map_static)
 }
 
-/// Allows overriding Persian mode explicitly (useful for testing or language selection).
-pub fn set_persian_mode(enabled: Option<bool>) {
-    let val = match enabled {
-        Some(true) => 1,
-        Some(false) => -1,
-        None => 0,
-    };
-    PERSIAN_OVERRIDE.store(val, std::sync::atomic::Ordering::Relaxed);
+fn get_or_load_catalog(lang: &str) -> Option<&'static HashMap<String, &'static str>> {
+    let clean = clean_locale(lang);
+    let base = clean.split('_').next().unwrap_or(&clean).to_string();
+
+    {
+        if let Ok(reg) = CATALOG_REGISTRY.read() {
+            if let Some(ref cache) = *reg {
+                if let Some(entry) = cache.get(&clean).or_else(|| cache.get(&base)) {
+                    return *entry;
+                }
+            }
+        }
+    }
+
+    let loaded = load_catalog_for_lang(&clean);
+
+    if let Ok(mut reg) = CATALOG_REGISTRY.write() {
+        let cache = reg.get_or_insert_with(HashMap::new);
+        cache.insert(clean, loaded);
+        cache.insert(base, loaded);
+    }
+
+    loaded
 }
 
-/// Translates a given UI string to Persian if the active locale is Persian,
-/// using the `.po` catalog in `po/fa.po`.
+/// Translates a given UI string to the active locale using GNU gettext catalogs.
 pub fn tr(text: &str) -> &str {
-    if !is_persian() {
+    let lang = active_language();
+    if lang.is_empty() || lang == "C" || lang == "POSIX" {
         return text;
     }
-    if let Some(trans) = persian_po_catalog().get(text) {
-        if !trans.is_empty() {
-            return trans;
+    let base = lang.split('_').next().unwrap_or(&lang);
+    if base.eq_ignore_ascii_case("en") {
+        return text;
+    }
+
+    if let Some(cat) = get_or_load_catalog(&lang) {
+        if let Some(&trans) = cat.get(text) {
+            if !trans.is_empty() {
+                return trans;
+            }
         }
     }
     text
@@ -255,12 +450,20 @@ pub fn tr(text: &str) -> &str {
 
 /// Variant of `tr` for static strings that preserves the `'static` lifetime.
 pub fn tr_static(text: &'static str) -> &'static str {
-    if !is_persian() {
+    let lang = active_language();
+    if lang.is_empty() || lang == "C" || lang == "POSIX" {
         return text;
     }
-    if let Some(trans) = persian_po_catalog().get(text) {
-        if !trans.is_empty() {
-            return trans;
+    let base = lang.split('_').next().unwrap_or(&lang);
+    if base.eq_ignore_ascii_case("en") {
+        return text;
+    }
+
+    if let Some(cat) = get_or_load_catalog(&lang) {
+        if let Some(&trans) = cat.get(text) {
+            if !trans.is_empty() {
+                return trans;
+            }
         }
     }
     text
@@ -385,6 +588,8 @@ impl LocalizedDescription {
 mod tests {
     use super::*;
 
+    static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn test_locale_matching_english() {
         let matcher = LocaleMatcher::new(vec!["en_US".into(), "en".into()]);
@@ -432,6 +637,7 @@ mod tests {
 
     #[test]
     fn test_persian_ui_translations() {
+        let _guard = TEST_MUTEX.lock().unwrap();
         let cat = persian_po_catalog();
         assert!(cat.len() > 100);
         assert_eq!(cat.get("Explore"), Some("کاوش"));
@@ -455,5 +661,81 @@ mod tests {
 
         // Reset
         set_persian_mode(None);
+    }
+
+    #[test]
+    fn test_multi_language_and_rtl_resolution() {
+        let _guard = TEST_MUTEX.lock().unwrap();
+        // Test RTL detection
+        assert!(is_rtl_language("fa"));
+        assert!(is_rtl_language("fa_IR"));
+        assert!(is_rtl_language("ar_EG"));
+        assert!(is_rtl_language("he"));
+        assert!(is_rtl_language("ur"));
+        assert!(!is_rtl_language("en_US"));
+        assert!(!is_rtl_language("de_DE"));
+        assert!(!is_rtl_language("fr"));
+
+        // Test explicit set_language
+        set_language(Some("fa_IR"));
+        assert_eq!(active_language(), "fa_IR");
+        assert!(is_persian());
+        assert!(is_rtl());
+        assert_eq!(tr("Explore"), "کاوش");
+        assert_eq!(tr_static("Explore"), "کاوش");
+
+        set_language(Some("en_US"));
+        assert_eq!(active_language(), "en_US");
+        assert!(!is_persian());
+        assert!(!is_rtl());
+        assert_eq!(tr("Explore"), "Explore");
+
+        // Clean reset
+        set_language(None);
+    }
+
+    #[test]
+    fn test_po_and_mo_parsing() {
+        let po_data = r#"
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Hello"
+msgstr "درود"
+
+msgid "Goodbye"
+msgstr "بدرود"
+"#;
+        let cat = PoCatalog::parse(po_data);
+        assert_eq!(cat.get("Hello"), Some("درود"));
+        assert_eq!(cat.get("Goodbye"), Some("بدرود"));
+
+        // Synthetic MO binary buffer for "Test" -> "آزمون"
+        let orig_str = b"Test\0";
+        let trans_str = "آزمون\0".as_bytes();
+        let orig_offset: u32 = 44;
+        let trans_offset: u32 = orig_offset + orig_str.len() as u32;
+
+        let mut mo_bytes = Vec::new();
+        mo_bytes.extend_from_slice(&0x950412de_u32.to_le_bytes()); // magic
+        mo_bytes.extend_from_slice(&0_u32.to_le_bytes());          // revision
+        mo_bytes.extend_from_slice(&1_u32.to_le_bytes());          // num_strings
+        mo_bytes.extend_from_slice(&28_u32.to_le_bytes());         // orig_table_offset
+        mo_bytes.extend_from_slice(&36_u32.to_le_bytes());         // trans_table_offset
+        mo_bytes.extend_from_slice(&0_u32.to_le_bytes());          // hash table size
+        mo_bytes.extend_from_slice(&0_u32.to_le_bytes());          // hash table offset
+        // Orig table entry: len, offset
+        mo_bytes.extend_from_slice(&(orig_str.len() as u32 - 1).to_le_bytes());
+        mo_bytes.extend_from_slice(&orig_offset.to_le_bytes());
+        // Trans table entry: len, offset
+        mo_bytes.extend_from_slice(&(trans_str.len() as u32 - 1).to_le_bytes());
+        mo_bytes.extend_from_slice(&trans_offset.to_le_bytes());
+        // Strings data
+        mo_bytes.extend_from_slice(orig_str);
+        mo_bytes.extend_from_slice(trans_str);
+
+        let parsed_mo = PoCatalog::parse_mo(&mo_bytes).expect("Failed to parse valid synthetic MO binary");
+        assert_eq!(parsed_mo.get("Test"), Some("آزمون"));
     }
 }

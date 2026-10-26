@@ -23,6 +23,17 @@ fn main() -> glib::ExitCode {
         std::process::exit(0);
     }
 
+    // Inspect CLI args for explicit --lang or --locale overrides
+    for (i, arg) in args.iter().enumerate() {
+        if arg == "--lang" || arg == "--locale" || arg == "--language" {
+            if let Some(val) = args.get(i + 1) {
+                pastor_core::set_language(Some(val));
+            }
+        } else if let Some(val) = arg.strip_prefix("--lang=").or_else(|| arg.strip_prefix("--locale=")) {
+            pastor_core::set_language(Some(val));
+        }
+    }
+
     tracing_subscriber::fmt::init();
 
     // Initialize multi-threaded Tokio runtime so async tasks, network timers, and sleeps

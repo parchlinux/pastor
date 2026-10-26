@@ -977,6 +977,10 @@ impl MainWindow {
         (self.open_package_fn)(pkg_name.to_string());
     }
 
+    pub fn destroy(&self) {
+        self.window.destroy();
+    }
+
     pub fn handle_uri(&self, uri: &str) {
         self.window.present();
         match crate::uri_handler::parse_uri(uri) {
