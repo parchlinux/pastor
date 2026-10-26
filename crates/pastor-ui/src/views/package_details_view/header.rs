@@ -88,7 +88,7 @@ pub fn create_hero_box(
     };
 
     let repo_badge = gtk4::Label::builder()
-        .label(repo_badge_text)
+        .label(pastor_core::tr(repo_badge_text))
         .css_classes([repo_badge_class])
         .valign(gtk4::Align::Center)
         .build();
@@ -101,7 +101,7 @@ pub fn create_hero_box(
         _ => ("Snapper Protected", "metadata-badge"),
     };
     let safety_badge = gtk4::Label::builder()
-        .label(safety_text)
+        .label(pastor_core::tr(safety_text))
         .css_classes([safety_class])
         .valign(gtk4::Align::Center)
         .build();
@@ -127,7 +127,7 @@ pub fn create_hero_box(
         .build();
 
     let source_lbl = gtk4::Label::builder()
-        .label("Source:")
+        .label(pastor_core::tr("Source:"))
         .css_classes(["caption", "dim-label"])
         .valign(gtk4::Align::Center)
         .build();

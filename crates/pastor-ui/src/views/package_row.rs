@@ -72,16 +72,16 @@ fn apply_action_state(abtn: &gtk4::Button, qu: &gtk4::Button, state: PackageStat
     abtn.remove_css_class("pill");
     match state {
         PackageState::Installed | PackageState::UpdateAvailable => {
-            abtn.set_label("Uninstall");
+            abtn.set_label(pastor_core::tr("Uninstall"));
             abtn.set_icon_name("user-trash-symbolic");
-            abtn.set_tooltip_text(Some("Quick uninstall software"));
+            abtn.set_tooltip_text(Some(pastor_core::tr("Quick uninstall")));
             abtn.add_css_class("destructive-action");
             abtn.add_css_class("pill");
             abtn.set_sensitive(true);
             qu.set_visible(state == PackageState::UpdateAvailable);
         }
         _ => {
-            abtn.set_label("Install");
+            abtn.set_label(pastor_core::tr("Install"));
             abtn.set_icon_name("folder-download-symbolic");
             abtn.set_tooltip_text(None);
             abtn.add_css_class("suggested-action");
@@ -233,25 +233,25 @@ impl PackageRowWidgets {
 
         match pkg.state {
             PackageState::NotInstalled => {
-                action_btn.set_label("Install");
+                action_btn.set_label(pastor_core::tr("Install"));
                 action_btn.add_css_class("suggested-action");
                 action_btn.add_css_class("pill");
             }
             PackageState::Installed => {
-                action_btn.set_label("Uninstall");
+                action_btn.set_label(pastor_core::tr("Uninstall"));
                 action_btn.set_icon_name("user-trash-symbolic");
-                action_btn.set_tooltip_text(Some("Quick uninstall software"));
+                action_btn.set_tooltip_text(Some(pastor_core::tr("Quick uninstall")));
                 action_btn.add_css_class("destructive-action");
                 action_btn.add_css_class("pill");
             }
             PackageState::UpdateAvailable => {
-                action_btn.set_label("Update");
+                action_btn.set_label(pastor_core::tr("Update"));
                 action_btn.set_icon_name(&crate::icons::update_icon());
                 action_btn.add_css_class("suggested-action");
                 action_btn.add_css_class("pill");
             }
             PackageState::Processing => {
-                action_btn.set_label("Working...");
+                action_btn.set_label(pastor_core::tr("Processing…"));
                 action_btn.set_sensitive(false);
             }
         }
@@ -263,12 +263,13 @@ impl PackageRowWidgets {
             .visible(false)
             .build();
 
+        let cancel_tip = pastor_core::tr("Cancel installation");
         let cancel_btn = gtk4::Button::builder()
             .icon_name("process-stop-symbolic")
-            .tooltip_text("Cancel installation")
+            .tooltip_text(cancel_tip)
             .css_classes(["flat", "circular"])
             .build();
-        cancel_btn.update_property(&[gtk4::accessible::Property::Label("Cancel installation")]);
+        cancel_btn.update_property(&[gtk4::accessible::Property::Label(cancel_tip)]);
 
         {
             let store_c = store.clone();
@@ -505,7 +506,6 @@ impl PackageRowWidgets {
             let bound_tx = self.bound_tx.clone();
             let pbox = self.cancel_box.clone();
             let abtn = self.action_btn.clone();
-            let btn_status = self.btn_status.clone();
             let btn_pct = self.btn_pct.clone();
             let qu = self.quick_uninstall_btn.clone();
             move |evt_key, phase| {
@@ -522,7 +522,6 @@ impl PackageRowWidgets {
                     let pid = pkg_id.clone();
                     let pbox = pbox.clone();
                     let abtn = abtn.clone();
-                    let btn_status = btn_status.clone();
                     let qu = qu.clone();
                     glib::spawn_future_local(async move {
                         let updated_pkg = s.get_package(&pid).await.ok().flatten();

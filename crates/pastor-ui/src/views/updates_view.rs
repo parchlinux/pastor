@@ -11,13 +11,14 @@ use crate::models::TxMonitor;
 
 /// Which top-level source group an update belongs to, in display order.
 fn update_group(source: &PackageSource) -> &'static str {
-    match source {
+    let grp = match source {
         PackageSource::Parch(_) | PackageSource::Arch(_) => "System Packages (Native)",
         PackageSource::Flatpak { .. } => "Flatpak Applications",
         PackageSource::Aur => "AUR Community Packages",
         PackageSource::Bootc => "System Image",
         PackageSource::Waydroid => "Android Apps",
-    }
+    };
+    pastor_core::tr_static(grp)
 }
 
 pub struct UpdatesViewHandle {
@@ -52,8 +53,8 @@ pub fn create_updates_view(
     let load_ref: Rc<RefCell<Option<Rc<dyn Fn()>>>> = Rc::new(RefCell::new(None));
 
     let error_banner = adw::Banner::builder()
-        .title("Could not check for updates. Check your connection and try again.")
-        .button_label("Retry")
+        .title(pastor_core::tr("Could not check for updates. Check your connection and try again."))
+        .button_label(pastor_core::tr("Retry"))
         .revealed(false)
         .build();
     {
@@ -109,7 +110,7 @@ pub fn create_updates_view(
             loading_box.append(&spinner);
 
             let lbl = gtk4::Label::builder()
-                .label("Checking for application and system updates…")
+                .label(pastor_core::tr("Checking for application and system updates…"))
                 .css_classes(["dim-label"])
                 .build();
             loading_box.append(&lbl);
@@ -132,8 +133,8 @@ pub fn create_updates_view(
                         }
                         let status_page = adw::StatusPage::builder()
                             .icon_name("network-error-symbolic")
-                            .title("Update Check Failed")
-                            .description("One or more backends could not be reached.")
+                            .title(pastor_core::tr("Error checking for updates"))
+                            .description(pastor_core::tr("Could not check for updates. Check your connection and try again."))
                             .build();
                         dyn_box_c.append(&status_page);
                         error_banner_c.set_revealed(true);
@@ -183,8 +184,8 @@ fn render_updates(
         if updates.is_empty() {
             let status_page = adw::StatusPage::builder()
                 .icon_name("emblem-ok-symbolic")
-                .title("Software Is Up to Date")
-                .description("All installed applications and Flatpaks are on their latest versions.")
+                .title(pastor_core::tr("All packages are up to date"))
+                .description(pastor_core::tr("Your system software is current"))
                 .vexpand(true)
                 .hexpand(true)
                 .build();
@@ -197,7 +198,7 @@ fn render_updates(
                 .build();
 
             let check_again_btn = gtk4::Button::builder()
-                .label("Check for Updates")
+                .label(pastor_core::tr("Check for Updates"))
                 .css_classes(["pill"])
                 .build();
 
@@ -209,7 +210,7 @@ fn render_updates(
             });
 
             let refresh_db_btn = gtk4::Button::builder()
-                .label("Refresh Databases")
+                .label(pastor_core::tr("Refresh Databases"))
                 .css_classes(["pill", "suggested-action"])
                 .build();
 
@@ -310,7 +311,13 @@ fn render_updates(
             .build();
 
         let count = pkgs.len();
-        let heading_text = if count == 1 {
+        let heading_text = if pastor_core::is_persian() {
+            if count == 1 {
+                "۱ به‌روزرسانی موجود است".to_string()
+            } else {
+                format!("{count} به‌روزرسانی موجود است")
+            }
+        } else if count == 1 {
             "1 Update Available".to_string()
         } else {
             format!("{count} Updates Available")
@@ -324,7 +331,7 @@ fn render_updates(
         text_box.append(&title_lbl);
 
         let sub_lbl = gtk4::Label::builder()
-            .label("Updates are installed safely. Snapper snapshots are created prior to applying.")
+            .label(pastor_core::tr("Updates are installed safely. Snapper snapshots are created prior to applying."))
             .css_classes(["dim-label"])
             .halign(gtk4::Align::Start)
             .build();
@@ -338,12 +345,13 @@ fn render_updates(
             .margin_end(16)
             .build();
 
+        let refresh_tip = pastor_core::tr("Refresh Databases");
         let refresh_btn = gtk4::Button::builder()
             .icon_name("view-refresh-symbolic")
-            .tooltip_text("Refresh package databases")
+            .tooltip_text(refresh_tip)
             .css_classes(["flat", "circular"])
             .build();
-        refresh_btn.update_property(&[gtk4::accessible::Property::Label("Refresh package databases")]);
+        refresh_btn.update_property(&[gtk4::accessible::Property::Label(refresh_tip)]);
 
         let store_refresh2 = store_c.clone();
         let on_tx_refresh2 = on_tx_c.clone();
@@ -378,7 +386,13 @@ fn render_updates(
         });
 
         let total_download_size: u64 = pkgs.iter().filter_map(|p| p.size_download).sum();
-        let update_all_label = if total_download_size > 0 {
+        let update_all_label = if pastor_core::is_persian() {
+            if total_download_size > 0 {
+                format!("به‌روزرسانی همه ({})", pastor_core::format_size(total_download_size))
+            } else {
+                "به‌روزرسانی همه".to_string()
+            }
+        } else if total_download_size > 0 {
             format!("Update All ({})", pastor_core::format_size(total_download_size))
         } else {
             "Update All".to_string()

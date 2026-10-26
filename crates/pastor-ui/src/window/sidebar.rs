@@ -1,5 +1,5 @@
 use adw::prelude::*;
-use pastor_core::PackageCategory;
+use pastor_core::{tr, PackageCategory};
 
 pub struct SidebarComponents {
     pub toolbar: adw::ToolbarView,
@@ -48,14 +48,14 @@ pub fn build_sidebar() -> SidebarComponents {
         .show_start_title_buttons(false)
         .build();
     let sidebar_title = adw::WindowTitle::builder()
-        .title("Parch Store")
+        .title(tr("Parch Store"))
         .build();
     sidebar_header.set_title_widget(Some(&sidebar_title));
 
     let sidebar_collapse_btn = gtk4::Button::builder()
         .icon_name(crate::icons::sidebar_toggle_icon())
         .css_classes(["flat"])
-        .tooltip_text("Collapse Sidebar (F9)")
+        .tooltip_text(tr("Collapse Sidebar (F9)"))
         .valign(gtk4::Align::Center)
         .build();
     sidebar_header.pack_end(&sidebar_collapse_btn);
@@ -73,22 +73,22 @@ pub fn build_sidebar() -> SidebarComponents {
 
     // Search Entry
     let search_entry = gtk4::SearchEntry::builder()
-        .placeholder_text("Search packages, apps, AUR… (Ctrl+F)")
+        .placeholder_text(tr("Search packages, apps, AUR… (Ctrl+F)"))
         .build();
     sidebar_box.append(&search_entry);
 
     // Discover Group
     let nav_group = adw::PreferencesGroup::builder()
-        .title("Discover")
+        .title(tr("Discover"))
         .build();
     let nav_list = gtk4::ListBox::builder()
         .selection_mode(gtk4::SelectionMode::Single)
         .css_classes(["navigation-sidebar"])
         .build();
 
-    let explore_row = create_nav_row("Explore", &crate::icons::explore_icon());
-    let installed_row = create_nav_row("Installed", &crate::icons::installed_icon());
-    let updates_row = create_nav_row("Updates", &crate::icons::update_icon());
+    let explore_row = create_nav_row(tr("Explore"), &crate::icons::explore_icon());
+    let installed_row = create_nav_row(tr("Installed"), &crate::icons::installed_icon());
+    let updates_row = create_nav_row(tr("Updates"), &crate::icons::update_icon());
 
     nav_list.append(&explore_row);
     nav_list.append(&installed_row);
@@ -98,7 +98,7 @@ pub fn build_sidebar() -> SidebarComponents {
 
     // Categories Group
     let cat_group = adw::PreferencesGroup::builder()
-        .title("Categories")
+        .title(tr("Categories"))
         .build();
     let cat_list = gtk4::ListBox::builder()
         .selection_mode(gtk4::SelectionMode::Single)

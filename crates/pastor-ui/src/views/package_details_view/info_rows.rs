@@ -17,7 +17,7 @@ pub fn create_spec_row(title: &str, subtitle: &str, icon_name: &str) -> adw::Act
 
 pub fn create_about_group(pkg: &Package) -> adw::PreferencesGroup {
     let about_group = adw::PreferencesGroup::builder()
-        .title("About")
+        .title(pastor_core::tr("About"))
         .build();
 
     let summary_lead = gtk4::Label::builder()
@@ -43,7 +43,12 @@ pub fn create_about_group(pkg: &Package) -> adw::PreferencesGroup {
 }
 
 pub fn create_whats_new_group(pkg: &Package) -> adw::PreferencesGroup {
-    let wn_title = glib::markup_escape_text(&format!("What's New in Version {}", pkg.version));
+    let raw_wn_title = if pastor_core::is_persian() {
+        format!("تغییرات نسخه {}", pkg.version)
+    } else {
+        format!("What's New in Version {}", pkg.version)
+    };
+    let wn_title = glib::markup_escape_text(&raw_wn_title);
     let whats_new_group = adw::PreferencesGroup::builder()
         .title(wn_title.as_str())
         .build();
@@ -52,10 +57,15 @@ pub fn create_whats_new_group(pkg: &Package) -> adw::PreferencesGroup {
         "Optimized for ParchLinux with updated system dependencies, Wayland integration, and performance enhancements."
     );
 
-    let exp_title = glib::markup_escape_text(&format!("Version {} Release Notes", pkg.version));
+    let raw_exp_title = if pastor_core::is_persian() {
+        format!("یادداشت‌های انتشار نسخه {}", pkg.version)
+    } else {
+        format!("Version {} Release Notes", pkg.version)
+    };
+    let exp_title = glib::markup_escape_text(&raw_exp_title);
     let expander = adw::ExpanderRow::builder()
         .title(exp_title.as_str())
-        .subtitle("Click to view changelog and update details")
+        .subtitle(pastor_core::tr("Click to view changelog and update details"))
         .expanded(false)
         .build();
     let rel_icon = gtk4::Image::from_icon_name("software-update-available-symbolic");
@@ -85,10 +95,10 @@ pub fn create_whats_new_group(pkg: &Package) -> adw::PreferencesGroup {
 
 pub fn create_specs_group(pkg: &Package) -> adw::PreferencesGroup {
     let specs_group = adw::PreferencesGroup::builder()
-        .title("Details")
+        .title(pastor_core::tr("Details"))
         .build();
 
-    let lic_str = pkg.license.as_deref().unwrap_or("Open Source");
+    let lic_str = pkg.license.as_deref().unwrap_or(pastor_core::tr("Open Source"));
     let dl_str = match pkg.size_download {
         Some(sz) => pastor_core::format_size(sz),
         None => "Varies".to_string(),
@@ -99,8 +109,8 @@ pub fn create_specs_group(pkg: &Package) -> adw::PreferencesGroup {
     };
 
     let dev_row = create_spec_row(
-        "Developer",
-        pkg.maintainer.as_deref().unwrap_or("ParchLinux Contributors"),
+        pastor_core::tr("Developer"),
+        pkg.maintainer.as_deref().unwrap_or(pastor_core::tr("ParchLinux Contributors")),
         "avatar-default-symbolic",
     );
     specs_group.add(&dev_row);
@@ -113,14 +123,14 @@ pub fn create_specs_group(pkg: &Package) -> adw::PreferencesGroup {
     specs_group.add(&pkg_row);
 
     let ver_row = create_spec_row(
-        "Version",
+        pastor_core::tr("Version"),
         &pkg.version,
         "tag-symbolic",
     );
     specs_group.add(&ver_row);
 
     let lic_row = create_spec_row(
-        "License",
+        pastor_core::tr("License"),
         lic_str,
         "help-about-symbolic",
     );
@@ -135,28 +145,28 @@ pub fn create_specs_group(pkg: &Package) -> adw::PreferencesGroup {
         PackageSource::Waydroid => "Waydroid Android Environment".to_string(),
     };
     let source_row = create_spec_row(
-        "Repository and Source",
+        pastor_core::tr("Source"),
         &source_title,
         "package-x-generic-symbolic",
     );
     specs_group.add(&source_row);
 
     let arch_row = create_spec_row(
-        "Architecture",
+        pastor_core::tr("Architecture"),
         "x86_64",
         "system-run-symbolic",
     );
     specs_group.add(&arch_row);
 
     let dl_row = create_spec_row(
-        "Download Size",
+        pastor_core::tr("Download Size"),
         &dl_str,
         "folder-download-symbolic",
     );
     specs_group.add(&dl_row);
 
     let inst_row = create_spec_row(
-        "Installed Footprint",
+        pastor_core::tr("Installed Size"),
         &inst_str,
         "drive-harddisk-symbolic",
     );

@@ -13,7 +13,7 @@ pub fn create_operations_popover(
     on_select_pkg: impl Fn(Package) + 'static + Clone,
 ) -> (gtk4::Button, Rc<dyn Fn()>) {
     let header_ops_btn = gtk4::Button::builder()
-        .tooltip_text("Active Operations")
+        .tooltip_text(pastor_core::tr("Active Operations"))
         .css_classes(["flat", "circular"])
         .visible(false)
         .valign(gtk4::Align::Center)
@@ -61,14 +61,14 @@ pub fn create_operations_popover(
         .build();
 
     let pop_title_lbl = gtk4::Label::builder()
-        .label("Active Operations")
+        .label(pastor_core::tr("Active Operations"))
         .css_classes(["heading"])
         .halign(gtk4::Align::Start)
         .build();
     pop_titles.append(&pop_title_lbl);
 
     let pop_sub_lbl = gtk4::Label::builder()
-        .label("0 operations active")
+        .label(pastor_core::tr("0 operations active"))
         .css_classes(["caption", "dim-label"])
         .halign(gtk4::Align::Start)
         .build();
@@ -77,7 +77,7 @@ pub fn create_operations_popover(
 
     let pop_cancel_all_btn = gtk4::Button::builder()
         .icon_name("process-stop-symbolic")
-        .tooltip_text("Cancel all operations")
+        .tooltip_text(pastor_core::tr("Cancel all operations"))
         .css_classes(["flat", "circular"])
         .valign(gtk4::Align::Center)
         .build();
@@ -106,7 +106,7 @@ pub fn create_operations_popover(
 
     let pop_console_btn = gtk4::Button::builder()
         .icon_name("utilities-terminal-symbolic")
-        .label("Native Transaction Console")
+        .label(pastor_core::tr("Native Transaction Console"))
         .css_classes(["flat"])
         .halign(gtk4::Align::Center)
         .build();
@@ -161,7 +161,7 @@ pub fn create_operations_popover(
             let avg_frac = (total_frac / active.len() as f32) as f64;
             circle.set_fraction(avg_frac);
             let pct = (avg_frac * 100.0).round() as u32;
-            sub_lbl.set_text(&format!("{} operations active ({}%)", active.len(), pct));
+            sub_lbl.set_text(&format!("{} {} ({}%)", active.len(), pastor_core::tr("operations active"), pct));
 
             // Clear and rebuild rows
             while let Some(child) = list.first_child() {
@@ -220,9 +220,10 @@ pub fn create_operations_popover(
                 mini_circle.set_fraction(item.progress_fraction as f64);
                 hbox.append(mini_circle.widget());
 
+                let cancel_tip = pastor_core::tr("Cancel installation");
                 let item_cancel_btn = gtk4::Button::builder()
                     .icon_name("process-stop-symbolic")
-                    .tooltip_text("Cancel installation")
+                    .tooltip_text(cancel_tip)
                     .css_classes(["flat", "circular"])
                     .valign(gtk4::Align::Center)
                     .build();

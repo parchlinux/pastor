@@ -162,6 +162,10 @@ impl Application {
                 adw::init().expect("Failed to initialize Libadwaita");
                 adw::StyleManager::default().set_color_scheme(adw::ColorScheme::Default);
 
+                if pastor_core::is_persian() {
+                    gtk4::Widget::set_default_direction(gtk4::TextDirection::Rtl);
+                }
+
                 // Load custom CSS
                 let provider = gtk4::CssProvider::new();
                 provider.load_from_data(APP_CSS);

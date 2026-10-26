@@ -1,0 +1,883 @@
+# Persian translation for pastor.
+# Copyright (C) 2026 ParchLinux Team
+# This file is distributed under the same license as the pastor package.
+# Sohrab Behdani <behdanisohrab@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: pastor 0.3.1\n"
+"Report-Msgid-Bugs-To: https://github.com/parchlinux/pastor/issues\n"
+"POT-Creation-Date: 2026-10-26 10:00+0330\n"
+"PO-Revision-Date: 2026-10-26 10:00+0330\n"
+"Last-Translator: Sohrab Behdani <behdanisohrab@gmail.com>\n"
+"Language-Team: Persian <parchlinux@googlegroups.com>\n"
+"Language: fa\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+# Navigation & Sidebar
+msgid "Parch Store"
+msgstr "فروشگاه پارچ"
+
+msgid "Explore"
+msgstr "کاوش"
+
+msgid "Installed"
+msgstr "نصب‌شده"
+
+msgid "Updates"
+msgstr "به‌روزرسانی‌ها"
+
+msgid "Discover"
+msgstr "کشف"
+
+msgid "Categories"
+msgstr "دسته‌بندی‌ها"
+
+msgid "Collapse Sidebar (F9)"
+msgstr "بستن نوار کناری (F9)"
+
+msgid "Search packages, apps, AUR… (Ctrl+F)"
+msgstr "جستجوی بسته‌ها، برنامه‌ها، مخزن AUR… (Ctrl+F)"
+
+msgid "Search"
+msgstr "جستجو"
+
+msgid "Search results"
+msgstr "نتایج جستجو"
+
+msgid "Search packages…"
+msgstr "جستجوی بسته‌ها…"
+
+# Categories
+msgid "Featured"
+msgstr "برگزیده"
+
+msgid "Parch Picks"
+msgstr "پیشنهادهای پارچ"
+
+msgid "Development"
+msgstr "توسعه"
+
+msgid "Games"
+msgstr "بازی‌ها"
+
+msgid "Graphics & Design"
+msgstr "گرافیک و طراحی"
+
+msgid "Graphics"
+msgstr "گرافیک"
+
+msgid "Internet & Web"
+msgstr "اینترنت و وب"
+
+msgid "Internet"
+msgstr "اینترنت"
+
+msgid "Audio & Video"
+msgstr "صوت و تصویر"
+
+msgid "Multimedia"
+msgstr "چندرسانه‌ای"
+
+msgid "Office & Productivity"
+msgstr "اداری و بهره‌وری"
+
+msgid "Office"
+msgstr "اداری"
+
+msgid "System Tools"
+msgstr "ابزارهای سیستمی"
+
+msgid "System"
+msgstr "سیستم"
+
+msgid "Android Apps (Waydroid)"
+msgstr "برنامه‌های اندروید (Waydroid)"
+
+msgid "Android"
+msgstr "اندروید"
+
+msgid "Utilities"
+msgstr "ابزارها"
+
+# Explore View Sections
+msgid "Featured Applications"
+msgstr "برنامه‌های برگزیده"
+
+msgid "Browse Categories"
+msgstr "مرور دسته‌بندی‌ها"
+
+msgid "Trending Software"
+msgstr "نرم‌افزارهای پرطرفدار"
+
+msgid "Trending Applications"
+msgstr "برنامه‌های پرطرفدار"
+
+msgid "Most popular community software and essentials"
+msgstr "محبوب‌ترین نرم‌افزارهای جامعه کاربری و برنامه‌های ضروری"
+
+msgid "Curated utilities and verified software for your desktop"
+msgstr "ابزارهای منتخب و نرم‌افزارهای تأییدشده برای میزکار شما"
+
+msgid "Browsers, messengers, downloaders, and network tools"
+msgstr "مرورگرها، پیام‌رسان‌ها، دانلودکننده‌ها و ابزارهای شبکه"
+
+msgid "Media players, video editors, and audio production tools"
+msgstr "پخش‌کننده‌های رسانه، ویرایشگرهای ویدیو و ابزارهای صوتی"
+
+msgid "Productivity & Office"
+msgstr "بهره‌وری و اداری"
+
+msgid "Document editors, spreadsheets, and organizational apps"
+msgstr "ویرایشگرهای سند، صفحات گسترده و برنامه‌های سازمان‌دهی"
+
+msgid "Development Tools"
+msgstr "ابزارهای توسعه"
+
+msgid "IDEs, compilers, debuggers, and developer utilities"
+msgstr "محیط‌های توسعه، کامپایلرها، اشکال‌زداها و ابزارهای برنامه‌نویسی"
+
+msgid "Internet & Communication"
+msgstr "اینترنت و ارتباطات"
+
+msgid "Creativity & Graphics"
+msgstr "خلاقیت و گرافیک"
+
+msgid "Audio & Video Production"
+msgstr "تولید صوت و تصویر"
+
+msgid "Image editors, 3D modeling, vector design, and animation"
+msgstr "ویرایشگرهای تصویر، مدل‌سازی سه‌بعدی، طراحی برداری و پویانمایی"
+
+msgid "Action, strategy, simulation, and casual gaming"
+msgstr "اکشن، استراتژی، شبیه‌سازی و بازی‌های تفننی"
+
+msgid "System utilities, terminal emulators, and management tools"
+msgstr "ابزارهای سیستمی، شبیه‌سازهای ترمینال و ابزارهای مدیریت"
+
+msgid "Run native Android apps seamlessly on Linux via Waydroid"
+msgstr "اجرای روان برنامه‌های اندروید روی لینوکس از طریق Waydroid"
+
+msgid "Everyday utility tools, calculators, and system accessories"
+msgstr "ابزارهای کاربردی روزمره، ماشین‌حساب‌ها و ملزومات سیستم"
+
+msgid "See All"
+msgstr "مشاهده همه"
+
+# Installed View
+msgid "Installed Applications"
+msgstr "برنامه‌های نصب‌شده"
+
+msgid "Manage software and system packages installed on your system"
+msgstr "مدیریت نرم‌افزارها و بسته‌های نصب‌شده روی سیستم"
+
+msgid "Filter:"
+msgstr "فیلتر:"
+
+msgid "All"
+msgstr "همه"
+
+msgid "Applications"
+msgstr "برنامه‌ها"
+
+msgid "Applications only"
+msgstr "فقط برنامه‌ها"
+
+msgid "Official"
+msgstr "رسمی"
+
+msgid "Show all packages (including dependencies & libraries)"
+msgstr "نمایش همه بسته‌ها (شامل وابستگی‌ها و کتابخانه‌ها)"
+
+msgid "Sort:"
+msgstr "مرتب‌سازی:"
+
+msgid "Sort packages"
+msgstr "مرتب‌سازی بسته‌ها"
+
+msgid "Name (A–Z)"
+msgstr "نام (الف-ی)"
+
+msgid "Name (Z–A)"
+msgstr "نام (ی-الف)"
+
+msgid "Size (largest first)"
+msgstr "اندازه (بزرگ‌ترین)"
+
+msgid "Name (A-Z)"
+msgstr "نام (الف-ی)"
+
+msgid "Size (Largest)"
+msgstr "اندازه (بزرگ‌ترین)"
+
+msgid "Source"
+msgstr "منبع"
+
+msgid "No installed packages found"
+msgstr "هیچ بسته نصب‌شده‌ای یافت نشد"
+
+msgid "No packages match the selected filters."
+msgstr "هیچ بسته‌ای با فیلترهای انتخاب‌شده مطابقت ندارد."
+
+# Updates View
+msgid "Software Updates"
+msgstr "به‌روزرسانی‌های نرم‌افزاری"
+
+msgid "Check for Updates"
+msgstr "بررسی به‌روزرسانی‌ها"
+
+msgid "Checking for updates…"
+msgstr "در حال بررسی به‌روزرسانی‌ها…"
+
+msgid "Checking for application and system updates…"
+msgstr "در حال بررسی به‌روزرسانی‌های برنامه و سیستم…"
+
+msgid "Update All"
+msgstr "به‌روزرسانی همه"
+
+msgid "All packages are up to date"
+msgstr "همه بسته‌ها به‌روز هستند"
+
+msgid "Your system software is current"
+msgstr "نرم‌افزارهای سیستم شما به‌روز هستند"
+
+msgid "Updates Available"
+msgstr "به‌روزرسانی‌های موجود"
+
+msgid "Total download size:"
+msgstr "حجم کل دانلود:"
+
+msgid "Packages"
+msgstr "بسته‌ها"
+
+msgid "Error checking for updates"
+msgstr "خطا در بررسی به‌روزرسانی‌ها"
+
+msgid "Could not check for updates. Check your connection and try again."
+msgstr "امکان بررسی به‌روزرسانی‌ها وجود نداشت. اتصال خود را بررسی کنید و دوباره امتحان کنید."
+
+msgid "Retry"
+msgstr "تلاش مجدد"
+
+msgid "Refresh Databases"
+msgstr "تازه‌سازی پایگاه‌های داده"
+
+msgid "System Packages (Native)"
+msgstr "بسته‌های سیستمی (بومی)"
+
+msgid "Flatpak Applications"
+msgstr "برنامه‌های فلت‌پک"
+
+msgid "AUR Community Packages"
+msgstr "بسته‌های جامعه کاربری AUR"
+
+msgid "System Image"
+msgstr "تصویر سیستم"
+
+msgid "Android Apps"
+msgstr "برنامه‌های اندروید"
+
+# Action Buttons & States
+msgid "Install"
+msgstr "نصب"
+
+msgid "Update"
+msgstr "به‌روزرسانی"
+
+msgid "Uninstall"
+msgstr "حذف"
+
+msgid "Open"
+msgstr "اجرا"
+
+msgid "Launch"
+msgstr "راه‌اندازی"
+
+msgid "Installing…"
+msgstr "در حال نصب…"
+
+msgid "Updating…"
+msgstr "در حال به‌روزرسانی…"
+
+msgid "Uninstalling…"
+msgstr "در حال حذف…"
+
+msgid "Processing…"
+msgstr "در حال پردازش…"
+
+msgid "Cancel"
+msgstr "لغو"
+
+msgid "Cancel installation"
+msgstr "لغو نصب"
+
+msgid "Cancel uninstallation"
+msgstr "لغو حذف"
+
+msgid "Quick uninstall"
+msgstr "حذف سریع"
+
+msgid "More Options"
+msgstr "گزینه‌های بیشتر"
+
+msgid "Downgrade Version…"
+msgstr "بازگشت به نسخه قبل…"
+
+msgid "Project Website"
+msgstr "وبگاه پروژه"
+
+msgid "Official Website"
+msgstr "وبگاه رسمی"
+
+msgid "More"
+msgstr "بیشتر"
+
+msgid "Close"
+msgstr "بستن"
+
+# Package Details View
+msgid "Screenshots"
+msgstr "نماگرفت‌ها"
+
+msgid "About"
+msgstr "درباره"
+
+msgid "What's New in Version"
+msgstr "تغییرات نسخه"
+
+msgid "Release Notes"
+msgstr "یادداشت‌های انتشار"
+
+msgid "Click to view changelog and update details"
+msgstr "برای مشاهده گزارش تغییرات و جزئیات کلیک کنید"
+
+msgid "Details"
+msgstr "جزئیات"
+
+msgid "Technical Specifications"
+msgstr "مشخصات فنی"
+
+msgid "Dependencies"
+msgstr "وابستگی‌ها"
+
+msgid "No dependencies listed"
+msgstr "هیچ وابستگی فهرست نشده است"
+
+msgid "Source:"
+msgstr "منبع:"
+
+msgid "Sandboxed"
+msgstr "ایزوله (سندباکس)"
+
+msgid "Snapper Protected"
+msgstr "محافظت‌شده با اسنپر"
+
+msgid "Verified PKGBUILD"
+msgstr "PKGBUILD تأییدشده"
+
+msgid "Immutable Root"
+msgstr "ریشه غیرقابل‌تغییر"
+
+msgid "Developer"
+msgstr "توسعه‌دهنده"
+
+msgid "License"
+msgstr "مجوز"
+
+msgid "Download Size"
+msgstr "حجم دانلود"
+
+msgid "Installed Size"
+msgstr "حجم پس از نصب"
+
+msgid "Version"
+msgstr "نسخه"
+
+msgid "Architecture"
+msgstr "معماری"
+
+msgid "Publisher"
+msgstr "ناشر"
+
+msgid "Maintainer"
+msgstr "نگه‌دارنده"
+
+msgid "Open Source"
+msgstr "متن‌باز"
+
+msgid "ParchLinux Contributors"
+msgstr "مشارکت‌کنندگان پارچ‌لینوکس"
+
+# Badges & Sources
+msgid "Parch [world]"
+msgstr "پارچ [world]"
+
+msgid "Parch [void]"
+msgstr "پارچ [void]"
+
+msgid "Arch Repo"
+msgstr "مخزن آرچ"
+
+msgid "AUR"
+msgstr "مخزن AUR"
+
+msgid "Flatpak"
+msgstr "فلت‌پک"
+
+msgid "bootc OS"
+msgstr "سیستم‌عامل bootc"
+
+msgid "Waydroid"
+msgstr "ویدروید"
+
+# Share Feature
+msgid "Share application"
+msgstr "اشتراک‌گذاری برنامه"
+
+msgid "Share Application"
+msgstr "اشتراک‌گذاری برنامه"
+
+msgid "Copy link to share this application"
+msgstr "کپی پیوند برای اشتراک‌گذاری این برنامه"
+
+msgid "Copy link to clipboard"
+msgstr "کپی پیوند در حافظه موقت"
+
+msgid "✓ Link copied to clipboard"
+msgstr "✓ پیوند در حافظه موقت کپی شد"
+
+msgid "Open in browser"
+msgstr "باز کردن در مرورگر"
+
+msgid "Flathub (Flatpak)"
+msgstr "فلت‌هاب (فلت‌پک)"
+
+msgid "Cross-distro link for all Linux systems"
+msgstr "پیوند سراسری برای همه توزیع‌های لینوکس"
+
+msgid "Project homepage"
+msgstr "صفحه اصلی پروژه"
+
+msgid "Arch User Repository (AUR)"
+msgstr "مخزن کاربران آرچ (AUR)"
+
+msgid "AppStream Link"
+msgstr "پیوند AppStream"
+
+msgid "Direct link to open in software centers"
+msgstr "پیوند مستقیم برای باز کردن در فروشگاه‌های نرم‌افزار"
+
+msgid "Official Arch repository package"
+msgstr "بسته مخزن رسمی آرچ"
+
+msgid "AUR package details and PKGBUILD"
+msgstr "جزئیات بسته AUR و PKGBUILD"
+
+msgid "ParchLinux repository package"
+msgstr "بسته مخزن پارچ‌لینوکس"
+
+# Transaction Bar & Operations
+msgid "Transactions"
+msgstr "عملیات‌ها"
+
+msgid "Cancel Operation"
+msgstr "لغو عملیات"
+
+msgid "Show Console"
+msgstr "نمایش گزارش"
+
+msgid "Hide Console"
+msgstr "پنهان‌سازی گزارش"
+
+msgid "Running transaction…"
+msgstr "در حال اجرای عملیات…"
+
+msgid "Completed successfully"
+msgstr "با موفقیت انجام شد"
+
+msgid "Transaction failed"
+msgstr "عملیات ناموفق بود"
+
+msgid "Active Operations"
+msgstr "عملیات‌های فعال"
+
+msgid "No operations running"
+msgstr "هیچ عملیاتی در حال اجرا نیست"
+
+msgid "Clear Finished"
+msgstr "پاک‌سازی پایان‌یافته‌ها"
+
+# Settings / Preferences
+msgid "Preferences"
+msgstr "ترجیحات"
+
+msgid "Settings"
+msgstr "تنظیمات"
+
+msgid "Configure package engines, repository priorities, automatic updates, and storage"
+msgstr "پیکربندی موتورهای بسته، اولویت مخازن، به‌روزرسانی‌های خودکار و فضای ذخیره‌سازی"
+
+msgid "Packaging Engines & Cores"
+msgstr "موتورها و هسته‌های بسته‌بندی"
+
+msgid "Enable or disable package management backends and ecosystems"
+msgstr "فعال یا غیرفعال کردن بسترهای مدیریت بسته"
+
+msgid "Arch & Parch Native Packages (ALPM)"
+msgstr "بسته‌های بومی آرچ و پارچ (ALPM)"
+
+msgid "Native package repositories and pacman management"
+msgstr "مخازن بسته بومی و مدیریت pacman"
+
+msgid "Flatpak Applications (Flathub)"
+msgstr "برنامه‌های فلت‌پک (فلت‌هاب)"
+
+msgid "System Snapshots (Snapper)"
+msgstr "تصویرهای لحظه‌ای سیستم (اسنپر)"
+
+msgid "Automatic snapshots before system modifications"
+msgstr "ایجاد خودکار تصویر لحظه‌ای قبل از تغییرات سیستم"
+
+msgid "Automatic Updates"
+msgstr "به‌روزرسانی‌های خودکار"
+
+msgid "Storage & Cache"
+msgstr "فضای ذخیره‌سازی و حافظه موقت"
+
+msgid "Clear Cache"
+msgstr "پاک‌سازی حافظه موقت"
+
+msgid "Clear Package Cache"
+msgstr "پاک‌سازی حافظه موقت بسته‌ها"
+
+# AUR Review Dialog
+msgid "AUR Package Review"
+msgstr "بررسی بسته AUR"
+
+msgid "Proceed with Installation"
+msgstr "ادامه فرآیند نصب"
+
+msgid "Review PKGBUILD before building"
+msgstr "بررسی PKGBUILD قبل از ساخت"
+
+msgid "Security Scan"
+msgstr "پایش امنیتی"
+
+msgid "Trust Warning"
+msgstr "هشدار اعتماد"
+
+msgid "Diff"
+msgstr "تغییرات"
+
+# About & Shortcuts
+msgid "About Pastor"
+msgstr "درباره پاستور"
+
+msgid "Modern Software Center for ParchLinux"
+msgstr "مرکز نرم‌افزاری مدرن برای پارچ‌لینوکس"
+
+msgid "Keyboard Shortcuts"
+msgstr "کلیدهای میانبر"
+
+msgid "Focus search"
+msgstr "تمرکز روی جستجو"
+
+msgid "Toggle sidebar"
+msgstr "تغییر وضعیت نوار کناری"
+
+msgid "Back to previous view"
+msgstr "بازگشت به نمای قبلی"
+
+msgid "Quit"
+msgstr "خروج"
+
+msgid "Parch Store (Pastor)"
+msgstr "فروشگاه پارچ (پاستور)"
+
+msgid "ParchLinux Team"
+msgstr "تیم پارچ‌لینوکس"
+
+msgid "A modern, native package management and software center for ParchLinux.\n\nSupporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots."
+msgstr "یک مرکز نرم‌افزاری و مدیریت بسته مدرن و بومی برای پارچ‌لینوکس.\n\nبا پشتیبانی از مخازن [world] و [void]، AUR، فلت‌پک و تصویرهای لحظه‌ای اسنپر."
+
+msgid "Navigation & Search"
+msgstr "ناوبری و جستجو"
+
+msgid "Search packages and applications"
+msgstr "جستجوی بسته‌ها و برنامه‌ها"
+
+msgid "Go back to previous page"
+msgstr "بازگشت به صفحه قبلی"
+
+msgid "General"
+msgstr "عمومی"
+
+msgid "Show keyboard shortcuts"
+msgstr "نمایش کلیدهای میانبر"
+
+msgid "Close window"
+msgstr "بستن پنجره"
+
+msgid "AUR Security Review"
+msgstr "بررسی امنیتی AUR"
+
+msgid "⚠️ Maintainer Identity Changed!"
+msgstr "⚠️ هویت نگه‌دارنده تغییر کرده است!"
+
+msgid "Package maintainer changed"
+msgstr "نگه‌دارنده بسته تغییر کرده است"
+
+msgid "This matches known 2026 supply-chain attack vectors. Please inspect the code changes carefully."
+msgstr "این مورد با بردارهای شناخته‌شده حمله زنجیره تأمین در سال ۲۰۲۶ مطابقت دارد. لطفاً تغییرات کد را به دقت بررسی کنید."
+
+msgid "First Time Install: New Maintainer"
+msgstr "نصب برای اولین بار: نگه‌دارنده جدید"
+
+msgid "⚠️ Orphaned Package"
+msgstr "⚠️ بسته بی‌سرپرست"
+
+msgid "Verified Maintainer"
+msgstr "نگه‌دارنده تأیید شده"
+
+msgid "Maintainer identity matches previous install baseline. Showing diff against last known-good commit."
+msgstr "هویت نگه‌دارنده با مبنای نصب قبلی مطابقت دارد. نمایش تفاوت‌ها نسبت به آخرین کامیت معتبر."
+
+msgid "Dependencies to be installed with elevated privileges"
+msgstr "پیش‌نیازهایی که با دسترسی ریشه (Root) نصب خواهند شد"
+
+msgid "These are official-repository packages required by the PKGBUILD. They will be installed via the pacman worker (marked as dependencies, removable later via `pacman -Qdt`). AUR dependencies are resolved and shown during the build."
+msgstr "این‌ها بسته‌های مخازن رسمی مورد نیاز PKGBUILD هستند که از طریق pacman نصب می‌شوند (به عنوان وابستگی ثبت شده و بعداً با `pacman -Qdt` قابل حذفند). وابستگی‌های AUR در زمان ساخت حل و نمایش داده می‌شوند."
+
+msgid "PKGBUILD / Commit Changes"
+msgstr "تغییرات PKGBUILD / کامیت"
+
+msgid "⛔ Critical security threats detected in PKGBUILD / install script. Installation has been blocked for safety."
+msgstr "⛔ تهدیدات امنیتی بحرانی در PKGBUILD / اسکریپت نصب شناسایی شد. نصب برای ایمنی مسدود شد."
+
+msgid "Build & Install"
+msgstr "ساخت و نصب"
+
+msgid "Installation is blocked due to critical security threats"
+msgstr "نصب به دلیل تهدیدات امنیتی بحرانی مسدود شده است"
+
+msgid "Scroll through the full PKGBUILD review below to continue"
+msgstr "برای ادامه، متن کامل بررسی PKGBUILD در زیر را به پایین اسکرول کنید"
+
+msgid "Scroll through the full PKGBUILD review to enable this button"
+msgstr "برای فعال شدن این دکمه، بررسی PKGBUILD را تا انتها اسکرول کنید"
+
+msgid "Preparing transaction..."
+msgstr "در حال آماده‌سازی عملیات..."
+
+msgid "Cancel current transaction"
+msgstr "لغو عملیات جاری"
+
+msgid "Show native transaction console"
+msgstr "نمایش کنسول بومی عملیات"
+
+msgid "Dismiss transaction"
+msgstr "بستن نوار عملیات"
+
+msgid "Transaction starting..."
+msgstr "شروع عملیات..."
+
+msgid "0 operations active"
+msgstr "۰ عملیات در حال اجرا"
+
+msgid "Cancel all operations"
+msgstr "لغو تمام عملیات‌ها"
+
+msgid "Native Transaction Console"
+msgstr "کنسول بومی عملیات"
+
+msgid "operations active"
+msgstr "عملیات فعال"
+
+msgid "Search results for"
+msgstr "نتایج جستجو برای"
+
+msgid "Searching repositories and Flathub catalog…"
+msgstr "در حال جستجو در مخازن و فهرست فلت‌هاب…"
+
+msgid "Filtered packages matching your search query across all active ecosystems"
+msgstr "بسته‌های منطبق با جستجوی شما در تمامی بسترها"
+
+msgid "Open Sidebar (F9)"
+msgstr "باز کردن نوار کناری (F9)"
+
+msgid "Open sidebar"
+msgstr "باز کردن نوار کناری"
+
+msgid "Go back"
+msgstr "بازگشت"
+
+msgid "Snapper Snapshots"
+msgstr "تصویرهای لحظه‌ای اسنپر"
+
+msgid "Downgrade Tool"
+msgstr "ابزار بازگشت به نسخه قبل"
+
+msgid "Parch Mirror Manager"
+msgstr "مدیر آینه‌های پارچ"
+
+msgid "About Parch Store"
+msgstr "درباره فروشگاه پارچ"
+
+msgid "Category"
+msgstr "دسته‌بندی"
+
+msgid "Fetching applications:"
+msgstr "در حال دریافت برنامه‌ها:"
+
+msgid "Scanning installed packages and Flatpaks on your system…"
+msgstr "در حال پویش بسته‌های نصب‌شده و فلت‌پک‌ها بر روی سیستم شما…"
+
+msgid "Applications and system packages currently installed on your ParchLinux system"
+msgstr "برنامه‌ها و بسته‌های سیستمی که در حال حاضر بر روی پارچ‌لینوکس شما نصب هستند"
+
+msgid "Pacman sync repository configured in /etc/pacman.conf"
+msgstr "مخزن همگام‌سازی Pacman پیکربندی شده در /etc/pacman.conf"
+
+msgid "Compile and install community-maintained packages natively"
+msgstr "کامپایل و نصب بسته‌های نگه‌داری شده توسط جامعه به صورت بومی"
+
+msgid "Pacman Mirror Management"
+msgstr "مدیریت آینه‌های Pacman"
+
+msgid "Rank, speed test, and update mirrorlists using Parch Mirror Manager"
+msgstr "رتبه‌بندی، آزمایش سرعت و به‌روزرسانی لیست آینه‌ها با استفاده از مدیر آینه‌های پارچ"
+
+msgid "Launch mirrorman"
+msgstr "اجرای mirrorman"
+
+msgid "Sandboxed application ecosystem from Flathub via libflatpak"
+msgstr "زیست‌بوم برنامه‌های ایزوله شده از فلت‌هاب از طریق libflatpak"
+
+msgid "Updates and Automation"
+msgstr "به‌روزرسانی‌ها و خودکارسازی"
+
+msgid "Manage automated checks, background tasks, and desktop notifications"
+msgstr "مدیریت بررسی‌های خودکار، وظایف پس‌زمینه و اعلان‌های دسکتاپ"
+
+msgid "Frequency of automatic repository synchronization"
+msgstr "بازه زمانی همگام‌سازی خودکار مخازن"
+
+msgid "Daily (Recommended)"
+msgstr "روزانه (پیشنهادی)"
+
+msgid "Every 6 Hours"
+msgstr "هر ۶ ساعت"
+
+msgid "Weekly"
+msgstr "هفتگی"
+
+msgid "Manual Only"
+msgstr "فقط دستی"
+
+msgid "Update Notifications"
+msgstr "اعلان‌های به‌روزرسانی"
+
+msgid "Display a desktop notification when system or app updates are ready"
+msgstr "نمایش اعلان دسکتاپ هنگامی که به‌روزرسانی‌های سیستم یا برنامه آماده هستند"
+
+msgid "Completion Alerts"
+msgstr "هشدار پایان عملیات"
+
+msgid "Notify when lengthy package downloads and installations finish"
+msgstr "اعلان پس از پایان دانلود و نصب‌های طولانی بسته‌ها"
+
+msgid "Parallel Downloads"
+msgstr "دانلودهای هم‌زمان"
+
+msgid "Maximum simultaneous package download connections (ALPM / AUR)"
+msgstr "حداکثر اتصالات دانلود هم‌زمان بسته (ALPM / AUR)"
+
+msgid "Snapper Snapshots and Safety"
+msgstr "تصویرهای لحظه‌ای اسنپر و امنیت"
+
+msgid "Automated Btrfs restore points and rollback protection"
+msgstr "نقاط بازیابی خودکار Btrfs و محافظت بازگشت سیستم"
+
+msgid "Automatic Pre/Post Snapshots"
+msgstr "تصویرهای لحظه‌ای خودکار قبل/بعد"
+
+msgid "Create paired Btrfs snapshots before modifying packages or kernel"
+msgstr "ایجاد تصویرهای لحظه‌ای جفتی Btrfs قبل از تغییر بسته‌ها یا کرنل"
+
+msgid "Retained Store Snapshots"
+msgstr "تعداد نگه‌داری تصویرهای لحظه‌ای"
+
+msgid "Maximum number of auto-created snapshots to keep before pruning"
+msgstr "حداکثر تعداد تصویرهای لحظه‌ای خودکار پیش از پاک‌سازی دوره‌ای"
+
+msgid "Manage System Snapshots"
+msgstr "مدیریت تصویرهای لحظه‌ای سیستم"
+
+msgid "Inspect timeline, compare file diffs, or initiate rollback"
+msgstr "بررسی خط زمانی، مقایسه تفاوت فایل‌ها، یا شروع بازگردانی سیستم"
+
+msgid "Open Snapshots"
+msgstr "باز کردن تصویرهای لحظه‌ای"
+
+msgid "Cache and Storage Maintenance"
+msgstr "نگه‌داری حافظه موقت و ذخیره‌سازی"
+
+msgid "Manage downloaded package archives and disk space with native tools"
+msgstr "مدیریت آرشیو بسته‌های دانلود شده و فضای دیسک با ابزارهای بومی"
+
+msgid "Pacman Package Cache"
+msgstr "حافظه موقت بسته‌های Pacman"
+
+msgid "Calculating cache size..."
+msgstr "در حال محاسبه حجم حافظه موقت..."
+
+msgid "Clean Uninstalled"
+msgstr "پاک‌سازی بسته‌های حذف‌شده"
+
+msgid "packages"
+msgstr "بسته"
+
+msgid "Cleaning..."
+msgstr "در حال پاک‌سازی..."
+
+msgid "Cleaned"
+msgstr "پاک‌سازی شد"
+
+msgid "Cleaned uninstalled packages:"
+msgstr "بسته‌های حذف شده پاک‌سازی شدند:"
+
+msgid "Cache is already optimal. No uninstalled packages found."
+msgstr "حافظه موقت در وضعیت بهینه است. بسته حذف‌شده‌ای یافت نشد."
+
+msgid "Flatpak Runtimes"
+msgstr "محیط‌های اجرای فلت‌پک"
+
+msgid "Inspecting installed Flatpak runtimes..."
+msgstr "در حال بررسی محیط‌های اجرای فلت‌پک نصب‌شده..."
+
+msgid "Prune Runtimes"
+msgstr "پاک‌سازی محیط‌های بلااستفاده"
+
+msgid "runtimes installed"
+msgstr "محیط اجرا نصب است"
+
+msgid "Pruning..."
+msgstr "در حال پاک‌سازی..."
+
+msgid "Pruned"
+msgstr "پاک‌سازی انجام شد"
+
+msgid "Interface and Display"
+msgstr "رابط کاربری و نمایش"
+
+msgid "Visual cues and badge indicators (Theme is managed by your operating system)"
+msgstr "نشانگرهای بصری و نشان‌ها (پوسته توسط سیستم‌عامل شما مدیریت می‌شود)"
+
+msgid "Display Repository Badges"
+msgstr "نمایش نشان‌های مخزن"
+
+msgid "Show [world], [void], AUR, and Flatpak badges on application cards"
+msgstr "نمایش نشان‌های [world]، [void]، AUR و فلت‌پک روی کارت‌های برنامه"

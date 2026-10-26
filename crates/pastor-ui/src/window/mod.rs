@@ -42,7 +42,7 @@ impl MainWindow {
     pub fn new(app: &adw::Application, store: Store) -> Self {
         let window = adw::ApplicationWindow::builder()
             .application(app)
-            .title("Parch Store")
+            .title(pastor_core::tr("Parch Store"))
             .default_width(1080)
             .default_height(720)
             .build();
@@ -80,26 +80,26 @@ impl MainWindow {
         let reveal_sidebar_btn = gtk4::Button::builder()
             .icon_name(crate::icons::sidebar_toggle_icon())
             .css_classes(["flat"])
-            .tooltip_text("Open Sidebar (F9)")
+            .tooltip_text(pastor_core::tr("Open Sidebar (F9)"))
             .visible(false)
             .valign(gtk4::Align::Center)
             .build();
-        reveal_sidebar_btn.update_property(&[gtk4::accessible::Property::Label("Open sidebar")]);
+        reveal_sidebar_btn.update_property(&[gtk4::accessible::Property::Label(pastor_core::tr("Open sidebar"))]);
         content_header.pack_start(&reveal_sidebar_btn);
 
         // Standard GNOME HeaderBar Back Button
         let header_back_btn = gtk4::Button::builder()
             .icon_name("go-previous-symbolic")
             .css_classes(["flat"])
-            .tooltip_text("Back")
+            .tooltip_text(pastor_core::tr("Back"))
             .visible(false)
             .build();
-        header_back_btn.update_property(&[gtk4::accessible::Property::Label("Go back")]);
+        header_back_btn.update_property(&[gtk4::accessible::Property::Label(pastor_core::tr("Go back"))]);
         content_header.pack_start(&header_back_btn);
 
         // Dynamic AdwWindowTitle for modern GNOME header
         let window_title = adw::WindowTitle::builder()
-            .title("Explore")
+            .title(pastor_core::tr("Explore"))
             .subtitle("")
             .build();
         content_header.set_title_widget(Some(&window_title));
@@ -199,7 +199,7 @@ impl MainWindow {
         let current_page_name = Rc::new(RefCell::new("explore".to_string()));
         let nav_history: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
-        let active_section_title = Rc::new(RefCell::new("Explore".to_string()));
+        let active_section_title = Rc::new(RefCell::new(pastor_core::tr("Explore").to_string()));
         let active_section_sub = Rc::new(RefCell::new("".to_string()));
 
         let sync_title = {
@@ -215,7 +215,7 @@ impl MainWindow {
                     wt.set_title(&title);
                     wt.set_subtitle(&sub);
                 } else {
-                    wt.set_title("Parch Store");
+                    wt.set_title(pastor_core::tr("Parch Store"));
                     if sub.is_empty() {
                         wt.set_subtitle(&title);
                     } else {
@@ -265,23 +265,23 @@ impl MainWindow {
                         back_btn_clone.set_visible(false);
                     }
                     let (t, s) = match prev.as_str() {
-                        "explore" => ("Explore", ""),
-                        "installed" => ("Installed Software", ""),
-                        "updates" => ("Updates", ""),
-                        "immutable" => ("Immutable Base OS", ""),
-                        "snapshots" => ("Btrfs Snapshots", ""),
-                        "downgrade" => ("Downgrade Tool", ""),
-                        "settings" => ("Settings", ""),
-                        _ => (prev.as_str(), ""),
+                        "explore" => (pastor_core::tr("Explore").to_string(), "".to_string()),
+                        "installed" => (pastor_core::tr("Installed Software").to_string(), "".to_string()),
+                        "updates" => (pastor_core::tr("Updates").to_string(), "".to_string()),
+                        "immutable" => (pastor_core::tr("Immutable Base OS").to_string(), "".to_string()),
+                        "snapshots" => (pastor_core::tr("Btrfs Snapshots").to_string(), "".to_string()),
+                        "downgrade" => (pastor_core::tr("Downgrade Tool").to_string(), "".to_string()),
+                        "settings" => (pastor_core::tr("Settings").to_string(), "".to_string()),
+                        _ => (prev.clone(), "".to_string()),
                     };
-                    *cur_t.borrow_mut() = t.to_string();
-                    *cur_s.borrow_mut() = s.to_string();
+                    *cur_t.borrow_mut() = t;
+                    *cur_s.borrow_mut() = s;
                     sync_fn();
                 } else if page_ref.borrow().as_str() == "search" {
                     content_stack_b.set_visible_child_name("explore");
                     *page_ref.borrow_mut() = "explore".to_string();
                     back_btn_clone.set_visible(false);
-                    *cur_t.borrow_mut() = "Explore".to_string();
+                    *cur_t.borrow_mut() = pastor_core::tr("Explore").to_string();
                     *cur_s.borrow_mut() = "".to_string();
                     sync_fn();
                 }
@@ -491,16 +491,16 @@ impl MainWindow {
         // Hamburger Menu in Header (System Tools & Preferences)
         let tools_menu_btn = gtk4::MenuButton::builder()
             .icon_name("open-menu-symbolic")
-            .tooltip_text("Menu and Preferences")
+            .tooltip_text(pastor_core::tr("Menu and Preferences"))
             .build();
 
         let menu_model = gio::Menu::new();
-        menu_model.append(Some("Settings"), Some("app.settings"));
-        menu_model.append(Some("Snapper Snapshots"), Some("app.snapshots"));
-        menu_model.append(Some("Downgrade Tool"), Some("app.downgrade"));
-        menu_model.append(Some("Parch Mirror Manager"), Some("app.mirrors"));
-        menu_model.append(Some("Keyboard Shortcuts"), Some("app.shortcuts"));
-        menu_model.append(Some("About Parch Store"), Some("app.about"));
+        menu_model.append(Some(pastor_core::tr("Settings")), Some("app.settings"));
+        menu_model.append(Some(pastor_core::tr("Snapper Snapshots")), Some("app.snapshots"));
+        menu_model.append(Some(pastor_core::tr("Downgrade Tool")), Some("app.downgrade"));
+        menu_model.append(Some(pastor_core::tr("Parch Mirror Manager")), Some("app.mirrors"));
+        menu_model.append(Some(pastor_core::tr("Keyboard Shortcuts")), Some("app.shortcuts"));
+        menu_model.append(Some(pastor_core::tr("About Parch Store")), Some("app.about"));
         tools_menu_btn.set_menu_model(Some(&menu_model));
         content_header.pack_end(&tools_menu_btn);
 
@@ -524,13 +524,13 @@ impl MainWindow {
                 let on_tx_inner = on_tx_inner_c.clone();
                 let page_guard = page_ref_guard.clone();
                 *cur_t.borrow_mut() = cat.title().to_string();
-                *cur_s.borrow_mut() = "Category".to_string();
+                *cur_s.borrow_mut() = pastor_core::tr("Category").to_string();
                 sync_fn();
                 nav_inner(
                     "category",
                     Some(create_loading_view(
                         cat.title(),
-                        &format!("Fetching all {} applications…", cat.title()),
+                        &format!("{} {}…", pastor_core::tr("Fetching applications:"), cat.title()),
                     )),
                 );
                 glib::spawn_future_local(async move {
@@ -540,7 +540,7 @@ impl MainWindow {
                         }
                         let list_view = create_package_list_view(
                             cat.title(),
-                            "Browse applications in this category",
+                            pastor_core::tr("Browse applications in this category"),
                             pkgs,
                             store_inner,
                             monitor_inner,
@@ -601,8 +601,8 @@ impl MainWindow {
                     nav(
                         "installed",
                         Some(create_loading_view(
-                            "Installed Software",
-                            "Scanning installed packages and Flatpaks on your system…",
+                            pastor_core::tr("Installed Software"),
+                            pastor_core::tr("Scanning installed packages and Flatpaks on your system…"),
                         )),
                     );
                     let s = store.clone();
@@ -622,8 +622,8 @@ impl MainWindow {
                                 }
                             }
                             let view = create_package_list_view(
-                                "Installed Software",
-                                "Applications and system packages currently installed on your ParchLinux system",
+                                pastor_core::tr("Installed Software"),
+                                pastor_core::tr("Applications and system packages currently installed on your ParchLinux system"),
                                 pkgs,
                                 s,
                                 monitor,
@@ -889,7 +889,7 @@ impl MainWindow {
                         "category",
                         Some(create_loading_view(
                             cat.title(),
-                            &format!("Fetching all {} applications…", cat.title()),
+                            &format!("{} {}…", pastor_core::tr("Fetching applications:"), cat.title()),
                         )),
                     );
 
@@ -901,7 +901,7 @@ impl MainWindow {
                             }
                             let list_view = create_package_list_view(
                                 cat.title(),
-                                "Browse applications in this category",
+                                pastor_core::tr("Browse applications in this category"),
                                 pkgs,
                                 store_c,
                                 monitor_c,

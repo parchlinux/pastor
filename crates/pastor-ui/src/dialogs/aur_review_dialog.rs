@@ -11,8 +11,9 @@ pub fn show_aur_review_dialog(
     missing_deps: &[String],
     on_confirm: impl FnOnce(bool) + 'static,
 ) {
+    let window_title = format!("{}: {}", pastor_core::tr("AUR Security Review"), pkg_name);
     let window = adw::Window::builder()
-        .title(&format!("AUR Security Review: {}", pkg_name))
+        .title(&window_title)
         .default_width(840)
         .default_height(680)
         .modal(true)
@@ -48,29 +49,32 @@ pub fn show_aur_review_dialog(
 
     let (trust_title, trust_subtitle, trust_icon, trust_css) = match &trust.status {
         TrustStatus::MaintainerChanged { previous, current } => (
-            "⚠️ Maintainer Identity Changed!".to_string(),
+            pastor_core::tr("⚠️ Maintainer Identity Changed!").to_string(),
             format!(
-                "Package maintainer changed from '{}' to '{}'. This matches known 2026 supply-chain attack vectors. Please inspect the code changes carefully.",
-                previous, current
+                "{}: '{}' -> '{}'. {}",
+                pastor_core::tr("Package maintainer changed"),
+                previous,
+                current,
+                pastor_core::tr("This matches known 2026 supply-chain attack vectors. Please inspect the code changes carefully.")
             ),
             "dialog-warning-symbolic",
             "destructive-action",
         ),
         TrustStatus::FirstInstall => (
-            "First Time Install: New Maintainer".to_string(),
+            pastor_core::tr("First Time Install: New Maintainer").to_string(),
             trust.details.clone(),
             "dialog-information-symbolic",
             "accent",
         ),
         TrustStatus::Orphaned { .. } => (
-            "⚠️ Orphaned Package".to_string(),
+            pastor_core::tr("⚠️ Orphaned Package").to_string(),
             trust.details.clone(),
             "dialog-warning-symbolic",
             "destructive-action",
         ),
         TrustStatus::UnchangedMaintainer { maintainer } => (
-            format!("Verified Maintainer: {}", maintainer),
-            "Maintainer identity matches previous install baseline. Showing diff against last known-good commit.".to_string(),
+            format!("{}: {}", pastor_core::tr("Verified Maintainer"), maintainer),
+            pastor_core::tr("Maintainer identity matches previous install baseline. Showing diff against last known-good commit.").to_string(),
             "emblem-ok-symbolic",
             "success",
         ),
@@ -166,7 +170,7 @@ pub fn show_aur_review_dialog(
             .build();
 
         let deps_title = gtk4::Label::builder()
-            .label("Dependencies to be installed with elevated privileges")
+            .label(pastor_core::tr("Dependencies to be installed with elevated privileges"))
             .css_classes(["heading"])
             .halign(gtk4::Align::Start)
             .wrap(true)
@@ -183,7 +187,7 @@ pub fn show_aur_review_dialog(
         deps_box.append(&deps_body);
 
         let deps_note = gtk4::Label::builder()
-            .label("These are official-repository packages required by the PKGBUILD. They will be installed via the pacman worker (marked as dependencies, removable later via `pacman -Qdt`). AUR dependencies are resolved and shown during the build.")
+            .label(pastor_core::tr("These are official-repository packages required by the PKGBUILD. They will be installed via the pacman worker (marked as dependencies, removable later via `pacman -Qdt`). AUR dependencies are resolved and shown during the build."))
             .css_classes(["caption", "dim-label"])
             .halign(gtk4::Align::Start)
             .wrap(true)
@@ -197,7 +201,7 @@ pub fn show_aur_review_dialog(
     // 3. Diff & Source Code Viewer (Monospace)
     // -------------------------------------------------------------
     let diff_title = gtk4::Label::builder()
-        .label("PKGBUILD / Commit Changes")
+        .label(pastor_core::tr("PKGBUILD / Commit Changes"))
         .css_classes(["heading"])
         .halign(gtk4::Align::Start)
         .build();
@@ -245,7 +249,7 @@ pub fn show_aur_review_dialog(
             .build();
 
         let block_lbl = gtk4::Label::builder()
-            .label("⛔ Critical security threats detected in PKGBUILD / install script. Installation has been blocked for safety.")
+            .label(pastor_core::tr("⛔ Critical security threats detected in PKGBUILD / install script. Installation has been blocked for safety."))
             .wrap(true)
             .css_classes(["heading"])
             .halign(gtk4::Align::Start)
@@ -266,7 +270,7 @@ pub fn show_aur_review_dialog(
         .build();
 
     let cancel_btn = gtk4::Button::builder()
-        .label("Cancel")
+        .label(pastor_core::tr("Cancel"))
         .css_classes(["pill"])
         .build();
 
@@ -275,19 +279,20 @@ pub fn show_aur_review_dialog(
         win_cancel.close();
     });
 
+    let build_install_label = format!("{} v{}", pastor_core::tr("Build & Install"), pkg_version);
     let proceed_btn = gtk4::Button::builder()
-        .label(&format!("Build & Install v{}", pkg_version))
+        .label(&build_install_label)
         .css_classes(["suggested-action", "pill"])
         .sensitive(!has_critical)
         .build();
 
     if has_critical {
-        proceed_btn.set_tooltip_text(Some("Installation is blocked due to critical security threats"));
+        proceed_btn.set_tooltip_text(Some(pastor_core::tr("Installation is blocked due to critical security threats")));
     } else if high_risk {
         proceed_btn.set_sensitive(false);
-        proceed_btn.set_tooltip_text(Some("Scroll through the full PKGBUILD review below to continue"));
+        proceed_btn.set_tooltip_text(Some(pastor_core::tr("Scroll through the full PKGBUILD review below to continue")));
         proceed_btn.update_property(&[gtk4::accessible::Property::Description(
-            "Scroll through the full PKGBUILD review to enable this button",
+            pastor_core::tr("Scroll through the full PKGBUILD review to enable this button"),
         )]);
 
         let proceed_for_scroll = proceed_btn.clone();

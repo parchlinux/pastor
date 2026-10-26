@@ -1,15 +1,19 @@
 use adw::prelude::*;
 
 pub fn show_about_dialog(parent: &impl IsA<gtk4::Widget>) {
+    let comments = pastor_core::tr("A modern, native package management and software center for ParchLinux.\n\nSupporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots.");
+    let app_name = pastor_core::tr("Parch Store (Pastor)");
+    let dev_name = pastor_core::tr("ParchLinux Team");
+
     let about = adw::AboutDialog::builder()
-        .application_name("Parch Store (Pastor)")
+        .application_name(app_name)
         .application_icon("com.parchlinux.pastor")
-        .developer_name("ParchLinux Team")
+        .developer_name(dev_name)
         .version(env!("CARGO_PKG_VERSION"))
         .copyright("© 2026 ParchLinux Team")
         .website("https://parchlinux.com")
         .issue_url("https://github.com/parchlinux/pastor/issues")
-        .comments("A modern, native package management and software center for ParchLinux.\n\nSupporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots.")
+        .comments(comments)
         .license_type(gtk4::License::Gpl30)
         .build();
 

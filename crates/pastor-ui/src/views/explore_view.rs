@@ -208,8 +208,8 @@ fn create_category_section(
     on_category_select: impl Fn(PackageCategory) + 'static + Clone,
     on_transaction_start: impl Fn(tokio::sync::mpsc::Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
 ) -> gtk4::Widget {
-    let esc_title = glib::markup_escape_text(title);
-    let esc_desc = glib::markup_escape_text(description);
+    let esc_title = glib::markup_escape_text(pastor_core::tr(title));
+    let esc_desc = glib::markup_escape_text(pastor_core::tr(description));
     let group = adw::PreferencesGroup::builder()
         .title(esc_title.as_str())
         .description(esc_desc.as_str())
@@ -219,7 +219,7 @@ fn create_category_section(
 
     if show_see_all {
         let see_all_btn = gtk4::Button::builder()
-            .label("See All")
+            .label(pastor_core::tr("See All"))
             .css_classes(["flat"])
             .valign(gtk4::Align::Center)
             .build();

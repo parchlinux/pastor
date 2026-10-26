@@ -1,0 +1,883 @@
+# Persian translation for pastor.
+# Copyright (C) 2026 ParchLinux Team
+# This file is distributed under the same license as the pastor package.
+# Sohrab Behdani <behdanisohrab@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: pastor 0.3.1\n"
+"Report-Msgid-Bugs-To: https://github.com/parchlinux/pastor/issues\n"
+"POT-Creation-Date: 2026-10-26 10:00+0330\n"
+"PO-Revision-Date: 2026-10-26 10:00+0330\n"
+"Last-Translator: Sohrab Behdani <behdanisohrab@gmail.com>\n"
+"Language-Team: Persian <parchlinux@googlegroups.com>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+# Navigation & Sidebar
+msgid "Parch Store"
+msgstr ""
+
+msgid "Explore"
+msgstr ""
+
+msgid "Installed"
+msgstr ""
+
+msgid "Updates"
+msgstr ""
+
+msgid "Discover"
+msgstr ""
+
+msgid "Categories"
+msgstr ""
+
+msgid "Collapse Sidebar (F9)"
+msgstr ""
+
+msgid "Search packages, apps, AUR… (Ctrl+F)"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "Search results"
+msgstr ""
+
+msgid "Search packages…"
+msgstr ""
+
+# Categories
+msgid "Featured"
+msgstr ""
+
+msgid "Parch Picks"
+msgstr ""
+
+msgid "Development"
+msgstr ""
+
+msgid "Games"
+msgstr ""
+
+msgid "Graphics & Design"
+msgstr ""
+
+msgid "Graphics"
+msgstr ""
+
+msgid "Internet & Web"
+msgstr ""
+
+msgid "Internet"
+msgstr ""
+
+msgid "Audio & Video"
+msgstr ""
+
+msgid "Multimedia"
+msgstr ""
+
+msgid "Office & Productivity"
+msgstr ""
+
+msgid "Office"
+msgstr ""
+
+msgid "System Tools"
+msgstr ""
+
+msgid "System"
+msgstr ""
+
+msgid "Android Apps (Waydroid)"
+msgstr ""
+
+msgid "Android"
+msgstr ""
+
+msgid "Utilities"
+msgstr ""
+
+# Explore View Sections
+msgid "Featured Applications"
+msgstr ""
+
+msgid "Browse Categories"
+msgstr ""
+
+msgid "Trending Software"
+msgstr ""
+
+msgid "Trending Applications"
+msgstr ""
+
+msgid "Most popular community software and essentials"
+msgstr ""
+
+msgid "Curated utilities and verified software for your desktop"
+msgstr ""
+
+msgid "Browsers, messengers, downloaders, and network tools"
+msgstr ""
+
+msgid "Media players, video editors, and audio production tools"
+msgstr ""
+
+msgid "Productivity & Office"
+msgstr ""
+
+msgid "Document editors, spreadsheets, and organizational apps"
+msgstr ""
+
+msgid "Development Tools"
+msgstr ""
+
+msgid "IDEs, compilers, debuggers, and developer utilities"
+msgstr ""
+
+msgid "Internet & Communication"
+msgstr ""
+
+msgid "Creativity & Graphics"
+msgstr ""
+
+msgid "Audio & Video Production"
+msgstr ""
+
+msgid "Image editors, 3D modeling, vector design, and animation"
+msgstr ""
+
+msgid "Action, strategy, simulation, and casual gaming"
+msgstr ""
+
+msgid "System utilities, terminal emulators, and management tools"
+msgstr ""
+
+msgid "Run native Android apps seamlessly on Linux via Waydroid"
+msgstr ""
+
+msgid "Everyday utility tools, calculators, and system accessories"
+msgstr ""
+
+msgid "See All"
+msgstr ""
+
+# Installed View
+msgid "Installed Applications"
+msgstr ""
+
+msgid "Manage software and system packages installed on your system"
+msgstr ""
+
+msgid "Filter:"
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Applications"
+msgstr ""
+
+msgid "Applications only"
+msgstr ""
+
+msgid "Official"
+msgstr ""
+
+msgid "Show all packages (including dependencies & libraries)"
+msgstr ""
+
+msgid "Sort:"
+msgstr ""
+
+msgid "Sort packages"
+msgstr ""
+
+msgid "Name (A–Z)"
+msgstr ""
+
+msgid "Name (Z–A)"
+msgstr ""
+
+msgid "Size (largest first)"
+msgstr ""
+
+msgid "Name (A-Z)"
+msgstr ""
+
+msgid "Size (Largest)"
+msgstr ""
+
+msgid "Source"
+msgstr ""
+
+msgid "No installed packages found"
+msgstr ""
+
+msgid "No packages match the selected filters."
+msgstr ""
+
+# Updates View
+msgid "Software Updates"
+msgstr ""
+
+msgid "Check for Updates"
+msgstr ""
+
+msgid "Checking for updates…"
+msgstr ""
+
+msgid "Checking for application and system updates…"
+msgstr ""
+
+msgid "Update All"
+msgstr ""
+
+msgid "All packages are up to date"
+msgstr ""
+
+msgid "Your system software is current"
+msgstr ""
+
+msgid "Updates Available"
+msgstr ""
+
+msgid "Total download size:"
+msgstr ""
+
+msgid "Packages"
+msgstr ""
+
+msgid "Error checking for updates"
+msgstr ""
+
+msgid "Could not check for updates. Check your connection and try again."
+msgstr ""
+
+msgid "Retry"
+msgstr ""
+
+msgid "Refresh Databases"
+msgstr ""
+
+msgid "System Packages (Native)"
+msgstr ""
+
+msgid "Flatpak Applications"
+msgstr ""
+
+msgid "AUR Community Packages"
+msgstr ""
+
+msgid "System Image"
+msgstr ""
+
+msgid "Android Apps"
+msgstr ""
+
+# Action Buttons & States
+msgid "Install"
+msgstr ""
+
+msgid "Update"
+msgstr ""
+
+msgid "Uninstall"
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Launch"
+msgstr ""
+
+msgid "Installing…"
+msgstr ""
+
+msgid "Updating…"
+msgstr ""
+
+msgid "Uninstalling…"
+msgstr ""
+
+msgid "Processing…"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Cancel installation"
+msgstr ""
+
+msgid "Cancel uninstallation"
+msgstr ""
+
+msgid "Quick uninstall"
+msgstr ""
+
+msgid "More Options"
+msgstr ""
+
+msgid "Downgrade Version…"
+msgstr ""
+
+msgid "Project Website"
+msgstr ""
+
+msgid "Official Website"
+msgstr ""
+
+msgid "More"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+# Package Details View
+msgid "Screenshots"
+msgstr ""
+
+msgid "About"
+msgstr ""
+
+msgid "What's New in Version"
+msgstr ""
+
+msgid "Release Notes"
+msgstr ""
+
+msgid "Click to view changelog and update details"
+msgstr ""
+
+msgid "Details"
+msgstr ""
+
+msgid "Technical Specifications"
+msgstr ""
+
+msgid "Dependencies"
+msgstr ""
+
+msgid "No dependencies listed"
+msgstr ""
+
+msgid "Source:"
+msgstr ""
+
+msgid "Sandboxed"
+msgstr ""
+
+msgid "Snapper Protected"
+msgstr ""
+
+msgid "Verified PKGBUILD"
+msgstr ""
+
+msgid "Immutable Root"
+msgstr ""
+
+msgid "Developer"
+msgstr ""
+
+msgid "License"
+msgstr ""
+
+msgid "Download Size"
+msgstr ""
+
+msgid "Installed Size"
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "Architecture"
+msgstr ""
+
+msgid "Publisher"
+msgstr ""
+
+msgid "Maintainer"
+msgstr ""
+
+msgid "Open Source"
+msgstr ""
+
+msgid "ParchLinux Contributors"
+msgstr ""
+
+# Badges & Sources
+msgid "Parch [world]"
+msgstr ""
+
+msgid "Parch [void]"
+msgstr ""
+
+msgid "Arch Repo"
+msgstr ""
+
+msgid "AUR"
+msgstr ""
+
+msgid "Flatpak"
+msgstr ""
+
+msgid "bootc OS"
+msgstr ""
+
+msgid "Waydroid"
+msgstr ""
+
+# Share Feature
+msgid "Share application"
+msgstr ""
+
+msgid "Share Application"
+msgstr ""
+
+msgid "Copy link to share this application"
+msgstr ""
+
+msgid "Copy link to clipboard"
+msgstr ""
+
+msgid "✓ Link copied to clipboard"
+msgstr ""
+
+msgid "Open in browser"
+msgstr ""
+
+msgid "Flathub (Flatpak)"
+msgstr ""
+
+msgid "Cross-distro link for all Linux systems"
+msgstr ""
+
+msgid "Project homepage"
+msgstr ""
+
+msgid "Arch User Repository (AUR)"
+msgstr ""
+
+msgid "AppStream Link"
+msgstr ""
+
+msgid "Direct link to open in software centers"
+msgstr ""
+
+msgid "Official Arch repository package"
+msgstr ""
+
+msgid "AUR package details and PKGBUILD"
+msgstr ""
+
+msgid "ParchLinux repository package"
+msgstr ""
+
+# Transaction Bar & Operations
+msgid "Transactions"
+msgstr ""
+
+msgid "Cancel Operation"
+msgstr ""
+
+msgid "Show Console"
+msgstr ""
+
+msgid "Hide Console"
+msgstr ""
+
+msgid "Running transaction…"
+msgstr ""
+
+msgid "Completed successfully"
+msgstr ""
+
+msgid "Transaction failed"
+msgstr ""
+
+msgid "Active Operations"
+msgstr ""
+
+msgid "No operations running"
+msgstr ""
+
+msgid "Clear Finished"
+msgstr ""
+
+# Settings / Preferences
+msgid "Preferences"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Configure package engines, repository priorities, automatic updates, and storage"
+msgstr ""
+
+msgid "Packaging Engines & Cores"
+msgstr ""
+
+msgid "Enable or disable package management backends and ecosystems"
+msgstr ""
+
+msgid "Arch & Parch Native Packages (ALPM)"
+msgstr ""
+
+msgid "Native package repositories and pacman management"
+msgstr ""
+
+msgid "Flatpak Applications (Flathub)"
+msgstr ""
+
+msgid "System Snapshots (Snapper)"
+msgstr ""
+
+msgid "Automatic snapshots before system modifications"
+msgstr ""
+
+msgid "Automatic Updates"
+msgstr ""
+
+msgid "Storage & Cache"
+msgstr ""
+
+msgid "Clear Cache"
+msgstr ""
+
+msgid "Clear Package Cache"
+msgstr ""
+
+# AUR Review Dialog
+msgid "AUR Package Review"
+msgstr ""
+
+msgid "Proceed with Installation"
+msgstr ""
+
+msgid "Review PKGBUILD before building"
+msgstr ""
+
+msgid "Security Scan"
+msgstr ""
+
+msgid "Trust Warning"
+msgstr ""
+
+msgid "Diff"
+msgstr ""
+
+# About & Shortcuts
+msgid "About Pastor"
+msgstr ""
+
+msgid "Modern Software Center for ParchLinux"
+msgstr ""
+
+msgid "Keyboard Shortcuts"
+msgstr ""
+
+msgid "Focus search"
+msgstr ""
+
+msgid "Toggle sidebar"
+msgstr ""
+
+msgid "Back to previous view"
+msgstr ""
+
+msgid "Quit"
+msgstr ""
+
+msgid "Parch Store (Pastor)"
+msgstr ""
+
+msgid "ParchLinux Team"
+msgstr ""
+
+msgid "A modern, native package management and software center for ParchLinux.\n\nSupporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots."
+msgstr ""
+
+msgid "Navigation & Search"
+msgstr ""
+
+msgid "Search packages and applications"
+msgstr ""
+
+msgid "Go back to previous page"
+msgstr ""
+
+msgid "General"
+msgstr ""
+
+msgid "Show keyboard shortcuts"
+msgstr ""
+
+msgid "Close window"
+msgstr ""
+
+msgid "AUR Security Review"
+msgstr ""
+
+msgid "⚠️ Maintainer Identity Changed!"
+msgstr ""
+
+msgid "Package maintainer changed"
+msgstr ""
+
+msgid "This matches known 2026 supply-chain attack vectors. Please inspect the code changes carefully."
+msgstr ""
+
+msgid "First Time Install: New Maintainer"
+msgstr ""
+
+msgid "⚠️ Orphaned Package"
+msgstr ""
+
+msgid "Verified Maintainer"
+msgstr ""
+
+msgid "Maintainer identity matches previous install baseline. Showing diff against last known-good commit."
+msgstr ""
+
+msgid "Dependencies to be installed with elevated privileges"
+msgstr ""
+
+msgid "These are official-repository packages required by the PKGBUILD. They will be installed via the pacman worker (marked as dependencies, removable later via `pacman -Qdt`). AUR dependencies are resolved and shown during the build."
+msgstr ""
+
+msgid "PKGBUILD / Commit Changes"
+msgstr ""
+
+msgid "⛔ Critical security threats detected in PKGBUILD / install script. Installation has been blocked for safety."
+msgstr ""
+
+msgid "Build & Install"
+msgstr ""
+
+msgid "Installation is blocked due to critical security threats"
+msgstr ""
+
+msgid "Scroll through the full PKGBUILD review below to continue"
+msgstr ""
+
+msgid "Scroll through the full PKGBUILD review to enable this button"
+msgstr ""
+
+msgid "Preparing transaction..."
+msgstr ""
+
+msgid "Cancel current transaction"
+msgstr ""
+
+msgid "Show native transaction console"
+msgstr ""
+
+msgid "Dismiss transaction"
+msgstr ""
+
+msgid "Transaction starting..."
+msgstr ""
+
+msgid "0 operations active"
+msgstr ""
+
+msgid "Cancel all operations"
+msgstr ""
+
+msgid "Native Transaction Console"
+msgstr ""
+
+msgid "operations active"
+msgstr ""
+
+msgid "Search results for"
+msgstr ""
+
+msgid "Searching repositories and Flathub catalog…"
+msgstr ""
+
+msgid "Filtered packages matching your search query across all active ecosystems"
+msgstr ""
+
+msgid "Open Sidebar (F9)"
+msgstr ""
+
+msgid "Open sidebar"
+msgstr ""
+
+msgid "Go back"
+msgstr ""
+
+msgid "Snapper Snapshots"
+msgstr ""
+
+msgid "Downgrade Tool"
+msgstr ""
+
+msgid "Parch Mirror Manager"
+msgstr ""
+
+msgid "About Parch Store"
+msgstr ""
+
+msgid "Category"
+msgstr ""
+
+msgid "Fetching applications:"
+msgstr ""
+
+msgid "Scanning installed packages and Flatpaks on your system…"
+msgstr ""
+
+msgid "Applications and system packages currently installed on your ParchLinux system"
+msgstr ""
+
+msgid "Pacman sync repository configured in /etc/pacman.conf"
+msgstr ""
+
+msgid "Compile and install community-maintained packages natively"
+msgstr ""
+
+msgid "Pacman Mirror Management"
+msgstr ""
+
+msgid "Rank, speed test, and update mirrorlists using Parch Mirror Manager"
+msgstr ""
+
+msgid "Launch mirrorman"
+msgstr ""
+
+msgid "Sandboxed application ecosystem from Flathub via libflatpak"
+msgstr ""
+
+msgid "Updates and Automation"
+msgstr ""
+
+msgid "Manage automated checks, background tasks, and desktop notifications"
+msgstr ""
+
+msgid "Frequency of automatic repository synchronization"
+msgstr ""
+
+msgid "Daily (Recommended)"
+msgstr ""
+
+msgid "Every 6 Hours"
+msgstr ""
+
+msgid "Weekly"
+msgstr ""
+
+msgid "Manual Only"
+msgstr ""
+
+msgid "Update Notifications"
+msgstr ""
+
+msgid "Display a desktop notification when system or app updates are ready"
+msgstr ""
+
+msgid "Completion Alerts"
+msgstr ""
+
+msgid "Notify when lengthy package downloads and installations finish"
+msgstr ""
+
+msgid "Parallel Downloads"
+msgstr ""
+
+msgid "Maximum simultaneous package download connections (ALPM / AUR)"
+msgstr ""
+
+msgid "Snapper Snapshots and Safety"
+msgstr ""
+
+msgid "Automated Btrfs restore points and rollback protection"
+msgstr ""
+
+msgid "Automatic Pre/Post Snapshots"
+msgstr ""
+
+msgid "Create paired Btrfs snapshots before modifying packages or kernel"
+msgstr ""
+
+msgid "Retained Store Snapshots"
+msgstr ""
+
+msgid "Maximum number of auto-created snapshots to keep before pruning"
+msgstr ""
+
+msgid "Manage System Snapshots"
+msgstr ""
+
+msgid "Inspect timeline, compare file diffs, or initiate rollback"
+msgstr ""
+
+msgid "Open Snapshots"
+msgstr ""
+
+msgid "Cache and Storage Maintenance"
+msgstr ""
+
+msgid "Manage downloaded package archives and disk space with native tools"
+msgstr ""
+
+msgid "Pacman Package Cache"
+msgstr ""
+
+msgid "Calculating cache size..."
+msgstr ""
+
+msgid "Clean Uninstalled"
+msgstr ""
+
+msgid "packages"
+msgstr ""
+
+msgid "Cleaning..."
+msgstr ""
+
+msgid "Cleaned"
+msgstr ""
+
+msgid "Cleaned uninstalled packages:"
+msgstr ""
+
+msgid "Cache is already optimal. No uninstalled packages found."
+msgstr ""
+
+msgid "Flatpak Runtimes"
+msgstr ""
+
+msgid "Inspecting installed Flatpak runtimes..."
+msgstr ""
+
+msgid "Prune Runtimes"
+msgstr ""
+
+msgid "runtimes installed"
+msgstr ""
+
+msgid "Pruning..."
+msgstr ""
+
+msgid "Pruned"
+msgstr ""
+
+msgid "Interface and Display"
+msgstr ""
+
+msgid "Visual cues and badge indicators (Theme is managed by your operating system)"
+msgstr ""
+
+msgid "Display Repository Badges"
+msgstr ""
+
+msgid "Show [world], [void], AUR, and Flatpak badges on application cards"
+msgstr ""

@@ -127,17 +127,17 @@ impl PackageCategory {
 
     pub fn title(&self) -> &'static str {
         match self {
-            Self::Featured => "Featured",
-            Self::ParchPicks => "Parch Picks",
-            Self::Development => "Development",
-            Self::Games => "Games",
-            Self::Graphics => "Graphics & Design",
-            Self::Internet => "Internet & Web",
-            Self::Multimedia => "Audio & Video",
-            Self::Office => "Office & Productivity",
-            Self::System => "System Tools",
-            Self::Android => "Android Apps (Waydroid)",
-            Self::Utilities => "Utilities",
+            Self::Featured => crate::locale::tr_static("Featured"),
+            Self::ParchPicks => crate::locale::tr_static("Parch Picks"),
+            Self::Development => crate::locale::tr_static("Development"),
+            Self::Games => crate::locale::tr_static("Games"),
+            Self::Graphics => crate::locale::tr_static("Graphics & Design"),
+            Self::Internet => crate::locale::tr_static("Internet & Web"),
+            Self::Multimedia => crate::locale::tr_static("Audio & Video"),
+            Self::Office => crate::locale::tr_static("Office & Productivity"),
+            Self::System => crate::locale::tr_static("System Tools"),
+            Self::Android => crate::locale::tr_static("Android Apps (Waydroid)"),
+            Self::Utilities => crate::locale::tr_static("Utilities"),
         }
     }
 

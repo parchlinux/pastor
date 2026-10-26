@@ -12,7 +12,7 @@ pub fn show_settings_window(
     on_open_snapshots: impl Fn() + 'static + Clone,
 ) -> adw::PreferencesWindow {
     let win = adw::PreferencesWindow::builder()
-        .title("Preferences")
+        .title(pastor_core::tr("Preferences"))
         .default_width(680)
         .default_height(640)
         .modal(true)
@@ -54,8 +54,8 @@ pub fn create_settings_page(
     on_open_snapshots: impl Fn() + 'static + Clone,
 ) -> adw::PreferencesPage {
     let page = adw::PreferencesPage::builder()
-        .title("Settings")
-        .description("Configure package engines, repository priorities, automatic updates, and storage")
+        .title(pastor_core::tr("Settings"))
+        .description(pastor_core::tr("Configure package engines, repository priorities, automatic updates, and storage"))
         .build();
 
     let cfg = store.module_config();
@@ -64,14 +64,14 @@ pub fn create_settings_page(
     // 1. Packaging Engines & Cores (GNOME Software / KDE Discover style)
     // -------------------------------------------------------------
     let cores_group = adw::PreferencesGroup::builder()
-        .title("Packaging Engines & Cores")
-        .description("Enable or disable package management backends and ecosystems")
+        .title(pastor_core::tr("Packaging Engines & Cores"))
+        .description(pastor_core::tr("Enable or disable package management backends and ecosystems"))
         .build();
 
     // ALPM Core Dropdown / Expander
     let alpm_expander = adw::ExpanderRow::builder()
-        .title("Arch & Parch Native Packages (ALPM)")
-        .subtitle("Native package repositories and pacman management")
+        .title(pastor_core::tr("Arch & Parch Native Packages (ALPM)"))
+        .subtitle(pastor_core::tr("Native package repositories and pacman management"))
         .expanded(true)
         .build();
     alpm_expander.add_prefix(
@@ -116,7 +116,7 @@ pub fn create_settings_page(
         let is_active = cfg.is_repo_enabled(&repo_name);
         let repo_row = adw::SwitchRow::builder()
             .title(&display_title)
-            .subtitle(format!("Pacman sync repository configured in /etc/pacman.conf"))
+            .subtitle(pastor_core::tr("Pacman sync repository configured in /etc/pacman.conf"))
             .active(is_active)
             .build();
         repo_row.add_suffix(
@@ -140,8 +140,8 @@ pub fn create_settings_page(
 
     // AUR (Arch User Repository)
     let aur_row = adw::SwitchRow::builder()
-        .title("Arch User Repository (AUR)")
-        .subtitle("Compile and install community-maintained packages natively")
+        .title(pastor_core::tr("Arch User Repository (AUR)"))
+        .subtitle(pastor_core::tr("Compile and install community-maintained packages natively"))
         .active(cfg.enable_aur)
         .build();
     aur_row.add_suffix(
@@ -161,12 +161,12 @@ pub fn create_settings_page(
 
     // Mirrors Management (mirrorman) placed under the ALPM dropdown
     let mirror_row = adw::ActionRow::builder()
-        .title("Pacman Mirror Management")
-        .subtitle("Rank, speed test, and update mirrorlists using Parch Mirror Manager")
+        .title(pastor_core::tr("Pacman Mirror Management"))
+        .subtitle(pastor_core::tr("Rank, speed test, and update mirrorlists using Parch Mirror Manager"))
         .activatable(true)
         .build();
     let mirrorman_btn = gtk4::Button::builder()
-        .label("Launch mirrorman")
+        .label(pastor_core::tr("Launch mirrorman"))
         .css_classes(["flat", "pill"])
         .valign(gtk4::Align::Center)
         .build();
@@ -180,8 +180,8 @@ pub fn create_settings_page(
 
     // Flatpak Core Switch
     let flatpak_core_row = adw::SwitchRow::builder()
-        .title("Flatpak Applications (Flathub)")
-        .subtitle("Sandboxed application ecosystem from Flathub via libflatpak")
+        .title(pastor_core::tr("Flatpak Applications (Flathub)"))
+        .subtitle(pastor_core::tr("Sandboxed application ecosystem from Flathub via libflatpak"))
         .active(cfg.enable_flatpak)
         .build();
     flatpak_core_row.add_suffix(
@@ -205,18 +205,18 @@ pub fn create_settings_page(
     // 2. Updates and Automation Group
     // -------------------------------------------------------------
     let general_group = adw::PreferencesGroup::builder()
-        .title("Updates and Automation")
-        .description("Manage automated checks, background tasks, and desktop notifications")
+        .title(pastor_core::tr("Updates and Automation"))
+        .description(pastor_core::tr("Manage automated checks, background tasks, and desktop notifications"))
         .build();
 
     let check_updates_row = adw::ComboRow::builder()
-        .title("Check for Updates")
-        .subtitle("Frequency of automatic repository synchronization")
+        .title(pastor_core::tr("Check for Updates"))
+        .subtitle(pastor_core::tr("Frequency of automatic repository synchronization"))
         .model(&gtk4::StringList::new(&[
-            "Daily (Recommended)",
-            "Every 6 Hours",
-            "Weekly",
-            "Manual Only",
+            pastor_core::tr("Daily (Recommended)"),
+            pastor_core::tr("Every 6 Hours"),
+            pastor_core::tr("Weekly"),
+            pastor_core::tr("Manual Only"),
         ]))
         .selected(cfg.check_updates_interval.min(3))
         .build();
@@ -230,8 +230,8 @@ pub fn create_settings_page(
     general_group.add(&check_updates_row);
 
     let notify_updates_row = adw::SwitchRow::builder()
-        .title("Update Notifications")
-        .subtitle("Display a desktop notification when system or app updates are ready")
+        .title(pastor_core::tr("Update Notifications"))
+        .subtitle(pastor_core::tr("Display a desktop notification when system or app updates are ready"))
         .active(cfg.notify_updates)
         .build();
     let store_notif = store.clone();
@@ -243,8 +243,8 @@ pub fn create_settings_page(
     general_group.add(&notify_updates_row);
 
     let notify_finish_row = adw::SwitchRow::builder()
-        .title("Completion Alerts")
-        .subtitle("Notify when lengthy package downloads and installations finish")
+        .title(pastor_core::tr("Completion Alerts"))
+        .subtitle(pastor_core::tr("Notify when lengthy package downloads and installations finish"))
         .active(cfg.notify_finish)
         .build();
     let store_fin = store.clone();
@@ -256,8 +256,8 @@ pub fn create_settings_page(
     general_group.add(&notify_finish_row);
 
     let parallel_downloads_row = adw::SpinRow::builder()
-        .title("Parallel Downloads")
-        .subtitle("Maximum simultaneous package download connections (ALPM / AUR)")
+        .title(pastor_core::tr("Parallel Downloads"))
+        .subtitle(pastor_core::tr("Maximum simultaneous package download connections (ALPM / AUR)"))
         .adjustment(&gtk4::Adjustment::new(
             cfg.parallel_downloads as f64,
             1.0,
@@ -282,13 +282,13 @@ pub fn create_settings_page(
     // 3. Snapper Snapshots & Safety Group
     // -------------------------------------------------------------
     let safety_group = adw::PreferencesGroup::builder()
-        .title("Snapper Snapshots and Safety")
-        .description("Automated Btrfs restore points and rollback protection")
+        .title(pastor_core::tr("Snapper Snapshots and Safety"))
+        .description(pastor_core::tr("Automated Btrfs restore points and rollback protection"))
         .build();
 
     let snapper_auto_row = adw::SwitchRow::builder()
-        .title("Automatic Pre/Post Snapshots")
-        .subtitle("Create paired Btrfs snapshots before modifying packages or kernel")
+        .title(pastor_core::tr("Automatic Pre/Post Snapshots"))
+        .subtitle(pastor_core::tr("Create paired Btrfs snapshots before modifying packages or kernel"))
         .active(cfg.enable_snapper)
         .build();
     snapper_auto_row.add_suffix(
@@ -308,8 +308,8 @@ pub fn create_settings_page(
     safety_group.add(&snapper_auto_row);
 
     let max_snaps_row = adw::SpinRow::builder()
-        .title("Retained Store Snapshots")
-        .subtitle("Maximum number of auto-created snapshots to keep before pruning")
+        .title(pastor_core::tr("Retained Store Snapshots"))
+        .subtitle(pastor_core::tr("Maximum number of auto-created snapshots to keep before pruning"))
         .adjustment(&gtk4::Adjustment::new(
             cfg.retained_snapshots as f64,
             5.0,
@@ -329,12 +329,12 @@ pub fn create_settings_page(
     safety_group.add(&max_snaps_row);
 
     let snap_btn_row = adw::ActionRow::builder()
-        .title("Manage System Snapshots")
-        .subtitle("Inspect timeline, compare file diffs, or initiate rollback")
+        .title(pastor_core::tr("Manage System Snapshots"))
+        .subtitle(pastor_core::tr("Inspect timeline, compare file diffs, or initiate rollback"))
         .activatable(true)
         .build();
     let snap_btn = gtk4::Button::builder()
-        .label("Open Snapshots")
+        .label(pastor_core::tr("Open Snapshots"))
         .css_classes(["flat", "pill"])
         .valign(gtk4::Align::Center)
         .build();
@@ -352,17 +352,17 @@ pub fn create_settings_page(
     // 4. Cache and Storage Maintenance (REAL DATA - NO MOCK)
     // -------------------------------------------------------------
     let cache_group = adw::PreferencesGroup::builder()
-        .title("Cache and Storage Maintenance")
-        .description("Manage downloaded package archives and disk space with native tools")
+        .title(pastor_core::tr("Cache and Storage Maintenance"))
+        .description(pastor_core::tr("Manage downloaded package archives and disk space with native tools"))
         .build();
 
     let cache_size_row = adw::ActionRow::builder()
-        .title("Pacman Package Cache")
-        .subtitle("Calculating cache size...")
+        .title(pastor_core::tr("Pacman Package Cache"))
+        .subtitle(pastor_core::tr("Calculating cache size..."))
         .build();
 
     let clean_cache_btn = gtk4::Button::builder()
-        .label("Clean Uninstalled")
+        .label(pastor_core::tr("Clean Uninstalled"))
         .css_classes(["flat", "pill"])
         .valign(gtk4::Align::Center)
         .build();
@@ -380,9 +380,10 @@ pub fn create_settings_page(
                 .await
                 .unwrap_or((0, 0));
             row_clone.set_subtitle(&format!(
-                "/var/cache/pacman/pkg • {} ({} packages)",
+                "/var/cache/pacman/pkg • {} ({} {})",
                 format_size(total_bytes),
-                count
+                count,
+                pastor_core::tr("packages")
             ));
         });
     }
@@ -393,7 +394,7 @@ pub fn create_settings_page(
         let sl_clone = status_label.clone();
         clean_cache_btn.connect_clicked(move |btn| {
             btn.set_sensitive(false);
-            btn.set_label("Cleaning...");
+            btn.set_label(pastor_core::tr("Cleaning..."));
             let btn_clone = btn.clone();
             let r_clone = row_clone.clone();
             let s_clone = sl_clone.clone();
@@ -405,31 +406,33 @@ pub fn create_settings_page(
                     .unwrap_or((0, 0));
 
                 r_clone.set_subtitle(&format!(
-                    "/var/cache/pacman/pkg • {} ({} packages)",
+                    "/var/cache/pacman/pkg • {} ({} {})",
                     format_size(new_bytes),
-                    new_count
+                    new_count,
+                    pastor_core::tr("packages")
                 ));
 
                 match clean_result {
                     Ok(Ok((freed, removed))) => {
-                        btn_clone.set_label("Cleaned");
+                        btn_clone.set_label(pastor_core::tr("Cleaned"));
                         if removed > 0 {
                             s_clone.set_label(&format!(
-                                "Cleaned {} uninstalled packages ({} freed).",
+                                "{} {} ({} freed).",
+                                pastor_core::tr("Cleaned uninstalled packages:"),
                                 removed,
                                 format_size(freed)
                             ));
                         } else {
-                            s_clone.set_label("Cache is already optimal. No uninstalled packages found.");
+                            s_clone.set_label(pastor_core::tr("Cache is already optimal. No uninstalled packages found."));
                         }
                     }
                     Ok(Err(e)) => {
-                        btn_clone.set_label("Clean");
+                        btn_clone.set_label(pastor_core::tr("Clean"));
                         btn_clone.set_sensitive(true);
                         s_clone.set_label(&format!("Cache clean notice: {e}"));
                     }
                     Err(e) => {
-                        btn_clone.set_label("Clean");
+                        btn_clone.set_label(pastor_core::tr("Clean"));
                         btn_clone.set_sensitive(true);
                         s_clone.set_label(&format!("Task error: {e}"));
                     }
@@ -443,12 +446,12 @@ pub fn create_settings_page(
 
     // Flatpak real runtimes inspection and pruning
     let flatpak_clean_row = adw::ActionRow::builder()
-        .title("Flatpak Runtimes")
-        .subtitle("Inspecting installed Flatpak runtimes...")
+        .title(pastor_core::tr("Flatpak Runtimes"))
+        .subtitle(pastor_core::tr("Inspecting installed Flatpak runtimes..."))
         .build();
 
     let clean_flatpak_btn = gtk4::Button::builder()
-        .label("Prune Runtimes")
+        .label(pastor_core::tr("Prune Runtimes"))
         .css_classes(["flat", "pill"])
         .valign(gtk4::Align::Center)
         .build();
@@ -461,8 +464,9 @@ pub fn create_settings_page(
                 .await
                 .unwrap_or((0, 0));
             fp_row_clone.set_subtitle(&format!(
-                "{} runtimes installed ({})",
+                "{} {} ({})",
                 count,
+                pastor_core::tr("runtimes installed"),
                 format_size(total_size)
             ));
         });
@@ -472,7 +476,7 @@ pub fn create_settings_page(
         let fp_row_clone = flatpak_clean_row.clone();
         clean_flatpak_btn.connect_clicked(move |btn| {
             btn.set_sensitive(false);
-            btn.set_label("Pruning...");
+            btn.set_label(pastor_core::tr("Pruning..."));
             let btn_clone = btn.clone();
             let row_clone = fp_row_clone.clone();
 
@@ -483,11 +487,12 @@ pub fn create_settings_page(
                     .unwrap_or((0, 0));
 
                 row_clone.set_subtitle(&format!(
-                    "{} runtimes installed ({})",
+                    "{} {} ({})",
                     count,
+                    pastor_core::tr("runtimes installed"),
                     format_size(total_size)
                 ));
-                btn_clone.set_label("Pruned");
+                btn_clone.set_label(pastor_core::tr("Pruned"));
             });
         });
     }
@@ -501,13 +506,13 @@ pub fn create_settings_page(
     // 5. Interface and Display Group
     // -------------------------------------------------------------
     let display_group = adw::PreferencesGroup::builder()
-        .title("Interface and Display")
-        .description("Visual cues and badge indicators (Theme is managed by your operating system)")
+        .title(pastor_core::tr("Interface and Display"))
+        .description(pastor_core::tr("Visual cues and badge indicators (Theme is managed by your operating system)"))
         .build();
 
     let badges_row = adw::SwitchRow::builder()
-        .title("Display Repository Badges")
-        .subtitle("Show [world], [void], AUR, and Flatpak badges on application cards")
+        .title(pastor_core::tr("Display Repository Badges"))
+        .subtitle(pastor_core::tr("Show [world], [void], AUR, and Flatpak badges on application cards"))
         .active(cfg.display_badges)
         .build();
     let store_badges = store.clone();

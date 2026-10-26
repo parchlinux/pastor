@@ -1,6 +1,9 @@
 use adw::prelude::*;
+use gtk4::glib;
 
-const SHORTCUTS_UI: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+pub fn show_shortcuts_dialog(parent: &impl IsA<gtk4::Widget>) {
+    let shortcuts_ui = format!(
+        r#"<?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <object class="GtkShortcutsWindow" id="shortcuts_window">
     <property name="modal">1</property>
@@ -10,22 +13,22 @@ const SHORTCUTS_UI: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
         <property name="max-height">12</property>
         <child>
           <object class="GtkShortcutsGroup">
-            <property name="title">Navigation &amp; Search</property>
+            <property name="title">{}</property>
             <child>
               <object class="GtkShortcutsShortcut">
-                <property name="title">Search packages and applications</property>
+                <property name="title">{}</property>
                 <property name="accelerator">&lt;Primary&gt;f &lt;Primary&gt;k</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
-                <property name="title">Toggle sidebar</property>
+                <property name="title">{}</property>
                 <property name="accelerator">F9 &lt;Primary&gt;b</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
-                <property name="title">Go back to previous page</property>
+                <property name="title">{}</property>
                 <property name="accelerator">&lt;Alt&gt;Left &lt;Alt&gt;BackSpace</property>
               </object>
             </child>
@@ -33,16 +36,16 @@ const SHORTCUTS_UI: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
         </child>
         <child>
           <object class="GtkShortcutsGroup">
-            <property name="title">General</property>
+            <property name="title">{}</property>
             <child>
               <object class="GtkShortcutsShortcut">
-                <property name="title">Show keyboard shortcuts</property>
+                <property name="title">{}</property>
                 <property name="accelerator">&lt;Primary&gt;question &lt;Primary&gt;slash</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
-                <property name="title">Close window</property>
+                <property name="title">{}</property>
                 <property name="accelerator">&lt;Primary&gt;q &lt;Primary&gt;w</property>
               </object>
             </child>
@@ -52,10 +55,17 @@ const SHORTCUTS_UI: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
     </child>
   </object>
 </interface>
-"#;
+"#,
+        glib::markup_escape_text(&pastor_core::tr("Navigation & Search")),
+        glib::markup_escape_text(&pastor_core::tr("Search packages and applications")),
+        glib::markup_escape_text(&pastor_core::tr("Toggle sidebar")),
+        glib::markup_escape_text(&pastor_core::tr("Go back to previous page")),
+        glib::markup_escape_text(&pastor_core::tr("General")),
+        glib::markup_escape_text(&pastor_core::tr("Show keyboard shortcuts")),
+        glib::markup_escape_text(&pastor_core::tr("Close window")),
+    );
 
-pub fn show_shortcuts_dialog(parent: &impl IsA<gtk4::Widget>) {
-    let builder = gtk4::Builder::from_string(SHORTCUTS_UI);
+    let builder = gtk4::Builder::from_string(&shortcuts_ui);
     if let Some(dialog) = builder.object::<gtk4::ShortcutsWindow>("shortcuts_window") {
         if let Some(root) = parent.root() {
             if let Ok(w) = root.downcast::<gtk4::Window>() {

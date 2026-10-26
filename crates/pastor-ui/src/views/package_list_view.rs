@@ -179,21 +179,27 @@ pub fn create_package_list_view(
         .hexpand(true)
         .build();
 
-    let btn_all = gtk4::ToggleButton::builder().label("All").active(true).build();
-    let btn_apps = gtk4::ToggleButton::builder().label("Applications").group(&btn_all).build();
-    let btn_official = gtk4::ToggleButton::builder().label("Official").group(&btn_all).build();
-    let btn_aur = gtk4::ToggleButton::builder().label("AUR").group(&btn_all).build();
-    let btn_flatpak = gtk4::ToggleButton::builder().label("Flatpak").group(&btn_all).build();
-    let btn_updates = gtk4::ToggleButton::builder().label("Updates").group(&btn_all).build();
+    let btn_all = gtk4::ToggleButton::builder().label(pastor_core::tr("All")).active(true).build();
+    let btn_apps = gtk4::ToggleButton::builder().label(pastor_core::tr("Applications")).group(&btn_all).build();
+    let btn_official = gtk4::ToggleButton::builder().label(pastor_core::tr("Official")).group(&btn_all).build();
+    let btn_aur = gtk4::ToggleButton::builder().label(pastor_core::tr("AUR")).group(&btn_all).build();
+    let btn_flatpak = gtk4::ToggleButton::builder().label(pastor_core::tr("Flatpak")).group(&btn_all).build();
+    let btn_updates = gtk4::ToggleButton::builder().label(pastor_core::tr("Updates")).group(&btn_all).build();
 
     for b in [&btn_all, &btn_apps, &btn_official, &btn_aur, &btn_flatpak, &btn_updates] {
         linked_box.append(b);
     }
 
-    let sort_strings = gtk4::StringList::new(&["Name (A–Z)", "Name (Z–A)", "Size (largest first)"]);
+    let sort_items = [
+        pastor_core::tr("Name (A–Z)"),
+        pastor_core::tr("Name (Z–A)"),
+        pastor_core::tr("Size (largest first)"),
+    ];
+    let sort_strings = gtk4::StringList::new(&sort_items);
     let sort_dropdown = gtk4::DropDown::builder().model(&sort_strings).build();
-    sort_dropdown.set_tooltip_text(Some("Sort packages"));
-    sort_dropdown.update_property(&[gtk4::accessible::Property::Label("Sort packages")]);
+    let sort_tip = pastor_core::tr("Sort packages");
+    sort_dropdown.set_tooltip_text(Some(sort_tip));
+    sort_dropdown.update_property(&[gtk4::accessible::Property::Label(sort_tip)]);
 
     filter_bar.append(&linked_box);
     filter_bar.append(&sort_dropdown);
@@ -205,8 +211,8 @@ pub fn create_package_list_view(
 
     let empty_status = adw::StatusPage::builder()
         .icon_name("system-search-symbolic")
-        .title(title)
-        .description(description)
+        .title(pastor_core::tr(title))
+        .description(pastor_core::tr(description))
         .visible(false)
         .build();
 
@@ -253,7 +259,13 @@ pub fn create_package_list_view(
                 model.append(&PackageObject::new(p.clone()));
             }
 
-            let text = if shown == total {
+            let text = if pastor_core::is_persian() {
+                if shown == total {
+                    format!("{total} بسته")
+                } else {
+                    format!("{shown} از {total} بسته")
+                }
+            } else if shown == total {
                 format!("{total} packages")
             } else {
                 format!("{shown} of {total} packages")

@@ -50,7 +50,7 @@ impl TransactionBar {
         top_row.append(&spinner);
 
         let status_label = gtk4::Label::builder()
-            .label("Preparing transaction...")
+            .label(pastor_core::tr("Preparing transaction..."))
             .css_classes(["heading"])
             .halign(gtk4::Align::Start)
             .hexpand(true)
@@ -60,7 +60,7 @@ impl TransactionBar {
 
         let cancel_btn = gtk4::Button::builder()
             .icon_name("process-stop-symbolic")
-            .tooltip_text("Cancel current transaction")
+            .tooltip_text(pastor_core::tr("Cancel current transaction"))
             .css_classes(["flat", "circular"])
             .visible(false)
             .build();
@@ -68,18 +68,18 @@ impl TransactionBar {
 
         let expand_btn = gtk4::ToggleButton::builder()
             .icon_name("utilities-terminal-symbolic")
-            .tooltip_text("Show native transaction console")
+            .tooltip_text(pastor_core::tr("Show native transaction console"))
             .css_classes(["flat", "circular", "trx-expand-btn"])
             .build();
-        expand_btn.update_property(&[gtk4::accessible::Property::Label("Show native transaction console")]);
+        expand_btn.update_property(&[gtk4::accessible::Property::Label(pastor_core::tr("Show native transaction console"))]);
         top_row.append(&expand_btn);
 
         let close_btn = gtk4::Button::builder()
             .icon_name("window-close-symbolic")
-            .tooltip_text("Dismiss transaction")
+            .tooltip_text(pastor_core::tr("Dismiss transaction"))
             .css_classes(["flat", "circular", "trx-close-btn"])
             .build();
-        close_btn.update_property(&[gtk4::accessible::Property::Label("Dismiss transaction")]);
+        close_btn.update_property(&[gtk4::accessible::Property::Label(pastor_core::tr("Dismiss transaction"))]);
         let container_for_close = container.clone();
         close_btn.connect_clicked(move |_| {
             container_for_close.set_visible(false);
@@ -195,7 +195,7 @@ impl TransactionBar {
         if was_active <= 0 {
             self.log_buffer.set_text("");
             self.progress_bar.set_fraction(0.0);
-            self.status_label.set_text("Transaction starting...");
+            self.status_label.set_text(pastor_core::tr("Transaction starting..."));
         } else {
             let mut end_iter = self.log_buffer.end_iter();
             self.log_buffer.insert(&mut end_iter, "\n--- Additional transaction queued ---\n");

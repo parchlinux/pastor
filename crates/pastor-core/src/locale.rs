@@ -109,6 +109,163 @@ pub fn clean_locale(raw: &str) -> String {
     s.replace('-', "_")
 }
 
+static PERSIAN_OVERRIDE: std::sync::atomic::AtomicI8 = std::sync::atomic::AtomicI8::new(0);
+
+/// Parsed GNU gettext `.po` catalog.
+#[derive(Debug, Clone)]
+pub struct PoCatalog {
+    entries: std::collections::HashMap<String, String>,
+}
+
+impl PoCatalog {
+    pub fn parse(po_content: &str) -> Self {
+        let mut entries = std::collections::HashMap::new();
+        let mut current_id = String::new();
+        let mut current_str = String::new();
+        let mut in_id = false;
+        let mut in_str = false;
+
+        for line in po_content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('#') || trimmed.is_empty() {
+                if !current_id.is_empty() && !current_str.is_empty() {
+                    entries.insert(current_id.clone(), current_str.clone());
+                    current_id.clear();
+                    current_str.clear();
+                }
+                in_id = false;
+                in_str = false;
+                continue;
+            }
+
+            if let Some(rest) = trimmed.strip_prefix("msgid ") {
+                if !current_id.is_empty() && !current_str.is_empty() {
+                    entries.insert(current_id.clone(), current_str.clone());
+                    current_id.clear();
+                    current_str.clear();
+                }
+                in_id = true;
+                in_str = false;
+                current_id = unescape_po_string(rest.trim());
+            } else if let Some(rest) = trimmed.strip_prefix("msgstr ") {
+                in_id = false;
+                in_str = true;
+                current_str = unescape_po_string(rest.trim());
+            } else if trimmed.starts_with('"') && trimmed.ends_with('"') {
+                let unescaped = unescape_po_string(trimmed);
+                if in_id {
+                    current_id.push_str(&unescaped);
+                } else if in_str {
+                    current_str.push_str(&unescaped);
+                }
+            }
+        }
+
+        if !current_id.is_empty() && !current_str.is_empty() {
+            entries.insert(current_id, current_str);
+        }
+
+        Self { entries }
+    }
+
+    pub fn get(&self, msgid: &str) -> Option<&str> {
+        self.entries.get(msgid).map(|s| s.as_str())
+    }
+
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+}
+
+fn unescape_po_string(raw: &str) -> String {
+    let inner = raw.strip_prefix('"').unwrap_or(raw);
+    let inner = inner.strip_suffix('"').unwrap_or(inner);
+    let mut out = String::with_capacity(inner.len());
+    let mut chars = inner.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some('r') => out.push('\r'),
+                Some('"') => out.push('"'),
+                Some('\\') => out.push('\\'),
+                Some(other) => {
+                    out.push('\\');
+                    out.push(other);
+                }
+                None => out.push('\\'),
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+static PERSIAN_CATALOG: std::sync::OnceLock<PoCatalog> = std::sync::OnceLock::new();
+
+/// Returns the Persian translation catalog parsed from `po/fa.po`.
+pub fn persian_po_catalog() -> &'static PoCatalog {
+    PERSIAN_CATALOG.get_or_init(|| {
+        const EMBEDDED_FA_PO: &str = include_str!("../../../po/fa.po");
+        PoCatalog::parse(EMBEDDED_FA_PO)
+    })
+}
+
+/// Checks whether the user's active locale is Persian (Farsi).
+pub fn is_persian() -> bool {
+    let ov = PERSIAN_OVERRIDE.load(std::sync::atomic::Ordering::Relaxed);
+    if ov == 1 {
+        return true;
+    }
+    if ov == -1 {
+        return false;
+    }
+    LocaleMatcher::from_env().primary_locale().starts_with("fa")
+}
+
+/// Allows overriding Persian mode explicitly (useful for testing or language selection).
+pub fn set_persian_mode(enabled: Option<bool>) {
+    let val = match enabled {
+        Some(true) => 1,
+        Some(false) => -1,
+        None => 0,
+    };
+    PERSIAN_OVERRIDE.store(val, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Translates a given UI string to Persian if the active locale is Persian,
+/// using the `.po` catalog in `po/fa.po`.
+pub fn tr(text: &str) -> &str {
+    if !is_persian() {
+        return text;
+    }
+    if let Some(trans) = persian_po_catalog().get(text) {
+        if !trans.is_empty() {
+            return trans;
+        }
+    }
+    text
+}
+
+/// Variant of `tr` for static strings that preserves the `'static` lifetime.
+pub fn tr_static(text: &'static str) -> &'static str {
+    if !is_persian() {
+        return text;
+    }
+    if let Some(trans) = persian_po_catalog().get(text) {
+        if !trans.is_empty() {
+            return trans;
+        }
+    }
+    text
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct LocalizedField {
     pub best_score: usize,
@@ -271,5 +428,32 @@ mod tests {
 
         let final_text = desc.finish().unwrap();
         assert_eq!(final_text, "پاراگراف فارسی ۱\n\nپاراگراف فارسی ۲");
+    }
+
+    #[test]
+    fn test_persian_ui_translations() {
+        let cat = persian_po_catalog();
+        assert!(cat.len() > 100);
+        assert_eq!(cat.get("Explore"), Some("کاوش"));
+        assert_eq!(cat.get("Installed"), Some("نصب‌شده"));
+        assert_eq!(cat.get("Updates"), Some("به‌روزرسانی‌ها"));
+        assert_eq!(cat.get("Parch Store"), Some("فروشگاه پارچ"));
+
+        set_persian_mode(Some(false));
+        assert_eq!(tr("Explore"), "Explore");
+        assert_eq!(tr("Installed"), "Installed");
+        assert_eq!(tr("Updates"), "Updates");
+
+        set_persian_mode(Some(true));
+        assert_eq!(tr("Explore"), "کاوش");
+        assert_eq!(tr("Installed"), "نصب‌شده");
+        assert_eq!(tr("Updates"), "به‌روزرسانی‌ها");
+        assert_eq!(tr("Install"), "نصب");
+        assert_eq!(tr("Uninstall"), "حذف");
+        assert_eq!(tr("Share Application"), "اشتراک‌گذاری برنامه");
+        assert_eq!(tr("Flathub (Flatpak)"), "فلت‌هاب (فلت‌پک)");
+
+        // Reset
+        set_persian_mode(None);
     }
 }

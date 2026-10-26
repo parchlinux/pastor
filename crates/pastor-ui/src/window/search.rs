@@ -57,7 +57,7 @@ pub fn setup_search_controller(
             let my_gen = search_gen.get() + 1;
             search_gen.set(my_gen);
 
-            *cur_t.borrow_mut() = format!("Search “{}”", trimmed);
+            *cur_t.borrow_mut() = format!("{} “{}”", pastor_core::tr("Search"), trimmed);
             *cur_s.borrow_mut() = "".to_string();
             sync_fn();
 
@@ -66,7 +66,7 @@ pub fn setup_search_controller(
             let monitor_s = monitor.clone();
             let on_sel_s = on_sel.clone();
             let on_tx_s = on_tx.clone();
-            let q_title = format!("Search results for \"{}\"", trimmed);
+            let q_title = format!("{} “{}”", pastor_core::tr("Search results for"), trimmed);
             let page_ref_task = page_ref.clone();
             let search_gen_task = search_gen.clone();
             let search_entry_task = s_entry.clone();
@@ -76,7 +76,7 @@ pub fn setup_search_controller(
                 "search",
                 Some(create_loading_view(
                     &q_title,
-                    "Searching repositories and Flathub catalog…",
+                    pastor_core::tr("Searching repositories and Flathub catalog…"),
                 )),
             );
 
@@ -97,7 +97,7 @@ pub fn setup_search_controller(
 
                     let list_view = create_package_list_view(
                         &q_title,
-                        "Filtered packages matching your search query across all active ecosystems",
+                        pastor_core::tr("Filtered packages matching your search query across all active ecosystems"),
                         results,
                         store_s,
                         monitor_s,
