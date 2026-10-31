@@ -18,7 +18,7 @@ pub fn build_share_options(pkg: &Package, flatpak_id: Option<&str>) -> Vec<Share
     options.push(ShareOption {
         title: pastor_core::tr("Parch Apps Store").to_string(),
         description: pastor_core::tr("Official web link (apps.parchlinux.com)").to_string(),
-        url: format!("https://apps.parchlinux.com/app/{}", pkg.name),
+        url: format!("https://apps.parchlinux.com/pkg/{}", pkg.name),
         icon_name: "emblem-favorite-symbolic",
     });
 
@@ -327,7 +327,7 @@ mod tests {
         );
         let opts = build_share_options(&pkg, None);
 
-        assert!(opts.iter().any(|o| o.url == "https://apps.parchlinux.com/app/org.mozilla.firefox"));
+        assert!(opts.iter().any(|o| o.url == "https://apps.parchlinux.com/pkg/org.mozilla.firefox"));
         assert!(opts.iter().any(|o| o.url == "https://flathub.org/apps/org.mozilla.firefox"));
         assert!(opts.iter().any(|o| o.url == "https://www.mozilla.org/firefox"));
         assert!(opts.iter().any(|o| o.url == "appstream://org.mozilla.firefox"));
@@ -342,7 +342,7 @@ mod tests {
         );
         let opts = build_share_options(&pkg, Some("org.mozilla.firefox"));
 
-        assert!(opts.iter().any(|o| o.url == "https://apps.parchlinux.com/app/firefox"));
+        assert!(opts.iter().any(|o| o.url == "https://apps.parchlinux.com/pkg/firefox"));
         assert!(opts.iter().any(|o| o.url == "https://flathub.org/apps/org.mozilla.firefox"));
         assert!(opts.iter().any(|o| o.url == "https://archlinux.org/packages/extra/x86_64/firefox/"));
         assert!(opts.iter().any(|o| o.url == "appstream://org.mozilla.firefox"));
