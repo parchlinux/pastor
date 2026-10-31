@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: pastor 0.3.1\n"
+"Project-Id-Version: pastor 0.3.2\n"
 "Report-Msgid-Bugs-To: https://github.com/parchlinux/pastor/issues\n"
 "POT-Creation-Date: 2026-10-26 10:00+0330\n"
 "PO-Revision-Date: 2026-10-26 10:00+0330\n"
@@ -454,6 +454,12 @@ msgstr "باز کردن در مرورگر"
 
 msgid "Flathub (Flatpak)"
 msgstr "فلت‌هاب (فلت‌پک)"
+
+msgid "Parch Apps Store"
+msgstr "فروشگاه وب برنامه‌های پارچ"
+
+msgid "Official web link (apps.parchlinux.com)"
+msgstr "پیوند رسمی وب (apps.parchlinux.com)"
 
 msgid "Cross-distro link for all Linux systems"
 msgstr "پیوند سراسری برای همه توزیع‌های لینوکس"

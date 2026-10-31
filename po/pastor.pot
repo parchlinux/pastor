@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: pastor 0.3.1\n"
+"Project-Id-Version: pastor 0.3.2\n"
 "Report-Msgid-Bugs-To: https://github.com/parchlinux/pastor/issues\n"
 "POT-Creation-Date: 2026-10-26 10:00+0330\n"
 "PO-Revision-Date: 2026-10-26 10:00+0330\n"

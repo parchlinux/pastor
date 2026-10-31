@@ -14,7 +14,15 @@ pub struct ShareOption {
 pub fn build_share_options(pkg: &Package, flatpak_id: Option<&str>) -> Vec<ShareOption> {
     let mut options = Vec::new();
 
-    // 1. Flathub option
+    // 1. Parch Apps Web link (apps.parchlinux.com)
+    options.push(ShareOption {
+        title: pastor_core::tr("Parch Apps Store").to_string(),
+        description: pastor_core::tr("Official web link (apps.parchlinux.com)").to_string(),
+        url: format!("https://apps.parchlinux.com/app/{}", pkg.name),
+        icon_name: "emblem-favorite-symbolic",
+    });
+
+    // 2. Flathub option
     let resolved_flatpak = match &pkg.id.source {
         PackageSource::Flatpak { .. } => Some(pkg.id.name.as_str()),
         _ => flatpak_id,
@@ -36,7 +44,7 @@ pub fn build_share_options(pkg: &Package, flatpak_id: Option<&str>) -> Vec<Share
         });
     }
 
-    // 2. Official Website
+    // 3. Official Website
     if let Some(ref hp) = pkg.homepage {
         let trimmed = hp.trim();
         if !trimmed.is_empty() {
@@ -49,7 +57,7 @@ pub fn build_share_options(pkg: &Package, flatpak_id: Option<&str>) -> Vec<Share
         }
     }
 
-    // 3. Repository details (Arch, AUR, Parch)
+    // 4. Repository details (Arch, AUR, Parch)
     match &pkg.id.source {
         PackageSource::Arch(repo) => {
             options.push(ShareOption {
@@ -78,7 +86,7 @@ pub fn build_share_options(pkg: &Package, flatpak_id: Option<&str>) -> Vec<Share
         _ => {}
     }
 
-    // 4. AppStream Deep Link (opens in Pastor, GNOME Software, Discover, etc.)
+    // 5. AppStream Deep Link (opens in Pastor, GNOME Software, Discover, etc.)
     let deep_id = resolved_flatpak.unwrap_or(&pkg.id.name);
     options.push(ShareOption {
         title: pastor_core::tr("AppStream Link").to_string(),
@@ -319,6 +327,7 @@ mod tests {
         );
         let opts = build_share_options(&pkg, None);
 
+        assert!(opts.iter().any(|o| o.url == "https://apps.parchlinux.com/app/org.mozilla.firefox"));
         assert!(opts.iter().any(|o| o.url == "https://flathub.org/apps/org.mozilla.firefox"));
         assert!(opts.iter().any(|o| o.url == "https://www.mozilla.org/firefox"));
         assert!(opts.iter().any(|o| o.url == "appstream://org.mozilla.firefox"));
@@ -333,6 +342,7 @@ mod tests {
         );
         let opts = build_share_options(&pkg, Some("org.mozilla.firefox"));
 
+        assert!(opts.iter().any(|o| o.url == "https://apps.parchlinux.com/app/firefox"));
         assert!(opts.iter().any(|o| o.url == "https://flathub.org/apps/org.mozilla.firefox"));
         assert!(opts.iter().any(|o| o.url == "https://archlinux.org/packages/extra/x86_64/firefox/"));
         assert!(opts.iter().any(|o| o.url == "appstream://org.mozilla.firefox"));

@@ -332,7 +332,11 @@ impl Application {
 
                 // Check for URI or positional arguments
                 let uri_arg = args.iter().skip(1).find(|a| {
-                    a.starts_with("pastor:") || a.starts_with("appstream:")
+                    a.starts_with("pastor:")
+                        || a.starts_with("appstream:")
+                        || a.starts_with("https://apps.parchlinux.com")
+                        || a.starts_with("http://apps.parchlinux.com")
+                        || a.starts_with("apps.parchlinux.com")
                 });
 
                 if let Some(uri) = uri_arg {

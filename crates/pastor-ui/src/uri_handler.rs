@@ -46,6 +46,16 @@ pub fn parse_uri(raw_uri: &str) -> Option<PastorRoute> {
         return None;
     }
 
+    // apps.parchlinux.com web link handling:
+    // https://apps.parchlinux.com/app/<pkg>
+    // https://apps.parchlinux.com/install/<pkg>
+    // https://apps.parchlinux.com/?app=<pkg>
+    // https://apps.parchlinux.com/?search=<query>
+    // (Also accepts http://, bare apps.parchlinux.com, or www.apps.parchlinux.com)
+    if let Some(rest) = strip_apps_web_prefix(trimmed) {
+        return parse_apps_web_uri(rest);
+    }
+
     // Pastor scheme handling: pastor://<action>/<arg> or pastor:<action>/<arg>
     let body = trimmed
         .strip_prefix("pastor://")
@@ -107,6 +117,128 @@ pub fn parse_uri(raw_uri: &str) -> Option<PastorRoute> {
         "snapshots" => Some(PastorRoute::Snapshots),
         "downgrade" => Some(PastorRoute::Downgrade),
         _ => None,
+    }
+}
+
+fn strip_apps_web_prefix(uri: &str) -> Option<&str> {
+    let lower = uri.to_ascii_lowercase();
+    let prefix = if lower.starts_with("https://apps.parchlinux.com") {
+        "https://apps.parchlinux.com"
+    } else if lower.starts_with("http://apps.parchlinux.com") {
+        "http://apps.parchlinux.com"
+    } else if lower.starts_with("https://www.apps.parchlinux.com") {
+        "https://www.apps.parchlinux.com"
+    } else if lower.starts_with("http://www.apps.parchlinux.com") {
+        "http://www.apps.parchlinux.com"
+    } else if lower.starts_with("apps.parchlinux.com") {
+        "apps.parchlinux.com"
+    } else {
+        return None;
+    };
+
+    Some(&uri[prefix.len()..])
+}
+
+fn parse_apps_web_uri(rest: &str) -> Option<PastorRoute> {
+    let (path_part, query_part) = match rest.split_once('?') {
+        Some((p, q)) => (p, Some(q)),
+        None => (rest, None),
+    };
+
+    // 1. Check query parameters first (?app=..., ?install=..., ?pkg=..., ?search=..., ?q=...)
+    if let Some(query_str) = query_part {
+        for pair in query_str.split('&') {
+            if let Some((k, v)) = pair.split_once('=') {
+                let k_lower = k.to_ascii_lowercase();
+                if k_lower == "install" {
+                    let decoded = url_decode(v);
+                    let clean = clean_package_name(&decoded);
+                    if is_valid_identifier(&clean) {
+                        return Some(PastorRoute::Install(clean));
+                    }
+                } else if k_lower == "app" || k_lower == "pkg" || k_lower == "details" || k_lower == "id" {
+                    let decoded = url_decode(v);
+                    let clean = clean_package_name(&decoded);
+                    if is_valid_identifier(&clean) {
+                        return Some(PastorRoute::Details(clean));
+                    }
+                } else if k_lower == "search" || k_lower == "q" || k_lower == "query" {
+                    let decoded = url_decode(v);
+                    let sanitized = sanitize_query(&decoded);
+                    if sanitized.is_empty() {
+                        return Some(PastorRoute::Explore);
+                    } else {
+                        return Some(PastorRoute::Search(sanitized));
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Check path segments: /app/<pkg>, /install/<pkg>, /search/<query>, /details/<pkg>
+    let path_segments: Vec<&str> = path_part
+        .split('/')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if path_segments.is_empty() {
+        return Some(PastorRoute::Explore);
+    }
+
+    let first = path_segments[0].to_ascii_lowercase();
+    match first.as_str() {
+        "app" | "details" | "pkg" | "show" => {
+            let target = path_segments.get(1).copied().unwrap_or("");
+            let decoded = url_decode(target);
+            let clean = clean_package_name(&decoded);
+            if is_valid_identifier(&clean) {
+                Some(PastorRoute::Details(clean))
+            } else {
+                None
+            }
+        }
+        "install" => {
+            let target = path_segments.get(1).copied().unwrap_or("");
+            let decoded = url_decode(target);
+            let clean = clean_package_name(&decoded);
+            if is_valid_identifier(&clean) {
+                Some(PastorRoute::Install(clean))
+            } else {
+                None
+            }
+        }
+        "search" => {
+            let query = if let Some(q_param) = query_part.and_then(extract_search_param) {
+                url_decode(&q_param)
+            } else if let Some(path_q) = path_segments.get(1) {
+                url_decode(path_q)
+            } else {
+                String::new()
+            };
+            let sanitized = sanitize_query(&query);
+            if sanitized.is_empty() {
+                Some(PastorRoute::Explore)
+            } else {
+                Some(PastorRoute::Search(sanitized))
+            }
+        }
+        "updates" => Some(PastorRoute::Updates),
+        "installed" => Some(PastorRoute::Installed),
+        "explore" => Some(PastorRoute::Explore),
+        "settings" => Some(PastorRoute::Settings),
+        "snapshots" => Some(PastorRoute::Snapshots),
+        "downgrade" => Some(PastorRoute::Downgrade),
+        _ => {
+            // If the path is simply /<pkg-name> (e.g. https://apps.parchlinux.com/firefox)
+            let decoded = url_decode(path_segments[0]);
+            let clean = clean_package_name(&decoded);
+            if is_valid_identifier(&clean) {
+                Some(PastorRoute::Details(clean))
+            } else {
+                None
+            }
+        }
     }
 }
 
@@ -233,6 +365,50 @@ mod tests {
         assert_eq!(
             parse_uri("pastor://search?query=text+editor"),
             Some(PastorRoute::Search("text editor".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_apps_parchlinux_web_urls() {
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/app/firefox"),
+            Some(PastorRoute::Details("firefox".to_string()))
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/install/alacritty"),
+            Some(PastorRoute::Install("alacritty".to_string()))
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/?app=gparted"),
+            Some(PastorRoute::Details("gparted".to_string()))
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/?install=vlc"),
+            Some(PastorRoute::Install("vlc".to_string()))
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/?search=terminal"),
+            Some(PastorRoute::Search("terminal".to_string()))
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/search/code"),
+            Some(PastorRoute::Search("code".to_string()))
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/calamares"),
+            Some(PastorRoute::Details("calamares".to_string()))
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/updates"),
+            Some(PastorRoute::Updates)
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/"),
+            Some(PastorRoute::Explore)
+        );
+        assert_eq!(
+            parse_uri("https://apps.parchlinux.com/app/../../etc/shadow"),
+            None
         );
     }
 

@@ -2,7 +2,7 @@
 # Maintainer: ParchLinux Team <contact@parchlinux.com>
 
 pkgname=pastor
-pkgver=0.3.1
+pkgver=0.3.2
 pkgrel=1
 pkgdesc="Modern, native software management center for ParchLinux"
 arch=('x86_64')
