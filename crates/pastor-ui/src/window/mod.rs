@@ -1083,6 +1083,7 @@ impl MainWindow {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pastor_core::{PackageId, PackageSource, PackageState};
 
     #[test]
     fn test_window_min_width_at_360() {
@@ -1102,5 +1103,154 @@ mod tests {
 
         assert!(sv_min <= 360, "OverlaySplitView requested {sv_min}px which exceeds 360px available width");
         assert!(win_min <= 360, "ApplicationWindow requested {win_min}px which exceeds 360px minimum width");
+
+        // Navigate to Doctor view and verify it stays <= 360px
+        let doc_view = crate::views::create_doctor_view(Store::empty(), || {}, |_| {});
+        if let Some(content) = split_view.content() {
+            if let Some(tb) = content.downcast_ref::<adw::ToolbarView>() {
+                if let Some(overlay) = tb.content().and_downcast::<adw::ToastOverlay>() {
+                    if let Some(box_container) = overlay.child().and_downcast::<gtk4::Box>() {
+                        if let Some(stack) = box_container.first_child().and_downcast::<gtk4::Stack>() {
+                            stack.add_named(&doc_view, Some("doctor"));
+                            stack.set_visible_child_name("doctor");
+                        }
+                    }
+                }
+            }
+        }
+
+        let (sv_doc_min, _, _, _) = split_view.measure(gtk4::Orientation::Horizontal, -1);
+        assert!(sv_doc_min <= 360, "OverlaySplitView with DoctorView requested {sv_doc_min}px which exceeds 360px width");
     }
+
+    #[test]
+    fn test_category_grid_view_layout() {
+        if !gtk4::is_initialized_main_thread() {
+            if gtk4::is_initialized() || gtk4::init().is_err() {
+                return;
+            }
+        }
+        let app = adw::Application::new(Some("com.parchlinux.test_cat_grid"), Default::default());
+        let provider = gtk4::CssProvider::new();
+        provider.load_from_data(crate::styles::APP_CSS);
+        if let Some(display) = gtk4::gdk::Display::default() {
+            gtk4::style_context_add_provider_for_display(
+                &display,
+                &provider,
+                gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+        }
+        let store = Store::empty();
+        let pkgs = vec![
+            Package {
+                id: PackageId { name: "app-1".to_string(), source: PackageSource::Arch("extra".to_string()) },
+                name: "app-1".to_string(),
+                display_name: Some("App One".to_string()),
+                version: "1.0".to_string(),
+                installed_version: None,
+                summary: "App one summary".to_string(),
+                description: None,
+                icon: None,
+                screenshots: vec![],
+                homepage: None,
+                license: None,
+                maintainer: None,
+                categories: vec![PackageCategory::Internet],
+                size_installed: None,
+                size_download: None,
+                dependencies: vec![],
+                changelog: None,
+                state: PackageState::NotInstalled,
+            },
+            Package {
+                id: PackageId { name: "app-2".to_string(), source: PackageSource::Arch("extra".to_string()) },
+                name: "app-2".to_string(),
+                display_name: Some("App Two".to_string()),
+                version: "1.0".to_string(),
+                installed_version: None,
+                summary: "App two summary".to_string(),
+                description: None,
+                icon: None,
+                screenshots: vec![],
+                homepage: None,
+                license: None,
+                maintainer: None,
+                categories: vec![PackageCategory::Internet],
+                size_installed: None,
+                size_download: None,
+                dependencies: vec![],
+                changelog: None,
+                state: PackageState::NotInstalled,
+            },
+        ];
+
+        let main_win = MainWindow::new(&app, store.clone());
+        main_win.window.set_default_size(1920, 1080);
+        main_win.window.present();
+
+        let split_view = main_win.window.content().and_downcast::<adw::OverlaySplitView>().unwrap();
+        split_view.set_collapsed(false);
+        split_view.set_show_sidebar(true);
+
+        let list_view = crate::views::create_package_list_view(
+            "Internet & Web",
+            "Browse applications",
+            pkgs,
+            store,
+            TxMonitor::new(&Store::empty()),
+            |_| {},
+            |_| {},
+            false,
+        );
+
+        if let Some(content) = split_view.content() {
+            if let Some(tb) = content.downcast_ref::<adw::ToolbarView>() {
+                if let Some(overlay) = tb.content().and_downcast::<adw::ToastOverlay>() {
+                    if let Some(box_container) = overlay.child().and_downcast::<gtk4::Box>() {
+                        if let Some(stack) = box_container.first_child().and_downcast::<gtk4::Stack>() {
+                            stack.add_named(&list_view.widget, Some("category"));
+                            stack.set_visible_child_name("category");
+                        }
+                    }
+                }
+            }
+        }
+
+        // Switch to grid view
+        fn switch_to_grid(w: &gtk4::Widget) {
+            if let Ok(s) = w.clone().downcast::<gtk4::Stack>() {
+                if s.child_by_name("grid").is_some() {
+                    s.set_visible_child_name("grid");
+                    return;
+                }
+            }
+            let mut c = w.first_child();
+            while let Some(child) = c {
+                switch_to_grid(&child);
+                c = child.next_sibling();
+            }
+        }
+        switch_to_grid(&list_view.widget);
+
+        let ctx = glib::MainContext::default();
+        for _ in 0..10 {
+            ctx.iteration(true);
+        }
+
+        fn check_grid(w: &gtk4::Widget) {
+            if let Ok(g) = w.clone().downcast::<gtk4::GridView>() {
+                let (min_w, _, _, _) = g.measure(gtk4::Orientation::Horizontal, -1);
+                assert!(min_w > 0, "Grid view measured valid width");
+                return;
+            }
+            let mut c = w.first_child();
+            while let Some(child) = c {
+                check_grid(&child);
+                c = child.next_sibling();
+            }
+        }
+        check_grid(&list_view.widget);
+    }
+
 }
+

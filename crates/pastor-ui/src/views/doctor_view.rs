@@ -21,6 +21,7 @@ pub fn create_doctor_view(
         .margin_bottom(28)
         .margin_start(16)
         .margin_end(16)
+        .css_classes(["doctor-content"])
         .build();
 
     // Title & Header bar
@@ -38,14 +39,17 @@ pub fn create_doctor_view(
 
     let title_lbl = gtk4::Label::builder()
         .label(tr("Parch Doctor"))
-        .css_classes(["title-2"])
+        .css_classes(["title-2", "doctor-header-title"])
         .halign(gtk4::Align::Start)
+        .wrap(true)
         .build();
 
     let subtitle_lbl = gtk4::Label::builder()
         .label(tr("System health, configuration drift, and maintenance diagnostics"))
-        .css_classes(["dim-label", "caption"])
+        .css_classes(["dim-label", "caption", "doctor-header-subtitle"])
         .halign(gtk4::Align::Start)
+        .wrap(true)
+        .wrap_mode(gtk4::pango::WrapMode::Word)
         .build();
 
     title_vbox.append(&title_lbl);
@@ -236,11 +240,13 @@ fn populate_doctor_view(
         let header_row = adw::ActionRow::builder()
             .title(format!("{} {}", report.orphan_packages.len(), tr("orphans detected")))
             .subtitle(format!("{}: {}", tr("Total reclaimable space"), format_size(total_size)))
+            .title_lines(1)
+            .subtitle_lines(2)
             .build();
 
         let clean_orphans_btn = gtk4::Button::builder()
             .label(tr("Remove All Orphans"))
-            .css_classes(["destructive-action"])
+            .css_classes(["destructive-action", "doctor-action-btn"])
             .valign(gtk4::Align::Center)
             .build();
 
@@ -291,6 +297,8 @@ fn populate_doctor_view(
             tr("packages"),
             format_size(report.cache_health.total_cache_bytes)
         ))
+        .title_lines(1)
+        .subtitle_lines(2)
         .build();
     cache_list.append(&total_cache_row);
 
@@ -302,12 +310,14 @@ fn populate_doctor_view(
             tr("older versions beyond latest 2"),
             format_size(report.cache_health.reclaimable_bytes)
         ))
+        .title_lines(1)
+        .subtitle_lines(2)
         .build();
 
     if report.cache_health.reclaimable_packages > 0 {
         let trim_btn = gtk4::Button::builder()
             .label(tr("Clean Cache"))
-            .css_classes(["suggested-action"])
+            .css_classes(["suggested-action", "doctor-action-btn"])
             .valign(gtk4::Align::Center)
             .build();
 
@@ -349,12 +359,14 @@ fn populate_doctor_view(
                 } else {
                     tr("No running pacman process detected. Safe to remove.").to_string()
                 })
+                .title_lines(1)
+                .subtitle_lines(2)
                 .build();
 
             if lock.is_stale {
                 let unlock_btn = gtk4::Button::builder()
                     .label(tr("Remove Stale Lock"))
-                    .css_classes(["destructive-action"])
+                    .css_classes(["destructive-action", "doctor-action-btn"])
                     .valign(gtk4::Align::Center)
                     .build();
 
@@ -405,11 +417,20 @@ fn create_pacnew_row(
             file.candidate_path.display(),
             format_size(file.candidate_size_bytes)
         ))
+        .title_lines(1)
+        .subtitle_lines(2)
+        .build();
+
+    let action_box = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Horizontal)
+        .spacing(4)
+        .valign(gtk4::Align::Center)
+        .css_classes(["doctor-pacnew-actions"])
         .build();
 
     let diff_btn = gtk4::Button::builder()
         .label(tr("View Diff"))
-        .css_classes(["flat"])
+        .css_classes(["flat", "doctor-action-btn"])
         .valign(gtk4::Align::Center)
         .build();
 
@@ -449,7 +470,7 @@ fn create_pacnew_row(
     let keep_btn = gtk4::Button::builder()
         .label(tr("Keep Current"))
         .tooltip_text(tr("Discard .pacnew and keep existing file"))
-        .css_classes(["flat"])
+        .css_classes(["flat", "doctor-action-btn"])
         .valign(gtk4::Align::Center)
         .build();
     keep_btn.connect_clicked(move |_| {
@@ -468,7 +489,7 @@ fn create_pacnew_row(
     let replace_btn = gtk4::Button::builder()
         .label(tr("Replace"))
         .tooltip_text(tr("Overwrite current file with .pacnew"))
-        .css_classes(["suggested-action"])
+        .css_classes(["suggested-action", "doctor-action-btn"])
         .valign(gtk4::Align::Center)
         .build();
     replace_btn.connect_clicked(move |_| {
@@ -491,9 +512,10 @@ fn create_pacnew_row(
         );
     });
 
-    row.add_suffix(&diff_btn);
-    row.add_suffix(&keep_btn);
-    row.add_suffix(&replace_btn);
+    action_box.append(&diff_btn);
+    action_box.append(&keep_btn);
+    action_box.append(&replace_btn);
+    row.add_suffix(&action_box);
     row
 }
 
@@ -542,3 +564,98 @@ fn show_repair_confirmation(
 
     dialog.present();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_doctor_view_min_width() {
+        if !gtk4::is_initialized_main_thread() {
+            if gtk4::is_initialized() || gtk4::init().is_err() {
+                return;
+            }
+        }
+        let store = Store::empty();
+        let view = create_doctor_view(store.clone(), || {}, |_| {});
+
+        let (min_w, _, _, _) = view.measure(gtk4::Orientation::Horizontal, -1);
+        assert!(min_w <= 360, "DoctorView requested {min_w}px which exceeds 360px mobile width");
+
+        // Test with full issues populated
+        let report = DoctorReport {
+            pacnew_files: vec![
+                PacnewFile {
+                    original_path: std::path::PathBuf::from("/etc/pacman.d/mirrorlist"),
+                    candidate_path: std::path::PathBuf::from("/etc/pacman.d/mirrorlist.pacnew"),
+                    kind: pastor_core::PacnewKind::Pacnew,
+                    original_exists: true,
+                    candidate_size_bytes: 4096,
+                },
+                PacnewFile {
+                    original_path: std::path::PathBuf::from("/etc/security/pam_env.conf"),
+                    candidate_path: std::path::PathBuf::from("/etc/security/pam_env.conf.pacnew"),
+                    kind: pastor_core::PacnewKind::Pacnew,
+                    original_exists: true,
+                    candidate_size_bytes: 2048,
+                },
+            ],
+            database_lock: Some(pastor_core::DatabaseLockInfo {
+                exists: true,
+                is_stale: true,
+                active_pid: Some(9999),
+                process_name: Some("pacman".to_string()),
+                lock_path: std::path::PathBuf::from("/var/lib/pacman/db.lck"),
+            }),
+            cache_health: pastor_core::CacheHealthInfo {
+                pacman_cache_dir: std::path::PathBuf::from("/var/cache/pacman/pkg"),
+                total_cache_bytes: 5 * 1024 * 1024 * 1024,
+                total_packages_cached: 450,
+                reclaimable_bytes: 2 * 1024 * 1024 * 1024,
+                reclaimable_packages: 120,
+                flatpak_unused_count: 0,
+                flatpak_unused_bytes: 0,
+            },
+            orphan_packages: vec![
+                pastor_core::OrphanPackage {
+                    name: "libverylongorphanpackagename-extra-debug".to_string(),
+                    version: "1.2.3.4-5".to_string(),
+                    size_bytes: 45 * 1024 * 1024,
+                    description: "A test orphan package".to_string(),
+                },
+            ],
+        };
+
+        let banner = adw::Banner::new("test");
+        let pacnew_list = gtk4::ListBox::new();
+        let orphan_list = gtk4::ListBox::new();
+        let cache_list = gtk4::ListBox::new();
+        let lock_group = adw::PreferencesGroup::new();
+        let lock_list = gtk4::ListBox::new();
+        let parent = gtk4::ScrolledWindow::new();
+
+        populate_doctor_view(
+            &report,
+            &store,
+            &banner,
+            &pacnew_list,
+            &orphan_list,
+            &cache_list,
+            &lock_group,
+            &lock_list,
+            &parent,
+            |_| {},
+        );
+
+        let (p_min, _, _, _) = pacnew_list.measure(gtk4::Orientation::Horizontal, -1);
+        let (o_min, _, _, _) = orphan_list.measure(gtk4::Orientation::Horizontal, -1);
+        let (c_min, _, _, _) = cache_list.measure(gtk4::Orientation::Horizontal, -1);
+        let (l_min, _, _, _) = lock_list.measure(gtk4::Orientation::Horizontal, -1);
+
+        assert!(p_min <= 360, "pacnew_list min width {p_min} exceeds 360px!");
+        assert!(o_min <= 360, "orphan_list min width {o_min} exceeds 360px!");
+        assert!(c_min <= 360, "cache_list min width {c_min} exceeds 360px!");
+        assert!(l_min <= 360, "lock_list min width {l_min} exceeds 360px!");
+    }
+}
+

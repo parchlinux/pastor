@@ -471,6 +471,44 @@ flowboxchild {
     font-size: 0.85rem;
 }
 
+/* Doctor View Responsive Mobile Styling */
+.doctor-header-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+
+.doctor-header-subtitle {
+    font-size: 0.82rem;
+}
+
+.doctor-pacnew-actions {
+    margin-left: 4px;
+}
+
+.doctor-action-btn {
+    padding: 5px 10px;
+    font-size: 0.82rem;
+}
+
+.pastor-narrow .doctor-header-title {
+    font-size: 1.15rem;
+}
+
+.pastor-narrow .doctor-header-subtitle {
+    font-size: 0.76rem;
+}
+
+.pastor-narrow .doctor-action-btn {
+    padding: 3px 6px;
+    font-size: 0.74rem;
+    min-height: 28px;
+}
+
+.pastor-narrow .doctor-action-btn label {
+    font-size: 0.74rem;
+}
+
+
 .screenshot-preview-card {
     background-color: alpha(@card_bg_color, 0.9);
     border: 1px solid alpha(@borders, 0.6);
