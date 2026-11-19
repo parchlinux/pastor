@@ -18,7 +18,7 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 flate2.workspace = true
-quick-xml = "0.37"
+quick-xml.workspace = true
 jxl-oxide = "0.12"
 image = { version = "0.25", default-features = false, features = ["png"] }
 bincode.workspace = true

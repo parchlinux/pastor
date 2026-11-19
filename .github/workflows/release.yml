@@ -27,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pacman -Syu --noconfirm --needed git cargo rust gettext gtk4 libadwaita flatpak appstream openssl
+          pacman -Syu --noconfirm --needed base-devel pkgconf git cargo rust gettext gtk4 libadwaita flatpak appstream openssl
 
       - name: Compile translation catalogs
         run: |
@@ -93,7 +93,7 @@ jobs:
           distro: archarm_latest
           githubToken: ${{ github.token }}
           install: |
-            pacman -Syu --noconfirm --needed git cargo rust gettext gtk4 libadwaita flatpak appstream openssl
+            pacman -Syu --noconfirm --needed base-devel pkgconf git cargo rust gettext gtk4 libadwaita flatpak appstream openssl
           run: |
             if [ -f po/LINGUAS ]; then
               while read -r lang; do

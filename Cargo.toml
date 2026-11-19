@@ -10,13 +10,6 @@ members = [
     "crates/pastor-ui",
 ]
 
-[workspace.package]
-version = "0.4.0"
-authors = ["ParchLinux Team"]
-edition = "2021"
-license = "GPL-3.0-only"
-repository = "https://github.com/parchlinux/pastor"
-
 [workspace.dependencies]
 pastor-alpm = { path = "crates/pastor-alpm" }
 pastor-aur = { path = "crates/pastor-aur" }

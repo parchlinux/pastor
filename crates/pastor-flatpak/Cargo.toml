@@ -18,6 +18,6 @@ glib.workspace = true
 gio.workspace = true
 libflatpak.workspace = true
 flate2.workspace = true
-quick-xml = "0.37"
+quick-xml.workspace = true
 ureq.workspace = true
 bincode.workspace = true
