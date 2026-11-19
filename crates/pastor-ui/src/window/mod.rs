@@ -384,7 +384,7 @@ impl MainWindow {
                     if name == "details" || name == "snapshots" || name == "downgrade" || name == "settings" {
                         history_rc.borrow_mut().push(cur);
                         back_btn.set_visible(true);
-                    } else if name == "explore" || name == "installed" || name == "updates" || name == "immutable" {
+                    } else if name == "explore" || name == "installed" || name == "updates" || name == "immutable" || name == "doctor" {
                         history_rc.borrow_mut().clear();
                         back_btn.set_visible(false);
                     }
@@ -397,6 +397,7 @@ impl MainWindow {
                     "snapshots" => ("Btrfs Snapshots", ""),
                     "downgrade" => ("Downgrade Tool", ""),
                     "settings" => ("Settings", ""),
+                    "doctor" => ("Parch Doctor", ""),
                     _ => (name, ""),
                 };
                 *cur_t.borrow_mut() = t.to_string();
@@ -821,15 +822,58 @@ impl MainWindow {
             let show_explore = show_explore_impl.clone();
             let show_installed = show_installed_impl.clone();
             let show_updates = show_updates_impl.clone();
+            let sys_list_for_nav = sidebar.system_list.clone();
+            let cat_list_for_nav = sidebar.cat_list.clone();
 
             sidebar.nav_list.connect_row_activated(move |_, row| {
                 if split_for_nav.is_collapsed() {
                     split_for_nav.set_show_sidebar(false);
                 }
+                sys_list_for_nav.select_row(Option::<&gtk4::ListBoxRow>::None);
+                cat_list_for_nav.select_row(Option::<&gtk4::ListBoxRow>::None);
                 match row.index() {
                     0 => show_explore(),
                     1 => show_installed(),
                     2 => show_updates(),
+                    _ => {}
+                }
+            });
+        }
+
+        // System list navigation (Parch Doctor, Snapshots)
+        {
+            let split_for_sys = split_view.clone();
+            let nav = navigate_to_view.clone();
+            let store = store_rc.clone();
+            let on_tx = on_tx_start.clone();
+            let go_back_sys = go_back.clone();
+            let app_handle_sys = app.clone();
+            let nav_list_for_sys = sidebar.nav_list.clone();
+            let cat_list_for_sys = sidebar.cat_list.clone();
+
+            sidebar.system_list.connect_row_activated(move |_, row| {
+                if split_for_sys.is_collapsed() {
+                    split_for_sys.set_show_sidebar(false);
+                }
+                nav_list_for_sys.select_row(Option::<&gtk4::ListBoxRow>::None);
+                cat_list_for_sys.select_row(Option::<&gtk4::ListBoxRow>::None);
+                match row.index() {
+                    0 => {
+                        let s = store.clone();
+                        let go_back_c = go_back_sys.clone();
+                        let on_tx_c = on_tx.clone();
+                        let doc_view = crate::views::create_doctor_view(
+                            s,
+                            move || {
+                                go_back_c();
+                            },
+                            on_tx_c,
+                        );
+                        nav("doctor", Some(doc_view));
+                    }
+                    1 => {
+                        app_handle_sys.activate_action("snapshots", None);
+                    }
                     _ => {}
                 }
             });
@@ -883,11 +927,15 @@ impl MainWindow {
             let wt_cat = window_title.clone();
             let active_cats_click = sidebar.active_categories.clone();
             let page_ref_for_cat = current_page_name.clone();
+            let nav_list_for_cat = sidebar.nav_list.clone();
+            let sys_list_for_cat = sidebar.system_list.clone();
 
             sidebar.cat_list.connect_row_activated(move |_, row| {
                 if split_for_cat.is_collapsed() {
                     split_for_cat.set_show_sidebar(false);
                 }
+                nav_list_for_cat.select_row(Option::<&gtk4::ListBoxRow>::None);
+                sys_list_for_cat.select_row(Option::<&gtk4::ListBoxRow>::None);
                 let idx = row.index() as usize;
                 if let Some(cat) = active_cats_click.get(idx) {
                     let cat = *cat;

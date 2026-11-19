@@ -1,4 +1,5 @@
 pub mod circular_progress;
+pub mod doctor_view;
 pub mod downgrade_view;
 pub mod explore_view;
 pub mod package_details_view;
@@ -10,6 +11,7 @@ pub mod transaction_bar;
 pub mod updates_view;
 
 pub use circular_progress::CircularProgress;
+pub use doctor_view::create_doctor_view;
 pub use downgrade_view::create_downgrade_view;
 pub use explore_view::create_explore_view;
 pub use package_details_view::create_package_details_view;

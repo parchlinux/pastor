@@ -170,6 +170,23 @@ pub fn category_icon(cat: PackageCategory) -> String {
     }
 }
 
+pub fn doctor_icon() -> String {
+    resolve_icon(&[
+        "health-symbolic",
+        "preferences-system-symbolic",
+        "system-run-symbolic",
+        "tools-check-symbolic",
+    ])
+}
+
+pub fn snapshot_icon() -> String {
+    resolve_icon(&[
+        "camera-photo-symbolic",
+        "document-save-symbolic",
+        "system-file-manager-symbolic",
+    ])
+}
+
 pub fn sidebar_toggle_icon() -> String {
     resolve_icon(&[
         "sidebar-show-symbolic",

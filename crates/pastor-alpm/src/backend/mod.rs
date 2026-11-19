@@ -99,6 +99,29 @@ impl AlpmBackend {
         self.get_installed_pkg_version(name).is_some()
     }
 
+    pub fn get_orphans(&self) -> Vec<pastor_core::doctor::OrphanPackage> {
+        let handle = match privileged::create_alpm(&self.pacman_config) {
+            Ok(h) => h,
+            Err(_) => return Vec::new(),
+        };
+        let localdb = handle.localdb();
+        let mut orphans = Vec::new();
+
+        for pkg in localdb.pkgs() {
+            if pkg.reason() == alpm::PackageReason::Depend && pkg.required_by().is_empty() {
+                orphans.push(pastor_core::doctor::OrphanPackage {
+                    name: pkg.name().to_string(),
+                    version: pkg.version().to_string(),
+                    size_bytes: pkg.isize().max(0) as u64,
+                    description: pkg.desc().unwrap_or("").to_string(),
+                });
+            }
+        }
+
+        orphans.sort_by(|a, b| a.name.cmp(&b.name));
+        orphans
+    }
+
     pub fn find_missing_sync_dependencies(&self, deps: &[String]) -> (Vec<String>, Vec<String>) {
         let handle = match privileged::create_alpm(&self.pacman_config) {
             Ok(h) => h,

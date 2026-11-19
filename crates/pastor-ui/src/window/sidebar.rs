@@ -5,6 +5,7 @@ pub struct SidebarComponents {
     pub toolbar: adw::ToolbarView,
     pub search_entry: gtk4::SearchEntry,
     pub nav_list: gtk4::ListBox,
+    pub system_list: gtk4::ListBox,
     pub cat_list: gtk4::ListBox,
     pub collapse_btn: gtk4::Button,
     pub active_categories: Vec<PackageCategory>,
@@ -99,6 +100,23 @@ pub fn build_sidebar() -> SidebarComponents {
     nav_group.add(&nav_list);
     sidebar_box.append(&nav_group);
 
+    // System Group
+    let system_group = adw::PreferencesGroup::builder()
+        .title(tr("System"))
+        .build();
+    let system_list = gtk4::ListBox::builder()
+        .selection_mode(gtk4::SelectionMode::Single)
+        .css_classes(["navigation-sidebar"])
+        .build();
+
+    let doctor_row = create_nav_row(tr("Parch Doctor"), &crate::icons::doctor_icon());
+    let snapshots_row = create_nav_row(tr("Snapshots"), &crate::icons::snapshot_icon());
+
+    system_list.append(&doctor_row);
+    system_list.append(&snapshots_row);
+    system_group.add(&system_list);
+    sidebar_box.append(&system_group);
+
     // Categories Group
     let cat_group = adw::PreferencesGroup::builder()
         .title(tr("Categories"))
@@ -133,6 +151,7 @@ pub fn build_sidebar() -> SidebarComponents {
         toolbar: sidebar_toolbar,
         search_entry,
         nav_list,
+        system_list,
         cat_list,
         collapse_btn: sidebar_collapse_btn,
         active_categories,

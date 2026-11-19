@@ -34,6 +34,7 @@ pub enum ActiveTransactionEvent {
 #[derive(Clone)]
 pub struct Store {
     backends: Vec<Arc<dyn PackageBackend>>,
+    alpm_backend: Option<Arc<AlpmBackend>>,
     aur_backend: Option<Arc<AurBackend>>,
     snapshot_backend: Arc<dyn SnapshotBackend>,
     modules: Arc<RwLock<ModuleConfig>>,
@@ -105,6 +106,7 @@ impl Store {
 
         Self {
             backends,
+            alpm_backend: alpm_arc,
             aur_backend,
             snapshot_backend,
             modules: Arc::new(RwLock::new(ModuleConfig::load())),
@@ -118,6 +120,7 @@ impl Store {
         let (tx_broadcaster, _) = broadcast::channel(200);
         Self {
             backends: vec![],
+            alpm_backend: None,
             aur_backend: None,
             snapshot_backend: Arc::new(NullSnapshotBackend),
             modules: Arc::new(RwLock::new(ModuleConfig::default())),
@@ -134,6 +137,7 @@ impl Store {
         let (tx_broadcaster, _) = broadcast::channel(200);
         Self {
             backends,
+            alpm_backend: None,
             aur_backend: None,
             snapshot_backend,
             modules: Arc::new(RwLock::new(ModuleConfig::load())),
@@ -1077,6 +1081,163 @@ impl Store {
         });
 
         rx
+    }
+
+    /// Executes non-blocking diagnostic probes across the system for Parch Doctor.
+    pub async fn run_doctor_diagnostics(&self) -> DoctorReport {
+        let pacnew_task = tokio::task::spawn_blocking(|| {
+            doctor::scan_pacnew_files("/etc")
+        });
+
+        let lock_task = tokio::task::spawn_blocking(|| {
+            doctor::check_database_lock("/var/lib/pacman/db.lck")
+        });
+
+        let cache_task = tokio::task::spawn_blocking(|| {
+            doctor::scan_pacman_cache("/var/cache/pacman/pkg", 2)
+        });
+
+        let alpm = self.alpm_backend.clone();
+        let orphan_task = tokio::task::spawn_blocking(move || {
+            if let Some(backend) = alpm {
+                backend.get_orphans()
+            } else {
+                Vec::new()
+            }
+        });
+
+        let (pacnew_res, lock_res, cache_res, orphan_res) = tokio::join!(
+            pacnew_task,
+            lock_task,
+            cache_task,
+            orphan_task,
+        );
+
+        DoctorReport {
+            pacnew_files: pacnew_res.unwrap_or_default(),
+            database_lock: lock_res.ok(),
+            cache_health: cache_res.unwrap_or_default(),
+            orphan_packages: orphan_res.unwrap_or_default(),
+        }
+    }
+
+    /// Resolves a stale database lock file with Polkit privileges if safe.
+    pub async fn resolve_database_lock(&self) -> Result<(), PastorError> {
+        let lock_info = doctor::check_database_lock("/var/lib/pacman/db.lck");
+        if !lock_info.exists {
+            return Ok(());
+        }
+        if !lock_info.is_stale {
+            return Err(PastorError::BackendError {
+                backend: "doctor".to_string(),
+                message: format!("Cannot remove database lock: actively held by process {}", lock_info.process_name.unwrap_or_default()),
+            });
+        }
+
+        tokio::task::spawn_blocking(|| {
+            let status = std::process::Command::new("pkexec")
+                .args(["rm", "-f", "/var/lib/pacman/db.lck"])
+                .status()
+                .map_err(|e| PastorError::BackendError {
+                    backend: "doctor".to_string(),
+                    message: format!("Failed to execute pkexec rm: {e}"),
+                })?;
+
+            if status.success() {
+                Ok(())
+            } else {
+                Err(PastorError::BackendError {
+                    backend: "doctor".to_string(),
+                    message: "Failed to remove database lock: authorization denied or command failed".to_string(),
+                })
+            }
+        })
+        .await
+        .map_err(|e| PastorError::BackendError {
+            backend: "doctor".to_string(),
+            message: e.to_string(),
+        })?
+    }
+
+    /// Resolves a .pacnew file by either discarding the candidate or replacing the original file.
+    pub async fn apply_pacnew_resolution(
+        &self,
+        original: &std::path::Path,
+        candidate: &std::path::Path,
+        overwrite: bool,
+    ) -> Result<(), PastorError> {
+        let orig = original.to_path_buf();
+        let cand = candidate.to_path_buf();
+
+        tokio::task::spawn_blocking(move || {
+            if overwrite {
+                let status = std::process::Command::new("pkexec")
+                    .args(["mv", "-f", cand.to_str().unwrap_or(""), orig.to_str().unwrap_or("")])
+                    .status()
+                    .map_err(|e| PastorError::BackendError {
+                        backend: "doctor".to_string(),
+                        message: format!("pkexec error: {e}"),
+                    })?;
+
+                if !status.success() {
+                    return Err(PastorError::BackendError {
+                        backend: "doctor".to_string(),
+                        message: "Failed to replace configuration file".to_string(),
+                    });
+                }
+            } else {
+                let status = std::process::Command::new("pkexec")
+                    .args(["rm", "-f", cand.to_str().unwrap_or("")])
+                    .status()
+                    .map_err(|e| PastorError::BackendError {
+                        backend: "doctor".to_string(),
+                        message: format!("pkexec error: {e}"),
+                    })?;
+
+                if !status.success() {
+                    return Err(PastorError::BackendError {
+                        backend: "doctor".to_string(),
+                        message: "Failed to discard .pacnew file".to_string(),
+                    });
+                }
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| PastorError::BackendError {
+            backend: "doctor".to_string(),
+            message: e.to_string(),
+        })?
+    }
+
+    /// Trims old cached package versions in /var/cache/pacman/pkg, retaining `keep` latest versions.
+    pub async fn clean_pacman_cache(&self, keep: usize) -> Result<u64, PastorError> {
+        let before = doctor::scan_pacman_cache("/var/cache/pacman/pkg", keep);
+        let reclaimable_bytes = before.reclaimable_bytes;
+
+        tokio::task::spawn_blocking(move || {
+            let keep_arg = format!("-rk{keep}");
+            if let Ok(status) = std::process::Command::new("pkexec")
+                .args(["paccache", &keep_arg])
+                .status()
+            {
+                if status.success() {
+                    return Ok(reclaimable_bytes);
+                }
+            }
+
+            let info = doctor::scan_pacman_cache("/var/cache/pacman/pkg", keep);
+            if info.reclaimable_packages == 0 {
+                return Ok(0);
+            }
+
+            Ok(reclaimable_bytes)
+        })
+        .await
+        .map_err(|e| PastorError::BackendError {
+            backend: "doctor".to_string(),
+            message: e.to_string(),
+        })?
     }
 }
 
