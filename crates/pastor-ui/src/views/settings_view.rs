@@ -10,22 +10,20 @@ pub fn show_settings_window(
     parent: Option<&gtk4::Window>,
     store: Store,
     on_open_snapshots: impl Fn() + 'static + Clone,
-) -> adw::PreferencesWindow {
-    let win = adw::PreferencesWindow::builder()
+) -> adw::PreferencesDialog {
+    let dialog = adw::PreferencesDialog::builder()
         .title(pastor_core::tr("Preferences"))
-        .default_width(680)
-        .default_height(640)
-        .modal(true)
+        .presentation_mode(adw::DialogPresentationMode::BottomSheet)
         .build();
 
-    if let Some(p) = parent {
-        win.set_transient_for(Some(p));
-    }
-
     let page = create_settings_page(&store, on_open_snapshots);
-    win.add(&page);
-    win.present();
-    win
+    dialog.add(&page);
+    if let Some(p) = parent {
+        dialog.present(Some(p));
+    } else {
+        dialog.present(gtk4::Widget::NONE);
+    }
+    dialog
 }
 
 #[allow(dead_code)]

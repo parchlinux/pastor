@@ -522,7 +522,7 @@ impl Store {
     }
 
     /// Check whether a transaction for `id` (or a clean-name match) is already
-    /// running — guards against double-clicks spawning duplicate pipelines.
+    /// running: guards against double-clicks spawning duplicate pipelines.
     fn is_transaction_active(&self, id: &PackageId) -> bool {
         self.get_active_transaction(id).is_some()
     }

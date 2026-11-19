@@ -6,6 +6,7 @@ use pastor_core::PackageCategory;
 #[allow(dead_code)]
 pub const ICON_SIZE_SM: i32 = 32;
 pub const ICON_SIZE_MD: i32 = 48;
+#[allow(dead_code)]
 pub const ICON_SIZE_LG: i32 = 80;
 pub const ICON_SIZE_XL: i32 = 96;
 
@@ -24,6 +25,20 @@ pub fn resolve_icon(candidates: &[&str]) -> String {
         .copied()
         .unwrap_or("package-x-generic")
         .to_string()
+}
+
+/// Resolve a package themed icon, falling back to a clean executable icon if missing or if package-x-generic
+pub fn resolve_package_theme_icon(name: &str) -> String {
+    if name.is_empty() || name == "package-x-generic" {
+        return "application-x-executable".to_string();
+    }
+    if let Some(display) = Display::default() {
+        let theme = IconTheme::for_display(&display);
+        if theme.has_icon(name) {
+            return name.to_string();
+        }
+    }
+    "application-x-executable".to_string()
 }
 
 pub fn update_icon() -> String {
@@ -46,9 +61,12 @@ pub fn explore_icon() -> String {
 
 pub fn installed_icon() -> String {
     resolve_icon(&[
-        "package-x-generic",
+        "system-software-install-symbolic",
+        "package-x-generic-symbolic",
+        "software-installed-symbolic",
         "checkbox-checked-symbolic",
-        "system-software-install",
+        "emblem-ok-symbolic",
+        "package-x-generic",
     ])
 }
 
@@ -73,9 +91,11 @@ pub fn settings_icon() -> String {
 #[allow(dead_code)]
 pub fn snapshots_icon() -> String {
     resolve_icon(&[
+        "document-open-recent-symbolic",
+        "view-restore-symbolic",
+        "drive-harddisk-system-symbolic",
+        "system-reboot-symbolic",
         "camera-photo-symbolic",
-        "camera-photo",
-        "document-save-symbolic",
     ])
 }
 
@@ -110,8 +130,9 @@ pub fn category_icon(cat: PackageCategory) -> String {
             resolve_icon(&["starred-symbolic", "star-new-symbolic"])
         }
         PackageCategory::Development => resolve_icon(&[
-            "applications-development-symbolic",
             "applications-engineering-symbolic",
+            "applications-development-symbolic",
+            "utilities-terminal-symbolic",
             "applications-development",
         ]),
         PackageCategory::Games => {
@@ -122,8 +143,9 @@ pub fn category_icon(cat: PackageCategory) -> String {
             "applications-graphics",
         ]),
         PackageCategory::Internet => resolve_icon(&[
-            "applications-internet-symbolic",
             "web-browser-symbolic",
+            "applications-internet-symbolic",
+            "network-wired-symbolic",
             "applications-internet",
         ]),
         PackageCategory::Multimedia => resolve_icon(&[
@@ -131,15 +153,15 @@ pub fn category_icon(cat: PackageCategory) -> String {
             "applications-multimedia",
         ]),
         PackageCategory::Office => resolve_icon(&[
-            "applications-office-symbolic",
             "x-office-document-symbolic",
+            "applications-office-symbolic",
             "applications-office",
         ]),
         PackageCategory::System => {
             resolve_icon(&["applications-system-symbolic", "applications-system"])
         }
         PackageCategory::Android => {
-            resolve_icon(&["phone-symbolic", "phone", "smartphone-symbolic"])
+            resolve_icon(&["phone-symbolic", "smartphone-symbolic", "phone"])
         }
         PackageCategory::Utilities => resolve_icon(&[
             "applications-utilities-symbolic",

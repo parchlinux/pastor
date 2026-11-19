@@ -18,8 +18,8 @@ pub fn create_downgrade_view(
         .spacing(18)
         .margin_top(16)
         .margin_bottom(28)
-        .margin_start(24)
-        .margin_end(24)
+        .margin_start(16)
+        .margin_end(16)
         .build();
 
     // View Title Header

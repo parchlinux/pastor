@@ -18,8 +18,8 @@ pub fn create_snapshots_view(
         .spacing(18)
         .margin_top(16)
         .margin_bottom(28)
-        .margin_start(24)
-        .margin_end(24)
+        .margin_start(16)
+        .margin_end(16)
         .build();
 
     // View Title Header
@@ -76,7 +76,7 @@ pub fn create_snapshots_view(
                         ))
                         .build();
 
-                    let icon = gtk4::Image::from_icon_name("camera-photo-symbolic");
+                    let icon = gtk4::Image::from_icon_name(&crate::icons::snapshots_icon());
                     row.add_prefix(&icon);
 
                     // Pre/Post visual distinction (SNAP-002)

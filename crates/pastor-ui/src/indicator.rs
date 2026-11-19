@@ -48,12 +48,9 @@ impl Tray for PastorTray {
     }
 
     fn status(&self) -> Status {
-        let count = self.state.update_count.load(Ordering::Relaxed);
-        if count > 0 {
-            Status::NeedsAttention
-        } else {
-            Status::Active
-        }
+        // Always return Active so KDE Plasma and desktop trays keep the icon static
+        // without annoying jumping/bouncing animations.
+        Status::Active
     }
 
     fn tool_tip(&self) -> ToolTip {
@@ -176,7 +173,7 @@ mod tests {
         state.update_count.store(3, Ordering::SeqCst);
         let tray = PastorTray::new(state, tx);
 
-        assert_eq!(tray.status(), Status::NeedsAttention);
+        assert_eq!(tray.status(), Status::Active);
 
         let tip = tray.tool_tip();
         assert_eq!(tip.description, "3 software updates available");

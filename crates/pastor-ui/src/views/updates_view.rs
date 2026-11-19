@@ -286,22 +286,28 @@ fn render_updates(
 
         let pkgs = futures::future::join_all(fetch_futures).await;
 
-        // Top Summary Card
+        // Top Summary Card (Responsive vertical card structure with header and actions rows)
         let summary_card = gtk4::Box::builder()
-            .orientation(gtk4::Orientation::Horizontal)
-            .spacing(16)
+            .orientation(gtk4::Orientation::Vertical)
+            .spacing(10)
             .css_classes(["card"])
             .margin_bottom(4)
             .build();
 
+        let card_header = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .spacing(14)
+            .margin_start(14)
+            .margin_end(14)
+            .margin_top(12)
+            .build();
+
         let icon = gtk4::Image::builder()
             .icon_name(crate::icons::update_icon())
-            .pixel_size(44)
-            .margin_start(16)
-            .margin_top(14)
-            .margin_bottom(14)
+            .pixel_size(40)
+            .valign(gtk4::Align::Start)
             .build();
-        summary_card.append(&icon);
+        card_header.append(&icon);
 
         let text_box = gtk4::Box::builder()
             .orientation(gtk4::Orientation::Vertical)
@@ -334,15 +340,21 @@ fn render_updates(
             .label(pastor_core::tr("Updates are installed safely. Snapper snapshots are created prior to applying."))
             .css_classes(["dim-label"])
             .halign(gtk4::Align::Start)
+            .wrap(true)
+            .wrap_mode(gtk4::pango::WrapMode::WordChar)
             .build();
         text_box.append(&sub_lbl);
-        summary_card.append(&text_box);
+        card_header.append(&text_box);
+        summary_card.append(&card_header);
 
         let card_actions = gtk4::Box::builder()
             .orientation(gtk4::Orientation::Horizontal)
             .spacing(8)
             .valign(gtk4::Align::Center)
-            .margin_end(16)
+            .halign(gtk4::Align::End)
+            .margin_start(14)
+            .margin_end(14)
+            .margin_bottom(12)
             .build();
 
         let refresh_tip = pastor_core::tr("Refresh Databases");

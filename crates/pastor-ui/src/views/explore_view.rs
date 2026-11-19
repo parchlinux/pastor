@@ -104,6 +104,7 @@ pub fn create_explore_view(
     });
 
 
+
     // ----------------------------------------------------
     // APPLICATION SECTIONS
     // ----------------------------------------------------
@@ -250,6 +251,7 @@ fn create_category_section(
     let list = gtk4::ListBox::builder()
         .selection_mode(gtk4::SelectionMode::None)
         .css_classes(["boxed-list"])
+        .valign(gtk4::Align::Start)
         .visible(false)
         .build();
 
@@ -265,9 +267,9 @@ fn create_category_section(
                 group_c.set_visible(false);
             } else {
                 pkgs.truncate(max_items);
-                for p in pkgs {
+                for p in &pkgs {
                     let row = create_package_row(
-                        &p,
+                        p,
                         &store_c,
                         &monitor_c,
                         on_select.clone(),
@@ -297,7 +299,7 @@ fn create_pkg_icon(pkg: &Package, size: i32) -> gtk4::Image {
             img
         }
         Some(pastor_core::PackageIcon::Themed(name)) => gtk4::Image::builder()
-            .icon_name(name)
+            .icon_name(crate::icons::resolve_package_theme_icon(name))
             .pixel_size(size)
             .valign(gtk4::Align::Center)
             .build(),
@@ -349,6 +351,7 @@ fn create_banner_card(
         .css_classes(["cascade-pitch"])
         .halign(gtk4::Align::Start)
         .wrap(true)
+        .wrap_mode(gtk4::pango::WrapMode::WordChar)
         .lines(2)
         .ellipsize(gtk4::pango::EllipsizeMode::End)
         .build();
@@ -457,6 +460,7 @@ fn create_default_hero(
         .label("Discover Apps & Tools")
         .css_classes(["cascade-title"])
         .halign(gtk4::Align::Start)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
         .build();
     header_box.append(&title_lbl);
 
@@ -465,6 +469,7 @@ fn create_default_hero(
         .css_classes(["cascade-pitch"])
         .halign(gtk4::Align::Start)
         .wrap(true)
+        .wrap_mode(gtk4::pango::WrapMode::WordChar)
         .build();
     header_box.append(&pitch_lbl);
     card.append(&header_box);
@@ -494,6 +499,7 @@ fn create_default_hero(
         .label("ParchLinux Curated Picks")
         .css_classes(["cascade-app-title"])
         .halign(gtk4::Align::Start)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
         .build();
     app_meta.append(&app_name);
 
@@ -501,6 +507,7 @@ fn create_default_hero(
         .label("Explore recommended applications for ParchLinux")
         .css_classes(["cascade-app-subtitle"])
         .halign(gtk4::Align::Start)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
         .build();
     app_meta.append(&app_sub);
     footer_box.append(&app_meta);

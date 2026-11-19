@@ -223,7 +223,7 @@ pub fn show_aur_review_dialog(
     let scrolled_diff = gtk4::ScrolledWindow::builder()
         .child(&text_view)
         .vexpand(true)
-        .min_content_height(260)
+        .min_content_height(180)
         .css_classes(["card"])
         .build();
     main_box.append(&scrolled_diff);
@@ -342,7 +342,14 @@ pub fn show_aur_review_dialog(
     action_bar.append(&proceed_btn);
     main_box.append(&action_bar);
 
-    toolbar_view.set_content(Some(&main_box));
+    let scrolled_dialog = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .vexpand(true)
+        .child(&main_box)
+        .build();
+
+    toolbar_view.set_content(Some(&scrolled_dialog));
     window.set_content(Some(&toolbar_view));
     window.present();
 }

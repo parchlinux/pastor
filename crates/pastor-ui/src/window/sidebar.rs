@@ -17,16 +17,16 @@ pub fn create_nav_row(title: &str, icon_name: &str) -> gtk4::ListBoxRow {
 
     let hbox = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
-        .spacing(12)
-        .margin_top(8)
-        .margin_bottom(8)
-        .margin_start(10)
-        .margin_end(10)
+        .spacing(10)
+        .margin_top(4)
+        .margin_bottom(4)
+        .margin_start(8)
+        .margin_end(8)
         .build();
 
     let icon = gtk4::Image::builder()
         .icon_name(icon_name)
-        .pixel_size(18)
+        .pixel_size(16)
         .build();
     hbox.append(&icon);
 
@@ -34,6 +34,7 @@ pub fn create_nav_row(title: &str, icon_name: &str) -> gtk4::ListBoxRow {
         .label(title)
         .halign(gtk4::Align::Start)
         .hexpand(true)
+        .css_classes(["sidebar-row-title"])
         .build();
     hbox.append(&label);
 
@@ -74,6 +75,8 @@ pub fn build_sidebar() -> SidebarComponents {
     // Search Entry
     let search_entry = gtk4::SearchEntry::builder()
         .placeholder_text(tr("Search packages, apps, AUR… (Ctrl+F)"))
+        .max_width_chars(22)
+        .width_chars(10)
         .build();
     sidebar_box.append(&search_entry);
 

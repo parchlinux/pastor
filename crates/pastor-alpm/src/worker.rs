@@ -209,6 +209,28 @@ fn find_sync_pkg<'a>(alpm: &'a alpm::Alpm, target: &str) -> Result<&'a alpm::Pac
     Err(format!("Package '{target}' not found in sync databases"))
 }
 
+fn ensure_syncdbs(alpm: &mut alpm::Alpm) -> Result<(), Box<dyn std::error::Error>> {
+    let empty = alpm.syncdbs().is_empty() || alpm.syncdbs().iter().all(|db| db.pkgs().is_empty());
+    if empty {
+        WorkerEvent {
+            step: "SyncingDatabase".to_string(),
+            progress_fraction: 0.1,
+            log_message: "Initializing package databases (force refresh -Syy)...".to_string(),
+        }
+        .emit();
+
+        alpm.syncdbs_mut().update(true)?;
+
+        WorkerEvent {
+            step: "SyncingDatabase".to_string(),
+            progress_fraction: 1.0,
+            log_message: "Package databases successfully synchronized".to_string(),
+        }
+        .emit();
+    }
+    Ok(())
+}
+
 pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
     if args.is_empty() {
         return Err("No worker action specified".into());
@@ -223,11 +245,11 @@ pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             WorkerEvent {
                 step: "SyncingDatabase".to_string(),
                 progress_fraction: 0.1,
-                log_message: "Synchronizing remote package databases...".to_string(),
+                log_message: "Synchronizing remote package databases (force refresh -Syy)...".to_string(),
             }
             .emit();
 
-            alpm.syncdbs_mut().update(false)?;
+            alpm.syncdbs_mut().update(true)?;
 
             WorkerEvent {
                 step: "Completed".to_string(),
@@ -240,6 +262,19 @@ pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             let targets = &args[1..];
             if targets.is_empty() {
                 return Err("No package targets provided for installation".into());
+            }
+
+            ensure_syncdbs(&mut alpm)?;
+
+            let has_missing = targets.iter().any(|t| find_sync_pkg(&alpm, t).is_err());
+            if has_missing {
+                WorkerEvent {
+                    step: "SyncingDatabase".to_string(),
+                    progress_fraction: 0.1,
+                    log_message: "Target package(s) not found in local cache. Synchronizing remote databases...".to_string(),
+                }
+                .emit();
+                let _ = alpm.syncdbs_mut().update(true);
             }
 
             WorkerEvent {
@@ -283,6 +318,19 @@ pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
                 return Err("No package targets provided for dependency installation".into());
             }
 
+            ensure_syncdbs(&mut alpm)?;
+
+            let has_missing = targets.iter().any(|t| find_sync_pkg(&alpm, t).is_err());
+            if has_missing {
+                WorkerEvent {
+                    step: "SyncingDatabase".to_string(),
+                    progress_fraction: 0.1,
+                    log_message: "Dependency package(s) not found in local cache. Synchronizing remote databases...".to_string(),
+                }
+                .emit();
+                let _ = alpm.syncdbs_mut().update(true);
+            }
+
             WorkerEvent {
                 step: "CheckingDependencies".to_string(),
                 progress_fraction: 0.1,
@@ -319,6 +367,8 @@ pub fn run_worker(args: &[String]) -> Result<(), Box<dyn std::error::Error>> {
             .emit();
         }
         "upgrade" => {
+            ensure_syncdbs(&mut alpm)?;
+
             WorkerEvent {
                 step: "CheckingDependencies".to_string(),
                 progress_fraction: 0.1,

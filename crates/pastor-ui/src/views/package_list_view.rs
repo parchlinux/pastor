@@ -58,7 +58,7 @@ fn sort_packages(pkgs: &mut Vec<Package>, mode: SortMode) {
 }
 
 /// A virtualized package list (`gtk4::ListView` + `gio::ListStore<PackageObject>`).
-/// Data is refreshed in place via `set_packages` — the widget tree is never
+/// Data is refreshed in place via `set_packages`: the widget tree is never
 /// rebuilt, so a 1000+ package list stays responsive across refreshes.
 pub struct PackageListView {
     pub widget: gtk4::Widget,
@@ -75,12 +75,6 @@ pub fn create_package_list_view(
     on_transaction_start: impl Fn(tokio::sync::mpsc::Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
     default_apps_only: bool,
 ) -> PackageListView {
-    let scrolled = gtk4::ScrolledWindow::builder()
-        .hscrollbar_policy(gtk4::PolicyType::Never)
-        .vscrollbar_policy(gtk4::PolicyType::Automatic)
-        .vexpand(true)
-        .build();
-
     let content_box = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
         .spacing(12)
@@ -88,6 +82,7 @@ pub fn create_package_list_view(
         .margin_bottom(24)
         .margin_start(16)
         .margin_end(16)
+        .vexpand(true)
         .build();
 
     let model = gtk4::gio::ListStore::new::<PackageObject>();
@@ -123,6 +118,8 @@ pub fn create_package_list_view(
         let cells = cells.clone();
         let store = store.clone();
         let monitor = monitor.clone();
+        let on_sel_list = on_select.clone();
+        let on_tx_list = on_transaction_start.clone();
         factory.connect_bind(move |_, list_item| {
             let list_item = list_item.downcast_ref::<gtk4::ListItem>().unwrap();
             let key = list_item.as_ptr() as usize;
@@ -139,8 +136,8 @@ pub fn create_package_list_view(
                 &pkg,
                 &store,
                 &monitor,
-                on_select.clone(),
-                on_transaction_start.clone(),
+                on_sel_list.clone(),
+                on_tx_list.clone(),
             ));
             widgets.bind();
 
@@ -164,45 +161,198 @@ pub fn create_package_list_view(
         });
     }
 
-    let list_view = gtk4::ListView::new(Some(selection), Some(factory));
-
-    // ----- Filter / sort bar -----
-    let filter_bar = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .spacing(10)
-        .margin_bottom(4)
+    let list_view = gtk4::ListView::new(Some(selection.clone()), Some(factory));
+    let sw_list = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .vexpand(true)
+        .child(&list_view)
         .build();
 
-    let linked_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .css_classes(["linked"])
-        .hexpand(true)
-        .build();
+    // Grid View implementation (EXP-GRID)
+    let grid_cells: Rc<RefCell<HashMap<usize, Rc<PackageRowWidgets>>>> = Rc::new(RefCell::new(HashMap::new()));
+    let grid_factory = gtk4::SignalListItemFactory::new();
+    {
+        let cells = grid_cells.clone();
+        grid_factory.connect_setup(move |_, list_item| {
+            let list_item = list_item.downcast_ref::<gtk4::ListItem>().unwrap();
+            let key = list_item.as_ptr() as usize;
+            let placeholder = gtk4::Box::builder()
+                .orientation(gtk4::Orientation::Vertical)
+                .halign(gtk4::Align::Fill)
+                .valign(gtk4::Align::Start)
+                .hexpand(true)
+                .margin_top(3)
+                .margin_bottom(3)
+                .margin_start(3)
+                .margin_end(3)
+                .build();
+            list_item.set_child(Some(&placeholder));
 
-    let btn_all = gtk4::ToggleButton::builder().label(pastor_core::tr("All")).active(true).build();
-    let btn_apps = gtk4::ToggleButton::builder().label(pastor_core::tr("Applications")).group(&btn_all).build();
-    let btn_official = gtk4::ToggleButton::builder().label(pastor_core::tr("Official")).group(&btn_all).build();
-    let btn_aur = gtk4::ToggleButton::builder().label(pastor_core::tr("AUR")).group(&btn_all).build();
-    let btn_flatpak = gtk4::ToggleButton::builder().label(pastor_core::tr("Flatpak")).group(&btn_all).build();
-    let btn_updates = gtk4::ToggleButton::builder().label(pastor_core::tr("Updates")).group(&btn_all).build();
+            let cells = cells.clone();
+            placeholder.connect_destroy(move |_| {
+                cells.borrow_mut().remove(&key);
+            });
+        });
+    }
+    {
+        let cells = grid_cells.clone();
+        let store = store.clone();
+        let monitor = monitor.clone();
+        let on_sel = on_select.clone();
+        let on_tx = on_transaction_start.clone();
+        grid_factory.connect_bind(move |_, list_item| {
+            let list_item = list_item.downcast_ref::<gtk4::ListItem>().unwrap();
+            let key = list_item.as_ptr() as usize;
 
-    for b in [&btn_all, &btn_apps, &btn_official, &btn_aur, &btn_flatpak, &btn_updates] {
-        linked_box.append(b);
+            if let Some(old) = cells.borrow_mut().remove(&key) {
+                old.unbind();
+            }
+
+            let Some(pkg_obj) = list_item.item().and_downcast::<PackageObject>() else {
+                return;
+            };
+            let pkg = pkg_obj.package();
+            let widgets = Rc::new(PackageRowWidgets::build_card(
+                &pkg,
+                &store,
+                &monitor,
+                on_sel.clone(),
+                on_tx.clone(),
+            ));
+            widgets.bind();
+
+            if let Some(placeholder) = list_item.child().and_downcast::<gtk4::Box>() {
+                while let Some(child) = placeholder.first_child() {
+                    placeholder.remove(&child);
+                }
+                placeholder.append(widgets.root());
+            }
+            cells.borrow_mut().insert(key, widgets);
+        });
+    }
+    {
+        let cells = grid_cells.clone();
+        grid_factory.connect_unbind(move |_, list_item| {
+            let list_item = list_item.downcast_ref::<gtk4::ListItem>().unwrap();
+            let key = list_item.as_ptr() as usize;
+            if let Some(old) = cells.borrow_mut().remove(&key) {
+                old.unbind();
+            }
+        });
     }
 
+    let grid_view = gtk4::GridView::builder()
+        .model(&selection)
+        .factory(&grid_factory)
+        .min_columns(2)
+        .max_columns(7)
+        .enable_rubberband(false)
+        .build();
+
+    let sw_grid = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .vexpand(true)
+        .child(&grid_view)
+        .build();
+
+    let view_stack = gtk4::Stack::builder()
+        .transition_type(gtk4::StackTransitionType::Crossfade)
+        .vhomogeneous(false)
+        .hhomogeneous(false)
+        .interpolate_size(true)
+        .vexpand(true)
+        .build();
+    view_stack.add_named(&sw_list, Some("list"));
+    view_stack.add_named(&sw_grid, Some("grid"));
+
+    // ----- Filter / sort / view bar: responsive wrapping FlowBox (no horizontal overflow on mobile) -----
+    let controls_bar = gtk4::FlowBox::builder()
+        .selection_mode(gtk4::SelectionMode::None)
+        .max_children_per_line(3)
+        .min_children_per_line(1)
+        .row_spacing(6)
+        .column_spacing(8)
+        .homogeneous(false)
+        .valign(gtk4::Align::Center)
+        .margin_bottom(6)
+        .build();
+
+    let filter_items = [
+        pastor_core::tr("All Sources"),
+        pastor_core::tr("Applications"),
+        pastor_core::tr("Official"),
+        pastor_core::tr("AUR"),
+        pastor_core::tr("Flatpak"),
+        pastor_core::tr("Updates"),
+    ];
+    let filter_strings = gtk4::StringList::new(&filter_items);
+    let filter_dropdown = gtk4::DropDown::builder()
+        .model(&filter_strings)
+        .hexpand(true)
+        .tooltip_text(pastor_core::tr("Filter by source"))
+        .build();
+    filter_dropdown.update_property(&[gtk4::accessible::Property::Label(pastor_core::tr("Filter by source"))]);
+
     let sort_items = [
-        pastor_core::tr("Name (A–Z)"),
-        pastor_core::tr("Name (Z–A)"),
+        pastor_core::tr("Name (A-Z)"),
+        pastor_core::tr("Name (Z-A)"),
         pastor_core::tr("Size (largest first)"),
     ];
     let sort_strings = gtk4::StringList::new(&sort_items);
-    let sort_dropdown = gtk4::DropDown::builder().model(&sort_strings).build();
+    let sort_dropdown = gtk4::DropDown::builder()
+        .model(&sort_strings)
+        .hexpand(true)
+        .build();
     let sort_tip = pastor_core::tr("Sort packages");
     sort_dropdown.set_tooltip_text(Some(sort_tip));
     sort_dropdown.update_property(&[gtk4::accessible::Property::Label(sort_tip)]);
 
-    filter_bar.append(&linked_box);
-    filter_bar.append(&sort_dropdown);
+    // View Switcher (List vs Grid)
+    let view_switch_box = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Horizontal)
+        .css_classes(["linked"])
+        .valign(gtk4::Align::Center)
+        .build();
+
+    let btn_view_list = gtk4::ToggleButton::builder()
+        .icon_name("view-list-symbolic")
+        .tooltip_text(pastor_core::tr("List view"))
+        .active(true)
+        .build();
+    btn_view_list.update_property(&[gtk4::accessible::Property::Label(pastor_core::tr("List view"))]);
+
+    let btn_view_grid = gtk4::ToggleButton::builder()
+        .icon_name("view-grid-symbolic")
+        .tooltip_text(pastor_core::tr("Grid view"))
+        .group(&btn_view_list)
+        .build();
+    btn_view_grid.update_property(&[gtk4::accessible::Property::Label(pastor_core::tr("Grid view"))]);
+
+    {
+        let vs = view_stack.clone();
+        btn_view_list.connect_toggled(move |btn| {
+            if btn.is_active() {
+                vs.set_visible_child_name("list");
+            }
+        });
+    }
+    {
+        let vs = view_stack.clone();
+        btn_view_grid.connect_toggled(move |btn| {
+            if btn.is_active() {
+                vs.set_visible_child_name("grid");
+            }
+        });
+    }
+
+    view_switch_box.append(&btn_view_list);
+    view_switch_box.append(&btn_view_grid);
+
+    controls_bar.append(&filter_dropdown);
+    controls_bar.append(&sort_dropdown);
+    controls_bar.append(&view_switch_box);
 
     let count_lbl = gtk4::Label::builder()
         .css_classes(["caption", "dim-label"])
@@ -213,14 +363,20 @@ pub fn create_package_list_view(
         .icon_name("system-search-symbolic")
         .title(pastor_core::tr(title))
         .description(pastor_core::tr(description))
+        .vexpand(true)
         .visible(false)
         .build();
 
-    content_box.append(&filter_bar);
+    content_box.append(&controls_bar);
     content_box.append(&count_lbl);
-    content_box.append(&list_view);
+    content_box.append(&view_stack);
     content_box.append(&empty_status);
-    scrolled.set_child(Some(&content_box));
+    let clamp = adw::Clamp::builder()
+        .maximum_size(1080)
+        .tightening_threshold(720)
+        .vexpand(true)
+        .build();
+    clamp.set_child(Some(&content_box));
 
     // ----- State + in-place refresh -----
     let all_packages: Rc<RefCell<Vec<Package>>> = Rc::new(RefCell::new(Vec::new()));
@@ -236,8 +392,8 @@ pub fn create_package_list_view(
         let sort = current_sort.clone();
         let count_lbl = count_lbl.clone();
         let empty_status = empty_status.clone();
-        let list_view = list_view.clone();
-        let filter_bar = filter_bar.clone();
+        let view_stack = view_stack.clone();
+        let controls_bar = controls_bar.clone();
 
         move || {
             let f = *filter.borrow();
@@ -272,9 +428,9 @@ pub fn create_package_list_view(
             };
             count_lbl.set_text(&text);
             let has_any = total > 0;
-            filter_bar.set_visible(has_any);
+            controls_bar.set_visible(has_any);
             count_lbl.set_visible(has_any);
-            list_view.set_visible(has_any && shown > 0);
+            view_stack.set_visible(has_any && shown > 0);
             empty_status.set_visible(!has_any || shown == 0);
         }
     };
@@ -290,38 +446,45 @@ pub fn create_package_list_view(
 
     set_packages(packages);
 
-    // ----- Wire filter chips -----
-    macro_rules! wire_filter {
-        ($btn:expr, $mode:expr) => {{
-            let filter = current_filter.clone();
-            let apps = apps_only.clone();
-            let apply = apply.clone();
-            $btn.connect_toggled(move |btn| {
-                if btn.is_active() {
-                    *filter.borrow_mut() = $mode;
-                    *apps.borrow_mut() = false;
-                    apply();
-                }
-            });
-        }};
-    }
-    wire_filter!(btn_all, SourceFilter::All);
-    wire_filter!(btn_official, SourceFilter::Official);
-    wire_filter!(btn_aur, SourceFilter::Aur);
-    wire_filter!(btn_flatpak, SourceFilter::Flatpak);
-    wire_filter!(btn_updates, SourceFilter::Updates);
-
+    // ----- Wire filter dropdown -----
     {
-        let apps = apps_only.clone();
         let filter = current_filter.clone();
+        let apps = apps_only.clone();
         let apply = apply.clone();
-        btn_apps.connect_toggled(move |btn| {
-            if btn.is_active() {
-                *apps.borrow_mut() = true;
-                *filter.borrow_mut() = SourceFilter::All;
-                apply();
+        filter_dropdown.connect_selected_notify(move |dd| {
+            match dd.selected() {
+                0 => {
+                    *filter.borrow_mut() = SourceFilter::All;
+                    *apps.borrow_mut() = false;
+                }
+                1 => {
+                    *filter.borrow_mut() = SourceFilter::All;
+                    *apps.borrow_mut() = true;
+                }
+                2 => {
+                    *filter.borrow_mut() = SourceFilter::Official;
+                    *apps.borrow_mut() = false;
+                }
+                3 => {
+                    *filter.borrow_mut() = SourceFilter::Aur;
+                    *apps.borrow_mut() = false;
+                }
+                4 => {
+                    *filter.borrow_mut() = SourceFilter::Flatpak;
+                    *apps.borrow_mut() = false;
+                }
+                5 => {
+                    *filter.borrow_mut() = SourceFilter::Updates;
+                    *apps.borrow_mut() = false;
+                }
+                _ => {}
             }
+            apply();
         });
+    }
+
+    if default_apps_only {
+        filter_dropdown.set_selected(1);
     }
 
     {
@@ -337,12 +500,8 @@ pub fn create_package_list_view(
         });
     }
 
-    if default_apps_only {
-        btn_apps.set_active(true);
-    }
-
     PackageListView {
-        widget: scrolled.upcast(),
+        widget: clamp.upcast(),
         set_packages,
     }
 }
@@ -394,6 +553,11 @@ pub fn create_loading_view(title: &str, description: &str) -> gtk4::Widget {
     group.add(&spinner_box);
     content_box.append(&group);
 
-    scrolled.set_child(Some(&content_box));
+    let clamp = adw::Clamp::builder()
+        .maximum_size(1080)
+        .tightening_threshold(720)
+        .build();
+    clamp.set_child(Some(&content_box));
+    scrolled.set_child(Some(&clamp));
     scrolled.upcast()
 }

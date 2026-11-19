@@ -49,7 +49,7 @@ struct AlpmCacheFile {
 }
 
 fn compute_swcatalog_signature() -> u64 {
-    let mut sig: u64 = 0x53574b5744_u64.wrapping_add(3); // SWKWD v3 cache salt
+    let mut sig: u64 = 0x53574b5744_u64.wrapping_add(4); // SWKWD v4 cache salt
     let matcher = LocaleMatcher::from_env();
     for byte in matcher.primary_locale().bytes() {
         sig = sig.wrapping_mul(31).wrapping_add(byte as u64);
@@ -80,7 +80,7 @@ fn compute_swcatalog_signature() -> u64 {
 fn get_catalog_cache_file() -> PathBuf {
     let dir = pastor_cache_dir();
     let _ = std::fs::create_dir_all(&dir);
-    dir.join("alpm_catalog_v3.bin")
+    dir.join("alpm_catalog_v4.bin")
 }
 
 impl AlpmCatalog {
@@ -269,8 +269,9 @@ impl AlpmCatalog {
                     } else if name == "provides" {
                         in_provides = true;
                     } else if name == "description" && in_component {
+                        let is_tagged = current_lang.is_some();
                         let lang_score = matcher.score(current_lang.as_deref());
-                        loc_desc.start_description_tag(lang_score);
+                        loc_desc.start_description_tag(is_tagged, lang_score);
                     }
                     current_text.clear();
                 }
@@ -333,8 +334,9 @@ impl AlpmCatalog {
                                 }
                             }
                             "p" | "li" => {
+                                let has_lang = current_lang.is_some();
                                 let p_score = matcher.score(current_lang.as_deref());
-                                loc_desc.add_paragraph(p_score, text);
+                                loc_desc.add_paragraph(has_lang, p_score, text);
                             }
                             "description" => {
                                 loc_desc.end_description_tag();
@@ -647,9 +649,25 @@ pub fn convert_jxl_to_png(jxl_path: &Path, png_path: &Path) -> Result<(), Box<dy
 }
 
 fn resolve_cached_icon(base: &Path, icon_file: &str) -> Option<String> {
-    for repo_dir in &["archlinux-arch-extra", "archlinux-arch-multilib", "archlinux-arch-core"] {
+    let mut repo_dirs: Vec<PathBuf> = vec![
+        base.join("archlinux-arch-extra"),
+        base.join("archlinux-arch-multilib"),
+        base.join("archlinux-arch-core"),
+    ];
+
+    // Discover any other repo directories in base (e.g. parchlinux-parch)
+    if let Ok(entries) = std::fs::read_dir(base) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() && !repo_dirs.iter().any(|d| d == &path) {
+                repo_dirs.push(path);
+            }
+        }
+    }
+
+    for repo_dir in &repo_dirs {
         for size in &["128x128", "64x64", "48x48"] {
-            let candidate = base.join(repo_dir).join(size).join(icon_file);
+            let candidate = repo_dir.join(size).join(icon_file);
             if candidate.is_file() {
                 if icon_file.ends_with(".png") || icon_file.ends_with(".svg") {
                     return Some(candidate.to_string_lossy().to_string());

@@ -291,6 +291,45 @@ pub fn installed(
 }
 
 pub fn updates(pacman: &pacmanconf::Config) -> Result<Vec<PackageUpdate>, PastorError> {
+    // Attempt rootless refresh using user-writable syncdb (pamac / checkupdates model)
+    if let Ok(mut user_alpm) = crate::backend::privileged::create_user_alpm(pacman) {
+        let _ = user_alpm.syncdbs_mut().update(false);
+
+        let flags = TransFlag::NO_LOCK;
+        if user_alpm.trans_init(flags).is_ok() {
+            let mut user_updates = Vec::new();
+            if user_alpm.sync_sysupgrade(false).is_ok() {
+                {
+                    let localdb = user_alpm.localdb();
+                    for pkg in user_alpm.trans_add() {
+                        if let Ok(local_pkg) = localdb.pkg(pkg.name()) {
+                            let source = determine_source(&user_alpm, &pkg);
+                            let dl_size = if pkg.download_size() > 0 {
+                                Some(pkg.download_size() as u64)
+                            } else {
+                                None
+                            };
+
+                            user_updates.push(PackageUpdate {
+                                id: PackageId::new(pkg.name(), source),
+                                current_version: local_pkg.version().to_string(),
+                                new_version: pkg.version().to_string(),
+                                download_size: dl_size,
+                                changelog: None,
+                            });
+                        }
+                    }
+                }
+                let _ = user_alpm.trans_release();
+                if !user_updates.is_empty() {
+                    return Ok(user_updates);
+                }
+            } else {
+                let _ = user_alpm.trans_release();
+            }
+        }
+    }
+
     let mut alpm = create_alpm(pacman)?;
 
     let flags = TransFlag::NO_LOCK;

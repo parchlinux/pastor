@@ -1,17 +1,70 @@
 use adw::prelude::*;
-use pastor_core::{Package, PackageCategory, PackageIcon, PackageSource, ParchRepoType};
+use pastor_core::{Package, PackageIcon, PackageSource, ParchRepoType};
 use pastor_store::Store;
+
+#[derive(Clone)]
+pub struct HeroWidgets {
+    pub hero_box: gtk4::Box,
+    pub identity_row: gtk4::Box,
+    pub icon_img: gtk4::Image,
+    pub icon_container: gtk4::Box,
+    pub meta_box: gtk4::Box,
+    pub title_label: gtk4::Label,
+    pub developer_label: gtk4::Label,
+    pub badges_row: gtk4::FlowBox,
+    pub source_switcher_box: gtk4::Box,
+    pub actions_box: gtk4::Box,
+}
+
+impl HeroWidgets {
+    pub fn set_narrow(&self, narrow: bool) {
+        if narrow {
+            self.identity_row.set_orientation(gtk4::Orientation::Horizontal);
+            self.identity_row.set_spacing(12);
+            self.icon_img.set_pixel_size(64);
+            self.icon_container.set_halign(gtk4::Align::Start);
+            self.meta_box.set_halign(gtk4::Align::Fill);
+            self.title_label.set_halign(gtk4::Align::Start);
+            self.title_label.set_justify(gtk4::Justification::Left);
+            self.developer_label.set_halign(gtk4::Align::Start);
+            self.developer_label.set_justify(gtk4::Justification::Left);
+            self.badges_row.set_halign(gtk4::Align::Start);
+            self.source_switcher_box.set_halign(gtk4::Align::Start);
+            self.actions_box.set_halign(gtk4::Align::Start);
+        } else {
+            self.identity_row.set_orientation(gtk4::Orientation::Horizontal);
+            self.identity_row.set_spacing(16);
+            self.icon_img.set_pixel_size(80);
+            self.icon_container.set_halign(gtk4::Align::Start);
+            self.meta_box.set_halign(gtk4::Align::Fill);
+            self.title_label.set_halign(gtk4::Align::Start);
+            self.title_label.set_justify(gtk4::Justification::Left);
+            self.developer_label.set_halign(gtk4::Align::Start);
+            self.developer_label.set_justify(gtk4::Justification::Left);
+            self.badges_row.set_halign(gtk4::Align::Start);
+            self.source_switcher_box.set_halign(gtk4::Align::Start);
+            self.actions_box.set_halign(gtk4::Align::Start);
+        }
+    }
+}
 
 pub fn create_hero_box(
     pkg: &Package,
     store: &Store,
     on_select_package: impl Fn(Package) + 'static + Clone,
-) -> (gtk4::Box, gtk4::Box) {
+) -> (HeroWidgets, gtk4::Box) {
     let hero_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .spacing(24)
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(14)
         .margin_top(8)
         .margin_bottom(6)
+        .css_classes(["details-hero-box"])
+        .build();
+
+    let identity_row = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Horizontal)
+        .spacing(16)
+        .valign(gtk4::Align::Center)
         .build();
 
     // App Icon
@@ -28,7 +81,7 @@ pub fn create_hero_box(
             img
         }
         Some(PackageIcon::Themed(name)) => gtk4::Image::builder()
-            .icon_name(name)
+            .icon_name(crate::icons::resolve_package_theme_icon(name))
             .pixel_size(crate::icons::ICON_SIZE_XL)
             .build(),
         _ => gtk4::Image::builder()
@@ -37,7 +90,7 @@ pub fn create_hero_box(
             .build(),
     };
     icon_container.append(&icon);
-    hero_box.append(&icon_container);
+    identity_row.append(&icon_container);
 
     // Metadata: Title, Publisher, Badges
     let meta_box = gtk4::Box::builder()
@@ -51,6 +104,8 @@ pub fn create_hero_box(
         .label(pkg.display_title())
         .css_classes(["title-1"])
         .halign(gtk4::Align::Start)
+        .wrap(true)
+        .wrap_mode(gtk4::pango::WrapMode::WordChar)
         .build();
     meta_box.append(&title_label);
 
@@ -67,13 +122,18 @@ pub fn create_hero_box(
         .label(&meta_subtitle)
         .css_classes(["caption", "dim-label"])
         .halign(gtk4::Align::Start)
+        .wrap(true)
+        .wrap_mode(gtk4::pango::WrapMode::WordChar)
         .build();
     meta_box.append(&developer_label);
 
-    // Badges Row
-    let badges_row = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Horizontal)
-        .spacing(8)
+    // Badges Row (wraps responsively on narrow viewports)
+    let badges_row = gtk4::FlowBox::builder()
+        .selection_mode(gtk4::SelectionMode::None)
+        .max_children_per_line(10)
+        .min_children_per_line(1)
+        .row_spacing(4)
+        .column_spacing(8)
         .margin_top(6)
         .build();
 
@@ -137,7 +197,6 @@ pub fn create_hero_box(
         .valign(gtk4::Align::Center)
         .build();
     source_switcher_box.append(&source_dropdown);
-    meta_box.append(&source_switcher_box);
 
     let store_alt = store.clone();
     let current_pkg_clone = pkg.clone();
@@ -210,86 +269,32 @@ pub fn create_hero_box(
         }
     });
 
-    hero_box.append(&meta_box);
+    identity_row.append(&meta_box);
+    hero_box.append(&identity_row);
+    hero_box.append(&source_switcher_box);
 
     let actions_box = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
         .spacing(10)
         .valign(gtk4::Align::Center)
-        .halign(gtk4::Align::End)
-        .build();
-
-    (hero_box, actions_box)
-}
-
-/// Category-tinted art class for placeholder screenshot slides (DET-003).
-pub fn category_art_class(pkg: &Package) -> &'static str {
-    let cat = pkg.categories.first().copied().unwrap_or(PackageCategory::Utilities);
-    match cat {
-        PackageCategory::Development => "cat-art-development",
-        PackageCategory::Games => "cat-art-games",
-        PackageCategory::Graphics => "cat-art-graphics",
-        PackageCategory::Internet => "cat-art-internet",
-        PackageCategory::Multimedia => "cat-art-multimedia",
-        PackageCategory::Office => "cat-art-office",
-        PackageCategory::System => "cat-art-system",
-        PackageCategory::Android => "cat-art-android",
-        _ => "cat-art-utilities",
-    }
-}
-
-pub fn create_preview_art(pkg: &Package, _slide_index: usize) -> gtk4::Widget {
-    let card = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(12)
-        .halign(gtk4::Align::Center)
-        .valign(gtk4::Align::Center)
-        .margin_top(32)
-        .margin_bottom(32)
-        .margin_start(32)
-        .margin_end(32)
-        .build();
-
-    let icon_img = match &pkg.icon {
-        Some(PackageIcon::LocalPath(path)) => {
-            let img = gtk4::Image::from_file(path);
-            img.set_pixel_size(crate::icons::ICON_SIZE_LG);
-            img
-        }
-        Some(PackageIcon::Themed(name)) => gtk4::Image::builder()
-            .icon_name(name)
-            .pixel_size(crate::icons::ICON_SIZE_LG)
-            .build(),
-        _ => gtk4::Image::builder()
-            .icon_name("application-x-executable")
-            .pixel_size(crate::icons::ICON_SIZE_LG)
-            .build(),
-    };
-    icon_img.add_css_class("app-icon-hero");
-    card.append(&icon_img);
-
-    let title_label = gtk4::Label::builder()
-        .label(pkg.display_title())
-        .css_classes(["title-2"])
-        .halign(gtk4::Align::Center)
-        .build();
-    card.append(&title_label);
-
-    let ver_label = gtk4::Label::builder()
-        .label(format!("Version {}", pkg.version))
-        .css_classes(["caption", "dim-label"])
-        .halign(gtk4::Align::Center)
-        .build();
-    card.append(&ver_label);
-
-    let cat = pkg.categories.first().copied().unwrap_or(PackageCategory::Utilities);
-    let cat_label = gtk4::Label::builder()
-        .label(cat.title())
-        .css_classes(["metadata-badge"])
-        .halign(gtk4::Align::Center)
+        .halign(gtk4::Align::Start)
         .margin_top(4)
         .build();
-    card.append(&cat_label);
+    hero_box.append(&actions_box);
 
-    card.upcast()
+    let widgets = HeroWidgets {
+        hero_box,
+        identity_row,
+        icon_img: icon,
+        icon_container,
+        meta_box,
+        title_label,
+        developer_label,
+        badges_row,
+        source_switcher_box,
+        actions_box: actions_box.clone(),
+    };
+
+    (widgets, actions_box)
 }
+

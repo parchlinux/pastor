@@ -284,7 +284,7 @@ impl PackageBackend for AurBackend {
                 .send(TransactionEvent {
                     step: TransactionStep::SyncingDatabase,
                     progress_fraction: 0.0,
-                    log_message: format!("[{}] Queued — waiting for active transaction to finish...", pkg_name),
+                    log_message: format!("[{}] Queued: waiting for active transaction to finish...", pkg_name),
                 })
                 .await;
         }

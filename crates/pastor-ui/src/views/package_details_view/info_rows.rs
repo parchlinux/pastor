@@ -3,12 +3,149 @@ use gtk4::glib;
 use pastor_core::{Package, PackageSource};
 use pastor_store::Store;
 
+pub fn create_context_bar(pkg: &Package) -> gtk4::Widget {
+    let scroll = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Automatic)
+        .vscrollbar_policy(gtk4::PolicyType::Never)
+        .min_content_width(0)
+        .hexpand(true)
+        .build();
+
+    let bar = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Horizontal)
+        .spacing(0)
+        .css_classes(["card", "details-context-bar"])
+        .halign(gtk4::Align::Center)
+        .build();
+
+    // 1. Safety
+    let (safety_val, safety_icon) = match &pkg.id.source {
+        PackageSource::Flatpak { .. } => ("Sandboxed", "security-high-symbolic"),
+        PackageSource::Bootc => ("Immutable", "system-lock-screen-symbolic"),
+        PackageSource::Aur => ("AUR Verified", "channel-secure-symbolic"),
+        _ => ("Snapper Safe", "document-save-symbolic"),
+    };
+    bar.append(&create_context_item(
+        pastor_core::tr("Security"),
+        pastor_core::tr(safety_val),
+        safety_icon,
+    ));
+
+    bar.append(&create_context_separator());
+
+    // 2. Size
+    let size_val = match pkg.size_installed {
+        Some(sz) => pastor_core::format_size(sz),
+        None => match pkg.size_download {
+            Some(sz) => pastor_core::format_size(sz),
+            None => pastor_core::tr("Varies").to_string(),
+        },
+    };
+    bar.append(&create_context_item(
+        pastor_core::tr("Size"),
+        &size_val,
+        "drive-harddisk-symbolic",
+    ));
+
+    bar.append(&create_context_separator());
+
+    // 3. Version
+    let ver_str = format!("v{}", pkg.version);
+    bar.append(&create_context_item(
+        pastor_core::tr("Version"),
+        &ver_str,
+        "tag-symbolic",
+    ));
+
+    bar.append(&create_context_separator());
+
+    // 4. License
+    let lic_str = pkg.license.as_deref().unwrap_or("Open Source");
+    bar.append(&create_context_item(
+        pastor_core::tr("License"),
+        lic_str,
+        "help-about-symbolic",
+    ));
+
+    bar.append(&create_context_separator());
+
+    // 5. Source / Format
+    let (src_name, src_icon) = match &pkg.id.source {
+        PackageSource::Parch(pastor_core::ParchRepoType::World) => ("Parch World", "package-x-generic-symbolic"),
+        PackageSource::Parch(pastor_core::ParchRepoType::Void) => ("Parch Void", "package-x-generic-symbolic"),
+        PackageSource::Arch(_) => ("Arch Repo", "package-x-generic-symbolic"),
+        PackageSource::Aur => ("AUR", "package-x-generic-symbolic"),
+        PackageSource::Flatpak { .. } => ("Flatpak", "package-x-generic-symbolic"),
+        PackageSource::Bootc => ("bootc OS", "package-x-generic-symbolic"),
+        PackageSource::Waydroid => ("Waydroid", "package-x-generic-symbolic"),
+    };
+    bar.append(&create_context_item(
+        pastor_core::tr("Source"),
+        src_name,
+        src_icon,
+    ));
+
+    scroll.set_child(Some(&bar));
+    scroll.upcast()
+}
+
+fn create_context_item(label: &str, value: &str, icon_name: &str) -> gtk4::Box {
+    let item = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(4)
+        .valign(gtk4::Align::Center)
+        .halign(gtk4::Align::Center)
+        .css_classes(["context-stat-item"])
+        .build();
+
+    let top_box = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Horizontal)
+        .spacing(6)
+        .halign(gtk4::Align::Center)
+        .build();
+
+    let icon = gtk4::Image::builder()
+        .icon_name(icon_name)
+        .pixel_size(14)
+        .css_classes(["dim-label"])
+        .build();
+    top_box.append(&icon);
+
+    let title_lbl = gtk4::Label::builder()
+        .label(label)
+        .css_classes(["caption", "dim-label"])
+        .halign(gtk4::Align::Center)
+        .build();
+    top_box.append(&title_lbl);
+    item.append(&top_box);
+
+    let val_lbl = gtk4::Label::builder()
+        .label(value)
+        .css_classes(["heading", "context-stat-val"])
+        .halign(gtk4::Align::Center)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
+        .max_width_chars(16)
+        .build();
+    item.append(&val_lbl);
+
+    item
+}
+
+fn create_context_separator() -> gtk4::Separator {
+    gtk4::Separator::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .margin_top(8)
+        .margin_bottom(8)
+        .build()
+}
+
 pub fn create_spec_row(title: &str, subtitle: &str, icon_name: &str) -> adw::ActionRow {
     let esc_title = glib::markup_escape_text(title);
     let esc_sub = glib::markup_escape_text(subtitle);
     let row = adw::ActionRow::builder()
         .title(esc_title.as_str())
         .subtitle(esc_sub.as_str())
+        .subtitle_lines(0)
         .build();
     let img = gtk4::Image::from_icon_name(icon_name);
     row.add_prefix(&img);
@@ -24,25 +161,33 @@ pub fn create_about_group(pkg: &Package) -> adw::PreferencesGroup {
         .label(&pkg.summary)
         .css_classes(["title-4"])
         .wrap(true)
+        .wrap_mode(gtk4::pango::WrapMode::WordChar)
         .halign(gtk4::Align::Start)
         .margin_bottom(6)
         .build();
     about_group.add(&summary_lead);
 
-    let desc_text = pkg.description.as_deref().unwrap_or(&pkg.summary);
-    let desc_label = gtk4::Label::builder()
-        .label(desc_text)
-        .wrap(true)
-        .halign(gtk4::Align::Start)
-        .css_classes(["body"])
-        .margin_bottom(4)
-        .build();
-    about_group.add(&desc_label);
+    if let Some(desc) = &pkg.description {
+        let trimmed_desc = desc.trim();
+        if !trimmed_desc.is_empty() && trimmed_desc != pkg.summary.trim() {
+            let desc_label = gtk4::Label::builder()
+                .label(trimmed_desc)
+                .wrap(true)
+                .wrap_mode(gtk4::pango::WrapMode::WordChar)
+                .halign(gtk4::Align::Start)
+                .css_classes(["body"])
+                .margin_bottom(4)
+                .build();
+            about_group.add(&desc_label);
+        }
+    }
 
     about_group
 }
 
-pub fn create_whats_new_group(pkg: &Package) -> adw::PreferencesGroup {
+pub fn create_whats_new_group(pkg: &Package) -> Option<adw::PreferencesGroup> {
+    let cl_text = pkg.changelog.as_deref().map(str::trim).filter(|s| !s.is_empty())?;
+
     let raw_wn_title = if pastor_core::is_persian() {
         format!("تغییرات نسخه {}", pkg.version)
     } else {
@@ -52,10 +197,6 @@ pub fn create_whats_new_group(pkg: &Package) -> adw::PreferencesGroup {
     let whats_new_group = adw::PreferencesGroup::builder()
         .title(wn_title.as_str())
         .build();
-
-    let changelog_text = pkg.changelog.as_deref().unwrap_or(
-        "Optimized for ParchLinux with updated system dependencies, Wayland integration, and performance enhancements."
-    );
 
     let raw_exp_title = if pastor_core::is_persian() {
         format!("یادداشت‌های انتشار نسخه {}", pkg.version)
@@ -81,8 +222,9 @@ pub fn create_whats_new_group(pkg: &Package) -> adw::PreferencesGroup {
         .build();
 
     let cl_label = gtk4::Label::builder()
-        .label(changelog_text)
+        .label(cl_text)
         .wrap(true)
+        .wrap_mode(gtk4::pango::WrapMode::WordChar)
         .halign(gtk4::Align::Start)
         .css_classes(["body"])
         .build();
@@ -90,7 +232,7 @@ pub fn create_whats_new_group(pkg: &Package) -> adw::PreferencesGroup {
     expander.add_row(&cl_box);
     whats_new_group.add(&expander);
 
-    whats_new_group
+    Some(whats_new_group)
 }
 
 pub fn create_specs_group(pkg: &Package) -> adw::PreferencesGroup {
@@ -188,7 +330,7 @@ pub fn create_specs_group(pkg: &Package) -> adw::PreferencesGroup {
     let safety_row = create_spec_row(
         "System Safety",
         "Automatic Snapper Btrfs pre/post snapshots for instant rollback",
-        "camera-photo-symbolic",
+        &crate::icons::snapshots_icon(),
     );
     specs_group.add(&safety_row);
 

@@ -169,7 +169,7 @@ impl TransactionBar {
         });
     }
 
-    /// Show/hide the bar-level cancel affordance (previously dead code — the
+    /// Show/hide the bar-level cancel affordance (previously dead code: the
     /// button was constructed hidden and never revealed).
     pub fn set_cancel_visible(&self, visible: bool) {
         self.cancel_btn.set_visible(visible);

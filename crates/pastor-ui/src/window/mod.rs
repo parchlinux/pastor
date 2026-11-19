@@ -45,6 +45,8 @@ impl MainWindow {
             .title(pastor_core::tr("Parch Store"))
             .default_width(1080)
             .default_height(720)
+            .width_request(360)
+            .height_request(400)
             .build();
 
         // Minimize / hide to tray on close request rather than terminating
@@ -54,7 +56,7 @@ impl MainWindow {
         });
 
         let split_view = adw::OverlaySplitView::builder()
-            .min_sidebar_width(200.0)
+            .min_sidebar_width(180.0)
             .max_sidebar_width(320.0)
             .sidebar_width_fraction(0.25)
             .enable_hide_gesture(true)
@@ -74,6 +76,7 @@ impl MainWindow {
         let content_toolbar = adw::ToolbarView::new();
         let content_header = adw::HeaderBar::builder()
             .show_start_title_buttons(false)
+            .centering_policy(adw::CenteringPolicy::Loose)
             .build();
 
         // Sidebar Reveal Button on content header (visible when sidebar is collapsed)
@@ -154,26 +157,36 @@ impl MainWindow {
         let transaction_bar = TransactionBar::new();
 
         // Narrow-window adaptive mode: applies .pastor-narrow so CSS can compact
-        // chips below 550 px and collapses the transaction bar console button.
+        // chips below 768 px, collapses the split view for mobile phones (POCO F1, etc.),
+        // and collapses the transaction bar console button.
         let narrow_bp = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
             adw::BreakpointConditionLengthType::MaxWidth,
-            550.0,
+            768.0,
             adw::LengthUnit::Px,
         ));
+        narrow_bp.add_setter(&split_view, "collapsed", Some(&true.into()));
+        narrow_bp.add_setter(&split_view, "show-sidebar", Some(&false.into()));
+        narrow_bp.add_setter(&content_header, "centering-policy", Some(&adw::CenteringPolicy::Loose.into()));
         {
             let w = window.clone();
             let bar = transaction_bar.clone();
+            let sv = split_view.clone();
             narrow_bp.connect_apply(move |_| {
                 w.add_css_class("pastor-narrow");
                 bar.set_narrow(true);
+                sv.set_collapsed(true);
+                sv.set_show_sidebar(false);
             });
         }
         {
             let w = window.clone();
             let bar = transaction_bar.clone();
+            let sv = split_view.clone();
             narrow_bp.connect_unapply(move |_| {
                 w.remove_css_class("pastor-narrow");
                 bar.set_narrow(false);
+                sv.set_collapsed(false);
+                sv.set_show_sidebar(true);
             });
         }
         window.add_breakpoint(narrow_bp);
@@ -215,12 +228,8 @@ impl MainWindow {
                     wt.set_title(&title);
                     wt.set_subtitle(&sub);
                 } else {
-                    wt.set_title(pastor_core::tr("Parch Store"));
-                    if sub.is_empty() {
-                        wt.set_subtitle(&title);
-                    } else {
-                        wt.set_subtitle(&format!("{} - {}", title, sub));
-                    }
+                    wt.set_title(&title);
+                    wt.set_subtitle(&sub);
                 }
             })
         };
@@ -365,7 +374,11 @@ impl MainWindow {
             let cur_t = active_section_title.clone();
             let cur_s = active_section_sub.clone();
             let sync_fn = sync_title.clone();
+            let sv_nav = split_view.clone();
             Rc::new(move |name: &str, widget: Option<gtk4::Widget>| {
+                if sv_nav.is_collapsed() {
+                    sv_nav.set_show_sidebar(false);
+                }
                 let cur = page_ref.borrow().clone();
                 if cur != name {
                     if name == "details" || name == "snapshots" || name == "downgrade" || name == "settings" {
@@ -728,7 +741,7 @@ impl MainWindow {
                                 line.truncate(160);
                                 line.push('…');
                             }
-                            format!("Failed: {} — {}", tx_name, line)
+                            format!("Failed: {}: {}", tx_name, line)
                         };
                         let toast = adw::Toast::new(&title);
                         toast.set_timeout(6);
@@ -1015,5 +1028,32 @@ impl MainWindow {
                 tracing::warn!("Received unsupported or invalid URI: {}", uri);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_window_min_width_at_360() {
+        if !gtk4::is_initialized_main_thread() {
+            if gtk4::is_initialized() || gtk4::init().is_err() {
+                return;
+            }
+        }
+        let app = adw::Application::new(Some("com.parchlinux.test_min_width"), Default::default());
+        let store = Store::empty();
+        let main_win = MainWindow::new(&app, store);
+
+        let split_view = main_win.window.content().and_downcast::<adw::OverlaySplitView>().unwrap();
+        split_view.set_collapsed(true);
+        split_view.set_show_sidebar(false);
+
+        let (sv_min, _, _, _) = split_view.measure(gtk4::Orientation::Horizontal, 360);
+        assert!(sv_min <= 360, "OverlaySplitView requested {sv_min}px which exceeds 360px available width");
+
+        let (win_min, _, _, _) = main_win.window.measure(gtk4::Orientation::Horizontal, -1);
+        assert!(win_min <= 360, "ApplicationWindow requested {win_min}px which exceeds 360px minimum width");
     }
 }

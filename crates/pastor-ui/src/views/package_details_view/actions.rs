@@ -49,23 +49,20 @@ pub fn setup_actions(
                 PackageState::Installed => {
                     let is_runtime = pkg_id.name.starts_with("runtime/");
                     if !is_runtime {
-                        let launch_btn = gtk4::Button::builder()
+                        let content = adw::ButtonContent::builder()
                             .label(pastor_core::tr("Open"))
                             .icon_name("media-playback-start-symbolic")
-                            .css_classes(["suggested-action", "pill"])
+                            .build();
+                        let launch_btn = gtk4::Button::builder()
+                            .child(&content)
+                            .css_classes(["suggested-action", "pill", "details-primary-action-btn"])
                             .build();
                         let app_name = pkg.display_title().to_string();
                         let pkg_for_run = pkg.clone();
                         launch_btn.connect_clicked(move |_| {
                             tracing::info!("Launching application: {}", app_name);
-                            if let PackageSource::Flatpak { .. } = &pkg_for_run.id.source {
-                                let _ = std::process::Command::new("flatpak")
-                                    .args(["run", &pkg_for_run.id.name])
-                                    .spawn();
-                            } else {
-                                let _ = std::process::Command::new("gtk-launch")
-                                    .arg(&pkg_for_run.id.name)
-                                    .spawn();
+                            if let Err(e) = launch_package(&pkg_for_run) {
+                                tracing::warn!("Failed to launch {}: {}", app_name, e);
                             }
                         });
                         target_box.append(&launch_btn);
@@ -128,50 +125,7 @@ pub fn setup_actions(
                     target_box.append(&share_btn);
 
                     if !is_runtime {
-                        let more_menu_btn = gtk4::MenuButton::builder()
-                            .icon_name("view-more-symbolic")
-                            .css_classes(["flat", "circular"])
-                            .tooltip_text(pastor_core::tr("More Options"))
-                            .build();
-
-                        let popover = gtk4::Popover::new();
-                        let menu_vbox = gtk4::Box::builder()
-                            .orientation(gtk4::Orientation::Vertical)
-                            .spacing(4)
-                            .margin_top(6)
-                            .margin_bottom(6)
-                            .margin_start(6)
-                            .margin_end(6)
-                            .build();
-
-                        let downgrade_item = gtk4::Button::builder()
-                            .label(pastor_core::tr("Downgrade Version…"))
-                            .icon_name("edit-undo-symbolic")
-                            .css_classes(["flat"])
-                            .halign(gtk4::Align::Fill)
-                            .build();
-                        let on_dw = on_downgrade.clone();
-                        let name_clone = pkg.name.clone();
-                        let pop_clone = popover.clone();
-                        downgrade_item.connect_clicked(move |_| {
-                            pop_clone.popdown();
-                            on_dw(name_clone.clone());
-                        });
-                        menu_vbox.append(&downgrade_item);
-
-                        if let Some(ref url) = pkg.homepage {
-                            let web_item = gtk4::LinkButton::builder()
-                                .uri(url)
-                                .label(pastor_core::tr("Project Website"))
-                                .css_classes(["flat"])
-                                .halign(gtk4::Align::Fill)
-                                .build();
-                            menu_vbox.append(&web_item);
-                        }
-
-                        popover.set_child(Some(&menu_vbox));
-                        more_menu_btn.set_popover(Some(&popover));
-                        target_box.append(&more_menu_btn);
+                        target_box.append(&create_more_menu_btn(&pkg, on_downgrade.clone()));
                     }
                 }
                 PackageState::NotInstalled | PackageState::UpdateAvailable => {
@@ -183,10 +137,14 @@ pub fn setup_actions(
                         "folder-download-symbolic".to_string()
                     };
 
-                    let install_btn = gtk4::Button::builder()
+                    let content = adw::ButtonContent::builder()
                         .label(btn_label)
                         .icon_name(&btn_icon)
-                        .css_classes(["suggested-action", "pill"])
+                        .build();
+
+                    let install_btn = gtk4::Button::builder()
+                        .child(&content)
+                        .css_classes(["suggested-action", "pill", "details-primary-action-btn"])
                         .build();
 
                     let progress_box = gtk4::Box::builder()
@@ -305,6 +263,11 @@ pub fn setup_actions(
 
                     let share_btn = super::share::create_share_button(&pkg, &store);
                     target_box.append(&share_btn);
+
+                    let is_runtime = pkg.id.name.starts_with("runtime/");
+                    if !is_runtime {
+                        target_box.append(&create_more_menu_btn(&pkg, on_downgrade.clone()));
+                    }
                 }
                 PackageState::Processing => {
                     let proc_btn = gtk4::Button::builder()
@@ -316,6 +279,11 @@ pub fn setup_actions(
 
                     let share_btn = super::share::create_share_button(&pkg, &store);
                     target_box.append(&share_btn);
+
+                    let is_runtime = pkg.id.name.starts_with("runtime/");
+                    if !is_runtime {
+                        target_box.append(&create_more_menu_btn(&pkg, on_downgrade.clone()));
+                    }
                 }
             }
 
@@ -419,5 +387,210 @@ pub fn setup_actions(
                 monitor_c.disconnect(h);
             }
         });
+    }
+}
+
+fn create_more_menu_btn(
+    pkg: &Package,
+    on_downgrade: impl Fn(String) + 'static + Clone,
+) -> gtk4::MenuButton {
+    let more_menu_btn = gtk4::MenuButton::builder()
+        .icon_name("view-more-symbolic")
+        .css_classes(["flat", "circular"])
+        .tooltip_text(pastor_core::tr("More Options"))
+        .build();
+
+    let popover = gtk4::Popover::new();
+    let menu_vbox = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(4)
+        .margin_top(6)
+        .margin_bottom(6)
+        .margin_start(6)
+        .margin_end(6)
+        .build();
+
+    let downgrade_item = gtk4::Button::builder()
+        .label(pastor_core::tr("Downgrade Version…"))
+        .icon_name("edit-undo-symbolic")
+        .css_classes(["flat"])
+        .halign(gtk4::Align::Fill)
+        .build();
+    let on_dw = on_downgrade.clone();
+    let name_clone = pkg.name.clone();
+    let pop_clone = popover.clone();
+    downgrade_item.connect_clicked(move |_| {
+        pop_clone.popdown();
+        on_dw(name_clone.clone());
+    });
+    menu_vbox.append(&downgrade_item);
+
+    if let Some(ref url) = pkg.homepage {
+        let web_item = gtk4::LinkButton::builder()
+            .uri(url)
+            .label(pastor_core::tr("Project Website"))
+            .css_classes(["flat"])
+            .halign(gtk4::Align::Fill)
+            .build();
+        menu_vbox.append(&web_item);
+    }
+
+    popover.set_child(Some(&menu_vbox));
+    more_menu_btn.set_popover(Some(&popover));
+    more_menu_btn
+}
+
+/// Resolves the desktop `AppInfo` for a package by reverse-DNS ID,
+/// themed icon name, executable binary, ID suffix, or commandline fallback.
+pub fn resolve_app_info(pkg: &Package) -> Option<gtk4::gio::AppInfo> {
+    use gtk4::gio::prelude::*;
+
+    let pkg_name = &pkg.id.name;
+    let pkg_clean = pkg_name
+        .trim_end_matches("-bin")
+        .trim_end_matches("-git")
+        .to_lowercase();
+
+    // Direct desktop ID candidates
+    let mut candidates = vec![
+        format!("{pkg_name}.desktop"),
+        format!("{pkg_clean}.desktop"),
+    ];
+
+    if let Some(ref icon) = pkg.icon {
+        if let pastor_core::PackageIcon::Themed(name) = icon {
+            candidates.push(format!("{name}.desktop"));
+            candidates.push(name.clone());
+        }
+    }
+
+    let all_apps = gtk4::gio::AppInfo::all();
+
+    // 1. Match candidates against registered app IDs
+    for c in &candidates {
+        for app in &all_apps {
+            if let Some(id) = app.id() {
+                if id.eq_ignore_ascii_case(c) {
+                    return Some(app.clone());
+                }
+            }
+        }
+    }
+
+    // 2. Match by executable filename
+    for app in &all_apps {
+        let exe = app.executable();
+        let exe_str = exe.to_string_lossy();
+        let exe_base = exe.file_name().and_then(|n| n.to_str()).unwrap_or(&exe_str);
+        if exe_base.eq_ignore_ascii_case(pkg_name) || exe_base.eq_ignore_ascii_case(&pkg_clean) {
+            return Some(app.clone());
+        }
+    }
+
+    // 3. Match by App ID suffix (e.g. org.kde.akregator.desktop matching akregator)
+    let dot_suffix = format!(".{pkg_clean}.desktop");
+    let exact_suffix = format!("{pkg_clean}.desktop");
+    for app in &all_apps {
+        if let Some(id) = app.id() {
+            let id_lower = id.to_lowercase();
+            if id_lower == exact_suffix || id_lower.ends_with(&dot_suffix) {
+                return Some(app.clone());
+            }
+        }
+    }
+
+    // 4. Match by display name
+    let display_title = pkg.display_title().to_lowercase();
+    for app in &all_apps {
+        let app_name = app.name().to_lowercase();
+        if app_name == display_title || app_name == pkg_clean {
+            return Some(app.clone());
+        }
+    }
+
+    // 5. Commandline fallback if binary exists in PATH
+    if let Ok(app) = gtk4::gio::AppInfo::create_from_commandline(
+        pkg_name,
+        None,
+        gtk4::gio::AppInfoCreateFlags::NONE,
+    ) {
+        return Some(app);
+    }
+
+    if pkg_clean != *pkg_name {
+        if let Ok(app) = gtk4::gio::AppInfo::create_from_commandline(
+            &pkg_clean,
+            None,
+            gtk4::gio::AppInfoCreateFlags::NONE,
+        ) {
+            return Some(app);
+        }
+    }
+
+    None
+}
+
+/// Robust desktop application launcher.
+/// Resolves reverse-DNS desktop IDs (e.g. `org.kde.akregator.desktop`),
+/// themed icons, binary names, and fallback commandlines via GIO.
+pub fn launch_package(pkg: &Package) -> Result<(), String> {
+    use gtk4::gio::prelude::*;
+
+    if let PackageSource::Flatpak { .. } = &pkg.id.source {
+        match std::process::Command::new("flatpak")
+            .args(["run", &pkg.id.name])
+            .spawn()
+        {
+            Ok(_) => return Ok(()),
+            Err(e) => return Err(format!("Failed to launch flatpak {}: {}", pkg.id.name, e)),
+        }
+    }
+
+    if let Some(app) = resolve_app_info(pkg) {
+        if app.launch(&[], gtk4::gio::AppLaunchContext::NONE).is_ok() {
+            return Ok(());
+        }
+    }
+
+    let pkg_name = &pkg.id.name;
+    Err(format!("Could not find desktop application or binary for {pkg_name}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pastor_core::{PackageCategory, PackageId, PackageSource, PackageState};
+
+    #[test]
+    fn test_resolve_app_info_for_system_app() {
+        let pkg = Package {
+            id: PackageId::new("akregator", PackageSource::Arch("extra".to_string())),
+            name: "akregator".to_string(),
+            display_name: Some("Akregator".to_string()),
+            version: "24.08.0".to_string(),
+            installed_version: Some("24.08.0".to_string()),
+            summary: "News Feed Reader".to_string(),
+            description: None,
+            icon: Some(pastor_core::PackageIcon::Themed("org.kde.akregator".to_string())),
+            screenshots: Vec::new(),
+            homepage: None,
+            license: None,
+            maintainer: None,
+            categories: vec![PackageCategory::Internet],
+            size_installed: None,
+            size_download: None,
+            dependencies: Vec::new(),
+            changelog: None,
+            state: PackageState::Installed,
+        };
+
+        let resolved = resolve_app_info(&pkg);
+        if let Some(app) = resolved {
+            use gtk4::gio::prelude::AppInfoExt;
+            assert!(
+                app.id().map(|id| id.contains("akregator")).unwrap_or(false)
+                    || app.executable().to_string_lossy().contains("akregator")
+            );
+        }
     }
 }

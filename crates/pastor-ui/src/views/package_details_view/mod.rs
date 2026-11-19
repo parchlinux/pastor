@@ -33,15 +33,15 @@ pub fn create_package_details_view(
 
     let content_box = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
-        .spacing(28)
-        .margin_top(20)
-        .margin_bottom(32)
-        .margin_start(24)
-        .margin_end(24)
+        .spacing(24)
+        .margin_top(16)
+        .margin_bottom(28)
+        .margin_start(16)
+        .margin_end(16)
         .build();
 
     // 1. GNOME HIG Hero Section
-    let (hero_box, actions_box) = header::create_hero_box(&pkg, &store, on_select_package.clone());
+    let (hero_widgets, actions_box) = header::create_hero_box(&pkg, &store, on_select_package.clone());
 
     // 2. Actions & Transaction Monitoring (inside the hero, as before)
     actions::setup_actions(
@@ -52,88 +52,53 @@ pub fn create_package_details_view(
         on_downgrade,
         on_transaction_start,
     );
-    hero_box.append(&actions_box);
-    content_box.append(&hero_box);
+    content_box.append(&hero_widgets.hero_box);
 
-    // 2. Screenshots Previews (adw::Carousel)
-    let carousel_group = adw::PreferencesGroup::builder()
-        .title("Screenshots")
-        .build();
+    // Context Quick Stats Bar (Security, Size, Version, License, Source)
+    let context_bar = info_rows::create_context_bar(&pkg);
+    content_box.append(&context_bar);
 
-    let carousel = adw::Carousel::builder()
-        .spacing(18)
-        .allow_scroll_wheel(true)
-        .build();
-
+    // 2. Screenshots Previews (adw::Carousel) - only when genuine screenshots are available
     if !pkg.screenshots.is_empty() {
+        let carousel_group = adw::PreferencesGroup::builder()
+            .title(pastor_core::tr("Screenshots"))
+            .build();
+
+        let carousel = adw::Carousel::builder()
+            .spacing(18)
+            .allow_mouse_drag(true)
+            .allow_scroll_wheel(true)
+            .build();
+
         for url in &pkg.screenshots {
             let slide_card = create_screenshot_widget(url);
             carousel.append(&slide_card);
         }
-    } else {
-        let preview_slides = [
-            ("Workspace", "Primary interface and active workspace"),
-            ("Tools & Workflows", "Comprehensive tools and options"),
-            ("Preferences", "User customization and display settings"),
-        ];
 
-        for (index, (slide_title, slide_desc)) in preview_slides.into_iter().enumerate() {
-            let slide_card = gtk4::Box::builder()
-                .orientation(gtk4::Orientation::Vertical)
-                .css_classes(["screenshot-preview-card", header::category_art_class(&pkg)])
-                .build();
+        let dots = adw::CarouselIndicatorDots::builder()
+            .carousel(&carousel)
+            .halign(gtk4::Align::Center)
+            .margin_top(8)
+            .build();
 
-            let preview_header = gtk4::Box::builder()
-                .orientation(gtk4::Orientation::Horizontal)
-                .css_classes(["screenshot-preview-header"])
-                .build();
-
-            let header_title = gtk4::Label::builder()
-                .label(format!("{} - {}", pkg.display_title(), slide_title))
-                .css_classes(["caption", "dim-label"])
-                .hexpand(true)
-                .halign(gtk4::Align::Center)
-                .build();
-            preview_header.append(&header_title);
-            slide_card.append(&preview_header);
-
-            let preview_body = header::create_preview_art(&pkg, index);
-            slide_card.append(&preview_body);
-
-            let footer_caption = gtk4::Label::builder()
-                .label(slide_desc)
-                .css_classes(["caption", "dim-label"])
-                .margin_bottom(12)
-                .halign(gtk4::Align::Center)
-                .build();
-            slide_card.append(&footer_caption);
-
-            carousel.append(&slide_card);
-        }
+        let carousel_container = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .spacing(8)
+            .build();
+        carousel_container.append(&carousel);
+        carousel_container.append(&dots);
+        carousel_group.add(&carousel_container);
+        content_box.append(&carousel_group);
     }
-
-    let dots = adw::CarouselIndicatorDots::builder()
-        .carousel(&carousel)
-        .halign(gtk4::Align::Center)
-        .margin_top(8)
-        .build();
-
-    let carousel_container = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(8)
-        .build();
-    carousel_container.append(&carousel);
-    carousel_container.append(&dots);
-    carousel_group.add(&carousel_container);
-    content_box.append(&carousel_group);
 
     // 3. About Section
     let about_group = info_rows::create_about_group(&pkg);
     content_box.append(&about_group);
 
-    // 4. What's New Section
-    let whats_new_group = info_rows::create_whats_new_group(&pkg);
-    content_box.append(&whats_new_group);
+    // 4. What's New Section (only when real changelog notes exist)
+    if let Some(whats_new_group) = info_rows::create_whats_new_group(&pkg) {
+        content_box.append(&whats_new_group);
+    }
 
     // 5. Technical Specifications
     let specs_group = info_rows::create_specs_group(&pkg);
@@ -147,5 +112,38 @@ pub fn create_package_details_view(
     clamp.set_child(Some(&content_box));
     scrolled.set_child(Some(&clamp));
 
-    scrolled.upcast()
+    // Responsive BreakpointBin: adapts hero layout and spacing on mobile screens
+    let bin = adw::BreakpointBin::builder()
+        .width_request(200)
+        .height_request(200)
+        .hexpand(true)
+        .vexpand(true)
+        .build();
+    let bp = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
+        adw::BreakpointConditionLengthType::MaxWidth,
+        580.0,
+        adw::LengthUnit::Px,
+    ));
+
+    let hw_c = hero_widgets.clone();
+    let cbox_c = content_box.clone();
+    bp.connect_apply(move |_| {
+        hw_c.set_narrow(true);
+        cbox_c.set_margin_start(12);
+        cbox_c.set_margin_end(12);
+    });
+
+    let hw_u = hero_widgets.clone();
+    let cbox_u = content_box.clone();
+    bp.connect_unapply(move |_| {
+        hw_u.set_narrow(false);
+        cbox_u.set_margin_start(16);
+        cbox_u.set_margin_end(16);
+    });
+
+    bin.add_breakpoint(bp);
+    bin.set_child(Some(&scrolled));
+
+    bin.upcast()
+
 }

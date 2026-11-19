@@ -103,7 +103,7 @@ impl AlpmBackend {
         let handle = match privileged::create_alpm(&self.pacman_config) {
             Ok(h) => h,
             // Failure to open the ALPM handle must NOT report every dependency as
-            // missing — that would trigger a blind root install of the whole list.
+            // missing: that would trigger a blind root install of the whole list.
             // Treat them as unsatisfied non-sync deps instead; makepkg will then
             // fail with a clear error if they truly are required.
             Err(_) => return (vec![], deps.to_vec()),
@@ -308,16 +308,23 @@ impl PackageBackend for AlpmBackend {
         let target_name = id.name.clone();
         let pacman = self.pacman_config.clone();
 
-        let deps = tokio::task::spawn_blocking({
+        let deps = match tokio::task::spawn_blocking({
             let pacman = pacman.clone();
             let target_name = target_name.clone();
             move || privileged::detect_dependencies_internal(&pacman, &[&target_name])
         })
         .await
-        .map_err(|e| PastorError::BackendError {
-            backend: "alpm".into(),
-            message: format!("Dependency detection task join error: {e}"),
-        })??;
+        {
+            Ok(Ok(deps)) => deps,
+            Ok(Err(e)) => {
+                tracing::warn!("Pre-flight dependency detection warning ({e}); continuing to privileged worker");
+                vec![]
+            }
+            Err(e) => {
+                tracing::warn!("Pre-flight dependency task join error ({e}); continuing to privileged worker");
+                vec![]
+            }
+        };
 
         if !deps.is_empty() {
             let _ = progress_tx

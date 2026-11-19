@@ -153,10 +153,10 @@ pub const APP_CSS: &str = r#"
 /* Minimum Touch Targets & Chip (VIS-006, EXP-001) */
 .category-chip {
     border-radius: 9999px;
-    padding: 6px 14px;
+    padding: 4px 12px;
     font-weight: 600;
-    font-size: 0.85rem;
-    min-height: 38px;
+    font-size: 0.82rem;
+    min-height: 34px;
 }
 
 button.dependency-tag {
@@ -176,11 +176,200 @@ button.dependency-tag:hover {
     color: @accent_color;
 }
 
-/* Narrow-window compact mode (transaction bar, filters) — applied via Breakpoint;
+/* Narrow-window compact mode (transaction bar, mobile layout, cards) (applied via Breakpoint);
    button hiding is done programmatically via TransactionBar::set_narrow */
 .pastor-narrow .category-chip {
+    padding: 4px 8px;
+    font-size: 0.78rem;
+    min-height: 34px;
+}
+
+.pastor-narrow .cascade-card {
+    padding: 10px 12px;
+    margin: 4px 0px;
+}
+
+.pastor-narrow .cascade-title {
+    font-size: 1.15rem;
+}
+
+.pastor-narrow .cascade-pitch {
+    font-size: 0.82rem;
+    margin-bottom: 6px;
+}
+
+.pastor-narrow .cascade-banner-art {
+    min-height: 110px;
+}
+
+.pastor-narrow .cascade-footer {
     padding: 6px 10px;
+}
+
+.pastor-narrow .cascade-get-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 14px;
+}
+
+.pastor-narrow headerbar {
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+.pastor-narrow headerbar button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 2px 4px;
+}
+
+.pastor-narrow windowtitle .title {
+    font-size: 0.95rem;
+}
+
+.pastor-narrow windowtitle .subtitle {
+    font-size: 0.75rem;
+}
+
+.pastor-narrow .details-hero-box {
+    margin-top: 4px;
+    margin-bottom: 6px;
+}
+
+.details-primary-action-btn {
+    min-height: 44px;
+    padding: 8px 24px;
+    font-weight: 600;
+}
+
+.pastor-narrow .details-primary-action-btn {
+    min-height: 44px;
+    padding: 8px 20px;
+}
+
+.pastor-narrow .app-icon-hero {
+    border-radius: 18px;
+    padding: 4px;
+}
+
+.pastor-narrow .screenshot-preview-card {
+    min-height: 180px;
+}
+
+.pastor-narrow .screenshot-real-card {
+    min-height: 180px;
+}
+
+.pastor-narrow .card {
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+.pastor-narrow .linked button {
+    min-height: 36px;
+    padding: 4px 8px;
     font-size: 0.8rem;
+}
+
+.pastor-narrow .pill {
+    min-height: 44px;
+}
+
+.pastor-narrow .package-row-main {
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.pastor-narrow .package-row-version {
+    font-size: 0px;
+    margin: 0;
+    padding: 0;
+}
+
+.pastor-narrow .package-row-action-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px;
+    border-radius: 9999px;
+}
+
+.pastor-narrow .package-row-action-btn label {
+    font-size: 0px;
+    margin: 0;
+    padding: 0;
+}
+
+/* Grid View Package Card (Square Tile) */
+.package-grid-card {
+    padding: 10px 8px;
+    transition: all 180ms ease;
+    min-width: 130px;
+    min-height: 154px;
+    margin: 3px;
+    border-radius: 14px;
+}
+
+.package-grid-card:hover {
+    border-color: alpha(@accent_color, 0.45);
+    box-shadow: 0 4px 16px alpha(#000000, 0.12);
+}
+
+.package-grid-icon {
+    border-radius: 12px;
+    padding: 1px;
+}
+
+.package-grid-title {
+    font-size: 0.84rem;
+    font-weight: 700;
+}
+
+.package-grid-badge {
+    font-size: 0.70rem;
+    padding: 1px 6px;
+}
+
+.package-grid-action-btn,
+.pastor-narrow .package-grid-action-btn {
+    min-height: 28px;
+    min-width: 68px;
+    padding: 2px 8px;
+    font-size: 0.76rem;
+    border-radius: 9999px;
+}
+
+.package-grid-action-btn label,
+.pastor-narrow .package-grid-action-btn label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    margin: 0;
+    padding: 0;
+}
+
+gridview > child {
+    padding: 2px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+gridview > child:hover,
+gridview > child:selected {
+    background: transparent;
+}
+
+.sidebar-row-title {
+    font-size: 0.9rem;
+}
+
+.pastor-narrow .sidebar-row-title {
+    font-size: 0.85rem;
+}
+
+flowboxchild {
+    padding: 0;
+    margin: 0;
+    background: none;
 }
 
 /* Category-tinted placeholder screenshot art (DET-003) */
@@ -205,6 +394,33 @@ button.dependency-tag:hover {
 }
 
 /* GNOME HIG Application Details Page Styling */
+
+.details-context-bar {
+    border-radius: 16px;
+    padding: 6px 12px;
+    margin: 4px 0px;
+    background-color: alpha(@card_bg_color, 0.7);
+    border: 1px solid alpha(@borders, 0.5);
+}
+
+.context-stat-item {
+    padding: 6px 18px;
+    min-width: 100px;
+}
+
+.context-stat-val {
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.pastor-narrow .details-context-bar {
+    padding: 4px 6px;
+}
+
+.pastor-narrow .context-stat-item {
+    padding: 6px 12px;
+    min-width: 82px;
+}
 
 .app-icon-hero {
     border-radius: 22px;
@@ -264,33 +480,6 @@ button.dependency-tag:hover {
     padding: 20px;
 }
 
-.mock-sidebar-box {
-    background-color: alpha(@window_bg_color, 0.4);
-    border-radius: 8px;
-    padding: 12px;
-    min-width: 130px;
-}
-
-.mock-sidebar-bar {
-    min-height: 8px;
-    border-radius: 4px;
-    background-color: alpha(@borders, 0.6);
-    margin-bottom: 10px;
-}
-
-.mock-content-panel {
-    background-color: alpha(@card_bg_color, 0.6);
-    border: 1px solid alpha(@borders, 0.3);
-    border-radius: 8px;
-    padding: 14px;
-}
-
-.mock-data-bar {
-    min-height: 8px;
-    border-radius: 4px;
-    background-color: alpha(@accent_color, 0.35);
-    margin-bottom: 8px;
-}
 
 .dependency-tag {
     background-color: alpha(@card_bg_color, 0.9);
@@ -384,3 +573,19 @@ button.dependency-tag:hover {
 }
 
 "#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_app_css_parses_cleanly() {
+        if !gtk4::is_initialized_main_thread() {
+            if gtk4::is_initialized() || gtk4::init().is_err() {
+                return;
+            }
+        }
+        let provider = gtk4::CssProvider::new();
+        provider.load_from_data(APP_CSS);
+    }
+}

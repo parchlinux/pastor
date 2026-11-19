@@ -6,6 +6,47 @@ use pastor_core::{
 };
 use tokio::sync::mpsc::Sender;
 
+pub fn get_user_syncdb_path(pacman: &pacmanconf::Config) -> Result<std::path::PathBuf, PastorError> {
+    let cache_dir = pastor_core::pastor_cache_dir().join("syncdb");
+    let _ = std::fs::create_dir_all(&cache_dir);
+
+    let local_symlink = cache_dir.join("local");
+    if !local_symlink.exists() {
+        let system_local = std::path::Path::new(&pacman.db_path).join("local");
+        if system_local.exists() {
+            #[cfg(unix)]
+            let _ = std::os::unix::fs::symlink(&system_local, &local_symlink);
+        }
+    }
+    Ok(cache_dir)
+}
+
+pub fn create_user_alpm(pacman: &pacmanconf::Config) -> Result<alpm::Alpm, PastorError> {
+    let user_db = get_user_syncdb_path(pacman)?;
+    let mut handle = alpm::Alpm::new(
+        pacman.root_dir.as_str(),
+        user_db.to_str().unwrap_or(pacman.db_path.as_str()),
+    )
+    .map_err(|e| PastorError::BackendError {
+        backend: "alpm".into(),
+        message: format!("Failed to create user ALPM handle: {e}"),
+    })?;
+
+    alpm_utils::configure_alpm(&mut handle, pacman).map_err(|e| PastorError::BackendError {
+        backend: "alpm".into(),
+        message: format!("Failed to configure user ALPM from pacman.conf: {e}"),
+    })?;
+
+    for pkg in &pacman.ignore_pkg {
+        let _ = handle.add_ignorepkg(pkg.as_str());
+    }
+    for group in &pacman.ignore_group {
+        let _ = handle.add_ignoregroup(group.as_str());
+    }
+
+    Ok(handle)
+}
+
 pub fn create_alpm(pacman: &pacmanconf::Config) -> Result<alpm::Alpm, PastorError> {
     let mut handle = alpm::Alpm::new(
         pacman.root_dir.as_str(),
@@ -26,6 +67,18 @@ pub fn create_alpm(pacman: &pacmanconf::Config) -> Result<alpm::Alpm, PastorErro
     }
     for group in &pacman.ignore_group {
         let _ = handle.add_ignoregroup(group.as_str());
+    }
+
+    // On clean installations of Parch before pacman -Syy has run, system sync databases
+    // are empty. Fall back to user-syncdb if it contains populated databases.
+    let system_empty = handle.syncdbs().is_empty() || handle.syncdbs().iter().all(|db| db.pkgs().is_empty());
+    if system_empty {
+        if let Ok(user_handle) = create_user_alpm(pacman) {
+            let user_has_pkgs = !user_handle.syncdbs().is_empty() && user_handle.syncdbs().iter().any(|db| !db.pkgs().is_empty());
+            if user_has_pkgs {
+                return Ok(user_handle);
+            }
+        }
     }
 
     Ok(handle)
@@ -95,7 +148,7 @@ pub fn run_privileged(
     let is_root = unsafe { geteuid() == 0 };
     if !is_root {
         // pkexec will execute the binary as root. Refuse-to-warn when running
-        // from a user-writable path (dev builds) — root must never execute a
+        // from a user-writable path (dev builds): root must never execute a
         // binary the user could have replaced between checks.
         if let Ok(exe) = std::fs::canonicalize(&current_exe) {
             let path_str = exe.to_string_lossy();

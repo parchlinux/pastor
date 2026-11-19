@@ -45,7 +45,7 @@ pub fn create_operations_popover(
         .margin_bottom(10)
         .margin_start(10)
         .margin_end(10)
-        .width_request(340)
+        .width_request(300)
         .build();
 
     let pop_header = gtk4::Box::builder()

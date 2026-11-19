@@ -24,8 +24,8 @@ pub fn get_cache_path(url: &str) -> std::path::PathBuf {
 
 pub fn create_screenshot_widget(url: &str) -> gtk4::Widget {
     let overlay = gtk4::Overlay::builder()
-        .height_request(320)
-        .width_request(560)
+        .height_request(240)
+        .hexpand(true)
         .css_classes(["screenshot-real-card"])
         .build();
 

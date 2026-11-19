@@ -50,7 +50,7 @@ impl ObjectSubclass for TxObjectImp {
 }
 
 impl ObjectImpl for TxObjectImp {
-    // Delegate to the Properties derive — without this the generated
+    // Delegate to the Properties derive; without this the generated
     // properties are never registered and `Object::builder().property(...)`
     // panics with "Can't find property".
     fn properties() -> &'static [glib::ParamSpec] {

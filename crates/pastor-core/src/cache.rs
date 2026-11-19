@@ -28,15 +28,15 @@ pub fn cleanup_stale_caches_in(cache_dir: &Path) {
 
         if path.is_file() {
             // 1. Obsolete ALPM catalogs: anything starting with "alpm_catalog" and ending with ".bin"
-            // that is NOT the active "alpm_catalog_v3.bin"
-            if fname.starts_with("alpm_catalog") && fname.ends_with(".bin") && fname != "alpm_catalog_v3.bin" {
+            // that is NOT the active "alpm_catalog_v4.bin"
+            if fname.starts_with("alpm_catalog") && fname.ends_with(".bin") && fname != "alpm_catalog_v4.bin" {
                 tracing::info!("Removing obsolete ALPM catalog cache: {:?}", path);
                 let _ = std::fs::remove_file(&path);
                 continue;
             }
 
-            // 2. Obsolete Flatpak catalogs: older versions (flatpak_*.bin not starting with flatpak_v3_)
-            if fname.starts_with("flatpak") && fname.ends_with(".bin") && !fname.starts_with("flatpak_v3_") {
+            // 2. Obsolete Flatpak catalogs: older versions (flatpak_*.bin not starting with flatpak_v4_)
+            if fname.starts_with("flatpak") && fname.ends_with(".bin") && !fname.starts_with("flatpak_v4_") {
                 tracing::info!("Removing obsolete Flatpak catalog cache: {:?}", path);
                 let _ = std::fs::remove_file(&path);
                 continue;
@@ -92,22 +92,28 @@ mod tests {
 
         let v2_alpm = temp_dir.join("alpm_catalog_v2.bin");
         let v3_alpm = temp_dir.join("alpm_catalog_v3.bin");
+        let v4_alpm = temp_dir.join("alpm_catalog_v4.bin");
         let old_flatpak = temp_dir.join("flatpak_flathub.bin");
         let v3_flatpak = temp_dir.join("flatpak_v3_flathub.bin");
+        let v4_flatpak = temp_dir.join("flatpak_v4_flathub.bin");
         let zero_byte = temp_dir.join("corrupted.bin");
 
         let _ = std::fs::write(&v2_alpm, b"dummy v2 data");
         let _ = std::fs::write(&v3_alpm, b"dummy v3 data");
+        let _ = std::fs::write(&v4_alpm, b"dummy v4 data");
         let _ = std::fs::write(&old_flatpak, b"dummy old flatpak data");
         let _ = std::fs::write(&v3_flatpak, b"dummy v3 flatpak data");
+        let _ = std::fs::write(&v4_flatpak, b"dummy v4 flatpak data");
         let _ = std::fs::write(&zero_byte, b"");
 
         cleanup_stale_caches_in(&temp_dir);
 
         assert!(!v2_alpm.exists(), "alpm_catalog_v2.bin should be deleted");
-        assert!(v3_alpm.exists(), "alpm_catalog_v3.bin should be preserved");
+        assert!(!v3_alpm.exists(), "alpm_catalog_v3.bin should be deleted");
+        assert!(v4_alpm.exists(), "alpm_catalog_v4.bin should be preserved");
         assert!(!old_flatpak.exists(), "flatpak_flathub.bin should be deleted");
-        assert!(v3_flatpak.exists(), "flatpak_v3_flathub.bin should be preserved");
+        assert!(!v3_flatpak.exists(), "flatpak_v3_flathub.bin should be deleted");
+        assert!(v4_flatpak.exists(), "flatpak_v4_flathub.bin should be preserved");
         assert!(!zero_byte.exists(), "0-byte corrupted.bin should be deleted");
 
         let _ = std::fs::remove_dir_all(&temp_dir);

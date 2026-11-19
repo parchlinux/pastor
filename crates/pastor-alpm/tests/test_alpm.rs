@@ -24,6 +24,12 @@ async fn test_alpm_catalog_metadata() {
 }
 
 #[tokio::test]
+async fn test_alpm_user_syncdb_creation() {
+    let pacman = pacmanconf::Config::new().unwrap();
+    let db_path = pastor_alpm::backend::privileged::get_user_syncdb_path(&pacman);
+    assert!(db_path.is_ok(), "User syncdb path should be created");
+}
+#[tokio::test]
 async fn test_alpm_backend_operations() {
     let backend = AlpmBackend::new().expect("AlpmBackend should initialize");
     backend.wait_catalog_ready().await;

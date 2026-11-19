@@ -54,6 +54,7 @@ fn source_badge(source: &pastor_core::PackageSource) -> (&'static str, &'static 
     }
 }
 
+#[allow(dead_code)]
 fn version_string(pkg: &Package) -> String {
     if pkg.state == PackageState::UpdateAvailable {
         if let Some(ref cur) = pkg.installed_version {
@@ -78,7 +79,7 @@ fn apply_action_state(abtn: &gtk4::Button, qu: &gtk4::Button, state: PackageStat
             abtn.add_css_class("destructive-action");
             abtn.add_css_class("pill");
             abtn.set_sensitive(true);
-            qu.set_visible(state == PackageState::UpdateAvailable);
+            qu.set_visible(false);
         }
         _ => {
             abtn.set_label(pastor_core::tr("Install"));
@@ -95,7 +96,7 @@ fn apply_action_state(abtn: &gtk4::Button, qu: &gtk4::Button, state: PackageStat
 /// Self-contained package row body, reusable in both `gtk4::ListBox` rows and
 /// `gtk4::ListView` factories. All transaction updates arrive via the shared
 /// `TxMonitor` (single broadcast subscriber, lag-safe). `bind` connects the
-/// monitor signals, `unbind` drops them — call `unbind` on widget destruction
+/// monitor signals, `unbind` drops them: call `unbind` on widget destruction
 /// or list-item recycling so neither side outlives the other.
 pub struct PackageRowWidgets {
     root: gtk4::Box,
@@ -131,6 +132,7 @@ impl PackageRowWidgets {
             .margin_bottom(8)
             .margin_start(14)
             .margin_end(14)
+            .valign(gtk4::Align::Start)
             .build();
 
         let clickable_area = gtk4::Box::builder()
@@ -163,6 +165,7 @@ impl PackageRowWidgets {
             .label(pkg.display_title())
             .css_classes(["heading"])
             .halign(gtk4::Align::Start)
+            .ellipsize(pango::EllipsizeMode::End)
             .build();
         title_box.append(&title_label);
 
@@ -174,28 +177,15 @@ impl PackageRowWidgets {
             .build();
         title_box.append(&source_badge_lbl);
 
-        if pkg.state == PackageState::UpdateAvailable {
-            let update_badge = gtk4::Label::builder()
-                .label("Update Available")
-                .css_classes(["parch-badge-update"])
-                .valign(gtk4::Align::Center)
-                .build();
-            title_box.append(&update_badge);
-        }
-
-        let version_label = gtk4::Label::builder()
-            .label(&version_string(pkg))
-            .css_classes(["dim-label"])
-            .valign(gtk4::Align::Center)
-            .build();
-        title_box.append(&version_label);
-
         text_box.append(&title_box);
 
         let summary_label = gtk4::Label::builder()
             .label(&pkg.summary)
             .css_classes(["dim-label"])
             .halign(gtk4::Align::Start)
+            .wrap(true)
+            .wrap_mode(pango::WrapMode::WordChar)
+            .lines(2)
             .ellipsize(pango::EllipsizeMode::End)
             .build();
         text_box.append(&summary_label);
@@ -228,7 +218,7 @@ impl PackageRowWidgets {
             .tooltip_text("Quick uninstall software")
             .css_classes(["destructive-action", "flat", "circular"])
             .valign(gtk4::Align::Center)
-            .visible(pkg.state == PackageState::UpdateAvailable)
+            .visible(false)
             .build();
 
         match pkg.state {
@@ -387,23 +377,6 @@ impl PackageRowWidgets {
         action_box.append(&cancel_box);
         main_box.append(&action_box);
 
-        // Chevron Details Button
-        let details_btn = gtk4::Button::builder()
-            .icon_name("go-next-symbolic")
-            .css_classes(["flat", "circular"])
-            .tooltip_text("Open application details page")
-            .valign(gtk4::Align::Center)
-            .build();
-        details_btn.update_property(&[gtk4::accessible::Property::Label("Open application details page")]);
-        {
-            let on_sel = on_select.clone();
-            let pkg_c = pkg.clone();
-            details_btn.connect_clicked(move |_| {
-                on_sel(pkg_c.clone());
-            });
-        }
-        main_box.append(&details_btn);
-
         let activate = {
             let on_sel = on_select.clone();
             let pkg_c = pkg.clone();
@@ -412,6 +385,264 @@ impl PackageRowWidgets {
 
         Self {
             root: main_box,
+            action_btn,
+            quick_uninstall_btn,
+            cancel_box,
+            btn_status,
+            btn_pct,
+            pkg: pkg.clone(),
+            store: store.clone(),
+            monitor: monitor.clone(),
+            activate: Rc::new(activate),
+            monitor_handlers: Rc::new(RefCell::new(Vec::new())),
+            bound_tx: Rc::new(RefCell::new(None)),
+        }
+    }
+
+    pub fn build_card(
+        pkg: &Package,
+        store: &Store,
+        monitor: &TxMonitor,
+        on_select: impl Fn(Package) + 'static + Clone,
+        on_transaction_start: impl Fn(Receiver<pastor_core::TransactionEvent>) + 'static + Clone,
+    ) -> Self {
+        let card_box = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .spacing(3)
+            .halign(gtk4::Align::Fill)
+            .valign(gtk4::Align::Start)
+            .hexpand(true)
+            .css_classes(["card", "package-grid-card"])
+            .build();
+
+        let clickable_area = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Vertical)
+            .spacing(2)
+            .halign(gtk4::Align::Center)
+            .valign(gtk4::Align::Center)
+            .build();
+
+        if let Some(cursor) = gtk4::gdk::Cursor::from_name("pointer", None) {
+            clickable_area.set_cursor(Some(&cursor));
+        }
+
+        let icon = create_pkg_icon(pkg, 38);
+        icon.set_halign(gtk4::Align::Center);
+        icon.add_css_class("package-grid-icon");
+        clickable_area.append(&icon);
+
+        let title_label = gtk4::Label::builder()
+            .label(pkg.display_title())
+            .css_classes(["heading", "package-grid-title"])
+            .halign(gtk4::Align::Center)
+            .ellipsize(pango::EllipsizeMode::End)
+            .lines(1)
+            .build();
+        clickable_area.append(&title_label);
+
+        let (badge_text, badge_class) = source_badge(&pkg.id.source);
+        let badge_lbl = gtk4::Label::builder()
+            .label(badge_text)
+            .css_classes([badge_class, "package-grid-badge"])
+            .halign(gtk4::Align::Center)
+            .build();
+        clickable_area.append(&badge_lbl);
+
+        {
+            let click_gesture = gtk4::GestureClick::new();
+            let on_sel = on_select.clone();
+            let pkg_c = pkg.clone();
+            click_gesture.connect_released(move |_, _, _, _| {
+                on_sel(pkg_c.clone());
+            });
+            clickable_area.add_controller(click_gesture);
+        }
+
+        card_box.append(&clickable_area);
+
+        // Action area
+        let action_box = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .spacing(4)
+            .halign(gtk4::Align::Center)
+            .valign(gtk4::Align::End)
+            .margin_top(2)
+            .build();
+
+        let action_btn = gtk4::Button::builder()
+            .valign(gtk4::Align::Center)
+            .halign(gtk4::Align::Center)
+            .css_classes(["package-grid-action-btn"])
+            .build();
+
+        let quick_uninstall_btn = gtk4::Button::builder()
+            .icon_name("user-trash-symbolic")
+            .tooltip_text("Quick uninstall software")
+            .css_classes(["destructive-action", "flat", "circular"])
+            .valign(gtk4::Align::Center)
+            .visible(false)
+            .build();
+
+        match pkg.state {
+            PackageState::NotInstalled => {
+                action_btn.set_label(pastor_core::tr("Install"));
+                action_btn.add_css_class("suggested-action");
+            }
+            PackageState::Installed => {
+                action_btn.set_label(pastor_core::tr("Uninstall"));
+                action_btn.set_icon_name("user-trash-symbolic");
+                action_btn.set_tooltip_text(Some(pastor_core::tr("Quick uninstall")));
+                action_btn.add_css_class("destructive-action");
+            }
+            PackageState::UpdateAvailable => {
+                action_btn.set_label(pastor_core::tr("Update"));
+                action_btn.set_icon_name(&crate::icons::update_icon());
+                action_btn.add_css_class("suggested-action");
+            }
+            PackageState::Processing => {
+                action_btn.set_label(pastor_core::tr("Processing…"));
+                action_btn.set_sensitive(false);
+            }
+        }
+
+        let cancel_box = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .spacing(4)
+            .valign(gtk4::Align::Center)
+            .visible(false)
+            .build();
+
+        let cancel_tip = pastor_core::tr("Cancel installation");
+        let cancel_btn = gtk4::Button::builder()
+            .icon_name("process-stop-symbolic")
+            .tooltip_text(cancel_tip)
+            .css_classes(["flat", "circular"])
+            .build();
+        cancel_btn.update_property(&[gtk4::accessible::Property::Label(cancel_tip)]);
+
+        {
+            let store_c = store.clone();
+            let pkg_id = pkg.id.clone();
+            cancel_btn.connect_clicked(move |_| {
+                let s = store_c.clone();
+                let p = pkg_id.clone();
+                glib::spawn_future_local(async move {
+                    let _ = s.cancel_installation(&p).await;
+                });
+            });
+        }
+
+        cancel_box.append(&cancel_btn);
+
+        let btn_status = gtk4::Box::builder()
+            .orientation(gtk4::Orientation::Horizontal)
+            .spacing(4)
+            .halign(gtk4::Align::Center)
+            .build();
+        let spinner = gtk4::Spinner::builder()
+            .spinning(true)
+            .width_request(12)
+            .height_request(12)
+            .build();
+        let btn_pct = gtk4::Label::builder().label("0%").build();
+        btn_status.append(&spinner);
+        btn_status.append(&btn_pct);
+
+        {
+            let pkg_c = pkg.clone();
+            let store_c = store.clone();
+            let on_tx = on_transaction_start.clone();
+            let btn_c = action_btn.clone();
+            let qu_c = quick_uninstall_btn.clone();
+            let pbox_c = cancel_box.clone();
+            let btn_status_c = btn_status.clone();
+
+            action_btn.connect_clicked(move |_| {
+                match pkg_c.state {
+                    PackageState::NotInstalled | PackageState::UpdateAvailable => {
+                        if matches!(pkg_c.id.source, pastor_core::PackageSource::Aur) {
+                            let s_aur = store_c.clone();
+                            let p_aur = pkg_c.clone();
+                            let tx_start = on_tx.clone();
+                            let btn = btn_c.clone();
+                            let qu = qu_c.clone();
+                            let pbox = pbox_c.clone();
+                            let btn_status = btn_status_c.clone();
+                            btn.set_sensitive(false);
+
+                            glib::spawn_future_local(async move {
+                                match s_aur.prepare_aur_scan(&p_aur.name).await {
+                                    Ok((_commit, trust, scan_report, diff, missing_deps)) => {
+                                        btn.set_sensitive(true);
+                                        let p_name_for_cb = p_aur.name.clone();
+                                        let dialog_parent = btn.clone();
+                                        crate::dialogs::show_aur_review_dialog(
+                                            &dialog_parent,
+                                            &p_aur.name,
+                                            &p_aur.version,
+                                            &trust,
+                                            &scan_report,
+                                            &diff,
+                                            &missing_deps,
+                                            move |use_sandbox| {
+                                                s_aur.set_aur_sandbox_enabled(&p_name_for_cb, use_sandbox);
+                                                set_installing_look(&btn, &btn_status, &qu, &pbox);
+                                                let rx = s_aur.install(p_aur.id.clone());
+                                                tx_start(rx);
+                                            },
+                                        );
+                                    }
+                                    Err(e) => {
+                                        btn.set_sensitive(true);
+                                        tracing::error!("Failed to prepare AUR review: {e}");
+                                    }
+                                }
+                            });
+                        } else {
+                            set_installing_look(&btn_c, &btn_status_c, &qu_c, &pbox_c);
+                            let rx = store_c.install(pkg_c.id.clone());
+                            on_tx(rx);
+                        }
+                    }
+                    PackageState::Installed => {
+                        set_installing_look(&btn_c, &btn_status_c, &qu_c, &pbox_c);
+                        let rx = store_c.remove(pkg_c.id.clone());
+                        on_tx(rx);
+                    }
+                    PackageState::Processing => {}
+                }
+            });
+        }
+
+        {
+            let store_u = store.clone();
+            let pkg_id_u = pkg.id.clone();
+            let on_tx_u = on_transaction_start.clone();
+            let btn_u = action_btn.clone();
+            let qu_u = quick_uninstall_btn.clone();
+            let pbox_u = cancel_box.clone();
+            let btn_status_u = btn_status.clone();
+
+            quick_uninstall_btn.connect_clicked(move |_| {
+                set_installing_look(&btn_u, &btn_status_u, &qu_u, &pbox_u);
+                let rx = store_u.remove(pkg_id_u.clone());
+                on_tx_u(rx);
+            });
+        }
+
+        action_box.append(&action_btn);
+        action_box.append(&quick_uninstall_btn);
+        action_box.append(&cancel_box);
+        card_box.append(&action_box);
+
+        let activate = {
+            let on_sel = on_select.clone();
+            let pkg_c = pkg.clone();
+            move || on_sel(pkg_c.clone())
+        };
+
+        Self {
+            root: card_box,
             action_btn,
             quick_uninstall_btn,
             cancel_box,
@@ -585,6 +816,7 @@ pub fn create_package_row(
 ) -> gtk4::ListBoxRow {
     let row = gtk4::ListBoxRow::builder()
         .activatable(true)
+        .valign(gtk4::Align::Start)
         .build();
 
     let widgets = Rc::new(PackageRowWidgets::build(pkg, store, monitor, on_select, on_transaction_start));

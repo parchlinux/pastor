@@ -78,7 +78,7 @@ struct FlatpakCacheFile {
 }
 
 fn compute_flatpak_appstream_signature(effective_dir: &Path, appstream_dir: &Path) -> u64 {
-    let mut sig: u64 = 0x464c415450414b_u64.wrapping_add(3);
+    let mut sig: u64 = 0x464c415450414b_u64.wrapping_add(4);
     let matcher = LocaleMatcher::from_env();
     for byte in matcher.primary_locale().bytes() {
         sig = sig.wrapping_mul(31).wrapping_add(byte as u64);
@@ -102,7 +102,7 @@ fn compute_flatpak_appstream_signature(effective_dir: &Path, appstream_dir: &Pat
 pub(crate) fn get_flatpak_cache_file(remote_name: &str) -> PathBuf {
     let dir = pastor_cache_dir();
     let _ = std::fs::create_dir_all(&dir);
-    dir.join(format!("flatpak_v3_{remote_name}.bin"))
+    dir.join(format!("flatpak_v4_{remote_name}.bin"))
 }
 
 impl AppstreamCatalog {
@@ -321,11 +321,12 @@ impl AppstreamCatalog {
                         }
 
                         if tag_name == "description" {
+                            let is_tagged = current_lang.is_some();
                             let lang_score = matcher.score(current_lang.as_deref());
                             if in_release {
-                                loc_rel_desc.start_description_tag(lang_score);
+                                loc_rel_desc.start_description_tag(is_tagged, lang_score);
                             } else {
-                                loc_desc.start_description_tag(lang_score);
+                                loc_desc.start_description_tag(is_tagged, lang_score);
                             }
                         } else if tag_name == "release" {
                             in_release = true;
@@ -421,12 +422,13 @@ impl AppstreamCatalog {
                                         current_bundle_ref = text_val.to_string();
                                     }
                                 }
-                                "p" | "li" => {
+                                "p" | "li" | "description" => {
+                                    let has_lang = current_lang.is_some();
                                     let p_score = matcher.score(current_lang.as_deref());
                                     if in_release {
-                                        loc_rel_desc.add_paragraph(p_score, text_val);
+                                        loc_rel_desc.add_paragraph(has_lang, p_score, text_val);
                                     } else {
-                                        loc_desc.add_paragraph(p_score, text_val);
+                                        loc_desc.add_paragraph(has_lang, p_score, text_val);
                                     }
                                 }
                                 "developer_name" => {
@@ -662,5 +664,48 @@ mod tests {
         assert_eq!(map_category("Finance"), Some(PackageCategory::Office));
         assert_eq!(map_category("Science"), Some(PackageCategory::Utilities));
         assert_eq!(map_category("Education"), Some(PackageCategory::Utilities));
+    }
+
+    #[test]
+    fn test_multilingual_component_isolation_warehouse() {
+        let sample_xml = r#"<?xml version="1.0" encoding="utf-8"?>
+        <components version="0.8" origin="flathub">
+          <component type="desktop-application">
+            <id>io.github.flattool.Warehouse.desktop</id>
+            <name>Warehouse</name>
+            <summary xml:lang="ar">أدِر كل ما يتعلق بفلاتباك</summary>
+            <summary>Manage all things Flatpak</summary>
+            <summary xml:lang="zh-Hant">管理所有 Flatpak</summary>
+            <description>
+              <p>Warehouse provides a simple UI to control complex Flatpak options.</p>
+              <ul>
+                <li>Manage installed Flatpaks</li>
+              </ul>
+            </description>
+            <description xml:lang="ar">
+              <p>يوفر مستودع واجهة مستخدم بسيطة.</p>
+              <ul>
+                <li>إدارة الحزم المثبتة</li>
+              </ul>
+            </description>
+            <description xml:lang="zh-Hant">
+              <p>Warehouse 提供了一個簡單的用戶界面。</p>
+              <ul>
+                <li>管理已安裝的 Flatpak</li>
+              </ul>
+            </description>
+          </component>
+        </components>"#;
+
+        let mut catalog = AppstreamCatalog::default();
+        catalog.parse_xml(Cursor::new(sample_xml.as_bytes()), "flathub");
+
+        let warehouse = catalog.get_component("io.github.flattool.Warehouse.desktop").expect("Warehouse parsed");
+        assert_eq!(warehouse.name, "Warehouse");
+        assert_eq!(warehouse.summary, "Manage all things Flatpak");
+        let desc = warehouse.description.as_deref().unwrap();
+        assert!(desc.contains("Warehouse provides a simple UI"));
+        assert!(!desc.contains("يوفر مستودع"));
+        assert!(!desc.contains("Warehouse 提供了一個簡單的用戶界面"));
     }
 }

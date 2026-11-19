@@ -30,6 +30,7 @@ pub struct FlatpakBackend {
     remotes: Vec<String>,
     installed_cache: Arc<RwLock<Option<(std::time::Instant, HashMap<String, (String, String)>)>>>,
     active_cancellables: Arc<RwLock<HashMap<PackageId, Cancellable>>>,
+    refresh_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl FlatpakBackend {
@@ -103,6 +104,7 @@ impl FlatpakBackend {
             remotes,
             installed_cache: Arc::new(RwLock::new(None)),
             active_cancellables: Arc::new(RwLock::new(HashMap::new())),
+            refresh_lock: Arc::new(tokio::sync::Mutex::new(())),
         })
     }
 
@@ -160,6 +162,24 @@ impl FlatpakBackend {
     /// hasn't fetched the metadata yet (it's downloaded on first install), so
     /// we trigger `update_appstream_full_sync` once then reload from disk.
     async fn ensure_catalog(&self) {
+        {
+            let populated = self.catalog.read().map(|c| !c.components.is_empty()).unwrap_or(false);
+            if populated {
+                return;
+            }
+        }
+
+        // 1. First attempt: reload from local disk or cache without touching the network
+        self.reload_catalog();
+        {
+            let populated = self.catalog.read().map(|c| !c.components.is_empty()).unwrap_or(false);
+            if populated {
+                return;
+            }
+        }
+
+        // 2. Network synchronization: serialize via lock so parallel UI sections never duplicate sync
+        let _guard = self.refresh_lock.lock().await;
         {
             let populated = self.catalog.read().map(|c| !c.components.is_empty()).unwrap_or(false);
             if populated {

@@ -98,176 +98,144 @@ pub fn build_share_options(pkg: &Package, flatpak_id: Option<&str>) -> Vec<Share
     options
 }
 
-fn render_option_rows(
-    options_box: &gtk4::Box,
-    options: &[ShareOption],
-    toast_lbl: &gtk4::Label,
-) {
-    while let Some(child) = options_box.first_child() {
-        options_box.remove(&child);
+fn populate_share_list(list_box: &gtk4::ListBox, options: &[ShareOption]) {
+    while let Some(child) = list_box.first_child() {
+        list_box.remove(&child);
     }
 
     for opt in options {
-        let row_card = gtk4::Box::builder()
-            .orientation(gtk4::Orientation::Horizontal)
-            .spacing(10)
-            .css_classes(["card"])
-            .margin_top(2)
-            .margin_bottom(2)
-            .build();
-
-        let row = gtk4::Box::builder()
-            .orientation(gtk4::Orientation::Horizontal)
-            .spacing(10)
-            .margin_top(8)
-            .margin_bottom(8)
-            .margin_start(10)
-            .margin_end(10)
-            .hexpand(true)
-            .valign(gtk4::Align::Center)
+        let row = adw::ActionRow::builder()
+            .title(&opt.title)
+            .subtitle(&opt.url)
+            .subtitle_lines(1)
+            .activatable(true)
             .build();
 
         let icon = gtk4::Image::builder()
             .icon_name(opt.icon_name)
-            .pixel_size(22)
+            .pixel_size(20)
             .valign(gtk4::Align::Center)
             .build();
-        row.append(&icon);
-
-        let text_vbox = gtk4::Box::builder()
-            .orientation(gtk4::Orientation::Vertical)
-            .spacing(2)
-            .hexpand(true)
-            .valign(gtk4::Align::Center)
-            .build();
-
-        let title_lbl = gtk4::Label::builder()
-            .label(&opt.title)
-            .css_classes(["heading"])
-            .halign(gtk4::Align::Start)
-            .build();
-        text_vbox.append(&title_lbl);
-
-        let url_lbl = gtk4::Label::builder()
-            .label(&opt.url)
-            .css_classes(["caption", "dim-label"])
-            .halign(gtk4::Align::Start)
-            .ellipsize(gtk4::pango::EllipsizeMode::End)
-            .max_width_chars(28)
-            .build();
-        text_vbox.append(&url_lbl);
-
-        row.append(&text_vbox);
+        row.add_prefix(&icon);
 
         // Copy button
         let copy_btn = gtk4::Button::builder()
             .icon_name("edit-copy-symbolic")
-            .tooltip_text("Copy link to clipboard")
+            .tooltip_text(pastor_core::tr("Copy link to clipboard"))
             .css_classes(["flat", "circular"])
             .valign(gtk4::Align::Center)
             .build();
 
-        let url_to_copy = opt.url.clone();
-        let toast_target = toast_lbl.clone();
-        copy_btn.connect_clicked(move |btn| {
-            btn.clipboard().set_text(&url_to_copy);
-            btn.set_icon_name("emblem-ok-symbolic");
-            toast_target.set_visible(true);
-
-            let btn_reset = btn.clone();
-            let toast_reset = toast_target.clone();
+        let url_c = opt.url.clone();
+        let copy_btn_c = copy_btn.clone();
+        copy_btn.connect_clicked(move |_| {
+            copy_btn_c.clipboard().set_text(&url_c);
+            copy_btn_c.set_icon_name("emblem-ok-symbolic");
+            copy_btn_c.set_tooltip_text(Some(pastor_core::tr("Copied!")));
+            let b = copy_btn_c.clone();
             glib::timeout_add_local_once(std::time::Duration::from_millis(2000), move || {
-                btn_reset.set_icon_name("edit-copy-symbolic");
-                toast_reset.set_visible(false);
+                b.set_icon_name("edit-copy-symbolic");
+                b.set_tooltip_text(Some(pastor_core::tr("Copy link to clipboard")));
             });
         });
-        row.append(&copy_btn);
+        row.add_suffix(&copy_btn);
 
         // Open in browser button if http/https
         if opt.url.starts_with("http://") || opt.url.starts_with("https://") {
             let open_btn = gtk4::LinkButton::builder()
                 .uri(&opt.url)
                 .icon_name("external-link-symbolic")
-                .tooltip_text("Open in browser")
+                .tooltip_text(pastor_core::tr("Open in browser"))
                 .css_classes(["flat", "circular"])
                 .valign(gtk4::Align::Center)
                 .build();
-            row.append(&open_btn);
+            row.add_suffix(&open_btn);
         }
 
-        row_card.append(&row);
-        options_box.append(&row_card);
+        let url_row = opt.url.clone();
+        let copy_btn_row = copy_btn.clone();
+        row.connect_activated(move |_| {
+            copy_btn_row.clipboard().set_text(&url_row);
+            copy_btn_row.set_icon_name("emblem-ok-symbolic");
+            copy_btn_row.set_tooltip_text(Some(pastor_core::tr("Copied!")));
+            let b = copy_btn_row.clone();
+            glib::timeout_add_local_once(std::time::Duration::from_millis(2000), move || {
+                b.set_icon_name("edit-copy-symbolic");
+                b.set_tooltip_text(Some(pastor_core::tr("Copy link to clipboard")));
+            });
+        });
+
+        list_box.append(&row);
     }
 }
 
-pub fn create_share_button(pkg: &Package, store: &Store) -> gtk4::MenuButton {
-    let btn = gtk4::MenuButton::builder()
-        .icon_name("emblem-shared-symbolic")
-        .tooltip_text("Share application")
-        .css_classes(["flat", "circular"])
+pub fn show_share_dialog(parent: &impl IsA<gtk4::Widget>, pkg: &Package, store: &Store) {
+    let dialog = adw::Dialog::builder()
+        .title(pastor_core::tr("Share Application"))
+        .presentation_mode(adw::DialogPresentationMode::BottomSheet)
+        .content_width(340)
         .build();
 
-    let popover = gtk4::Popover::builder()
-        .position(gtk4::PositionType::Bottom)
-        .autohide(true)
+    let toolbar_view = adw::ToolbarView::new();
+    let header_bar = adw::HeaderBar::new();
+    toolbar_view.add_top_bar(&header_bar);
+
+    let scrolled = gtk4::ScrolledWindow::builder()
+        .hscrollbar_policy(gtk4::PolicyType::Never)
+        .vscrollbar_policy(gtk4::PolicyType::Automatic)
+        .propagate_natural_height(true)
         .build();
 
-    let content_box = gtk4::Box::builder()
+    let clamp = adw::Clamp::builder()
+        .maximum_size(360)
+        .tightening_threshold(320)
+        .margin_top(8)
+        .margin_bottom(18)
+        .margin_start(8)
+        .margin_end(8)
+        .build();
+
+    let content_vbox = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
-        .spacing(10)
-        .margin_top(12)
-        .margin_bottom(12)
-        .margin_start(12)
-        .margin_end(12)
-        .width_request(360)
+        .spacing(12)
         .build();
 
-    // Title and app name
-    let header_box = gtk4::Box::builder()
+    let app_header = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Vertical)
-        .spacing(2)
+        .spacing(4)
+        .margin_bottom(6)
+        .halign(gtk4::Align::Center)
         .build();
 
     let title_lbl = gtk4::Label::builder()
         .label(&format!("Share {}", pkg.display_title()))
-        .css_classes(["title-4"])
-        .halign(gtk4::Align::Start)
+        .css_classes(["title-3"])
+        .halign(gtk4::Align::Center)
         .build();
-    header_box.append(&title_lbl);
+    app_header.append(&title_lbl);
 
     let subtitle_lbl = gtk4::Label::builder()
-        .label("Copy or open links to share with others")
+        .label(pastor_core::tr("Choose a link below to copy or open in browser"))
         .css_classes(["caption", "dim-label"])
-        .halign(gtk4::Align::Start)
-        .build();
-    header_box.append(&subtitle_lbl);
-
-    content_box.append(&header_box);
-
-    let options_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(6)
-        .build();
-    content_box.append(&options_box);
-
-    let toast_lbl = gtk4::Label::builder()
-        .label("✓ Link copied to clipboard")
-        .css_classes(["caption", "success"])
         .halign(gtk4::Align::Center)
-        .visible(false)
         .build();
-    content_box.append(&toast_lbl);
+    app_header.append(&subtitle_lbl);
 
-    // Initial render with current package information
+    content_vbox.append(&app_header);
+
+    let list_box = gtk4::ListBox::builder()
+        .css_classes(["boxed-list"])
+        .selection_mode(gtk4::SelectionMode::None)
+        .build();
+    content_vbox.append(&list_box);
+
     let initial_options = build_share_options(pkg, None);
-    render_option_rows(&options_box, &initial_options, &toast_lbl);
+    populate_share_list(&list_box, &initial_options);
 
-    // Asynchronously resolve alternatives to find Flatpak ID if available
     let store_c = store.clone();
     let pkg_name = pkg.name.clone();
     let pkg_clone = pkg.clone();
-    let options_box_c = options_box.clone();
-    let toast_lbl_c = toast_lbl.clone();
+    let list_box_c = list_box.clone();
 
     glib::spawn_future_local(async move {
         if let Ok(alts) = store_c.get_alternatives(&pkg_name).await {
@@ -277,13 +245,34 @@ pub fn create_share_button(pkg: &Package, store: &Store) -> gtk4::MenuButton {
             });
             if flatpak_alt.is_some() {
                 let updated_options = build_share_options(&pkg_clone, flatpak_alt.as_deref());
-                render_option_rows(&options_box_c, &updated_options, &toast_lbl_c);
+                populate_share_list(&list_box_c, &updated_options);
             }
         }
     });
 
-    popover.set_child(Some(&content_box));
-    btn.set_popover(Some(&popover));
+    clamp.set_child(Some(&content_vbox));
+    scrolled.set_child(Some(&clamp));
+    toolbar_view.set_content(Some(&scrolled));
+    dialog.set_child(Some(&toolbar_view));
+
+    dialog.present(Some(parent));
+}
+
+pub fn create_share_button(pkg: &Package, store: &Store) -> gtk4::Button {
+    let btn = gtk4::Button::builder()
+        .icon_name("emblem-shared-symbolic")
+        .tooltip_text(pastor_core::tr("Share application"))
+        .css_classes(["flat", "circular"])
+        .valign(gtk4::Align::Center)
+        .build();
+    btn.update_property(&[gtk4::accessible::Property::Label(pastor_core::tr("Share application"))]);
+
+    let pkg_c = pkg.clone();
+    let store_c = store.clone();
+    let btn_c = btn.clone();
+    btn.connect_clicked(move |_| {
+        show_share_dialog(&btn_c, &pkg_c, &store_c);
+    });
 
     btn
 }

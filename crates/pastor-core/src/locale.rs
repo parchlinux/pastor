@@ -515,6 +515,7 @@ pub struct LocalizedDescription {
     pub best_paragraphs: Vec<String>,
     pub current_block_score: Option<usize>,
     pub current_block_paragraphs: Vec<String>,
+    pub is_block_rejected: bool,
 }
 
 impl LocalizedDescription {
@@ -524,51 +525,68 @@ impl LocalizedDescription {
             best_paragraphs: Vec::new(),
             current_block_score: None,
             current_block_paragraphs: Vec::new(),
+            is_block_rejected: false,
         }
     }
 
-    pub fn start_description_tag(&mut self, lang_score: Option<usize>) {
-        self.current_block_score = lang_score;
+    /// Called at `<description ...>`.
+    /// `is_tagged`: true if `xml:lang` was explicitly present on `<description>`.
+    /// `lang_score`: score from `LocaleMatcher::score(xml_lang)`.
+    pub fn start_description_tag(&mut self, is_tagged: bool, lang_score: Option<usize>) {
+        if is_tagged && lang_score.is_none() {
+            // Block is explicitly tagged with an unsupported language: reject entirely
+            self.is_block_rejected = true;
+            self.current_block_score = None;
+        } else {
+            self.is_block_rejected = false;
+            self.current_block_score = lang_score;
+        }
         self.current_block_paragraphs.clear();
     }
 
-    pub fn add_paragraph(&mut self, p_lang_score: Option<usize>, text: &str) {
+    /// Add a paragraph or list item.
+    /// `p_has_lang`: true if `<p>` or `<li>` has its own explicit `xml:lang` attribute.
+    /// `p_lang_score`: score from `LocaleMatcher::score(p_lang)`.
+    pub fn add_paragraph(&mut self, p_has_lang: bool, p_lang_score: Option<usize>, text: &str) {
+        if self.is_block_rejected {
+            return;
+        }
         let t = text.trim();
         if t.is_empty() {
             return;
         }
 
-        // If p has an explicit lang score, check it; otherwise fallback to block score
-        let effective_score = if p_lang_score.is_some() {
-            p_lang_score
-        } else {
-            self.current_block_score
-        };
-
-        if let Some(score) = effective_score {
-            if self.current_block_score.is_none() {
-                // Inline paragraph-level localization
+        if p_has_lang {
+            // Inline paragraph-level localization
+            if let Some(score) = p_lang_score {
                 if score < self.best_score {
                     self.best_score = score;
                     self.best_paragraphs = vec![t.to_string()];
                 } else if score == self.best_score {
                     self.best_paragraphs.push(t.to_string());
                 }
-            } else {
-                self.current_block_paragraphs.push(t.to_string());
             }
+            return;
+        }
+
+        // Paragraph belongs to current block
+        if self.current_block_score.is_some() {
+            self.current_block_paragraphs.push(t.to_string());
         }
     }
 
     pub fn end_description_tag(&mut self) {
-        if let Some(score) = self.current_block_score {
-            if !self.current_block_paragraphs.is_empty() && score < self.best_score {
-                self.best_score = score;
-                self.best_paragraphs = std::mem::take(&mut self.current_block_paragraphs);
+        if !self.is_block_rejected {
+            if let Some(score) = self.current_block_score {
+                if !self.current_block_paragraphs.is_empty() && score < self.best_score {
+                    self.best_score = score;
+                    self.best_paragraphs = std::mem::take(&mut self.current_block_paragraphs);
+                }
             }
         }
         self.current_block_paragraphs.clear();
         self.current_block_score = None;
+        self.is_block_rejected = false;
     }
 
     pub fn finish(&mut self) -> Option<String> {
@@ -615,24 +633,48 @@ mod tests {
         let mut desc = LocalizedDescription::new();
 
         // 1. English description block
-        desc.start_description_tag(matcher.score(Some("en")));
-        desc.add_paragraph(None, "English paragraph 1");
-        desc.add_paragraph(None, "English paragraph 2");
+        desc.start_description_tag(false, matcher.score(None));
+        desc.add_paragraph(false, None, "English paragraph 1");
+        desc.add_paragraph(false, None, "English paragraph 2");
         desc.end_description_tag();
 
-        // 2. German description block (should be ignored)
-        desc.start_description_tag(matcher.score(Some("de")));
-        desc.add_paragraph(None, "Deutscher Absatz 1");
+        // 2. German description block (must be completely ignored)
+        desc.start_description_tag(true, matcher.score(Some("de")));
+        desc.add_paragraph(false, None, "Deutscher Absatz 1");
         desc.end_description_tag();
 
-        // 3. Persian description block (should win over English)
-        desc.start_description_tag(matcher.score(Some("fa")));
-        desc.add_paragraph(None, "پاراگراف فارسی ۱");
-        desc.add_paragraph(None, "پاراگراف فارسی ۲");
+        // 3. Persian description block (must win over English fallback)
+        desc.start_description_tag(true, matcher.score(Some("fa")));
+        desc.add_paragraph(false, None, "پاراگراف فارسی ۱");
+        desc.add_paragraph(false, None, "پاراگراف فارسی ۲");
         desc.end_description_tag();
 
         let final_text = desc.finish().unwrap();
         assert_eq!(final_text, "پاراگراف فارسی ۱\n\nپاراگراف فارسی ۲");
+    }
+
+    #[test]
+    fn test_reject_unpreferred_multilingual_blocks() {
+        let matcher = LocaleMatcher::new(vec!["en_US".into(), "en".into()]);
+        let mut desc = LocalizedDescription::new();
+
+        // 1. English default description
+        desc.start_description_tag(false, matcher.score(None));
+        desc.add_paragraph(false, None, "Manage all things Flatpak.");
+        desc.end_description_tag();
+
+        // 2. Arabic description (must be completely rejected)
+        desc.start_description_tag(true, matcher.score(Some("ar")));
+        desc.add_paragraph(false, None, "أدِر كل ما يتعلق بفلاتباك");
+        desc.end_description_tag();
+
+        // 3. Chinese description (must be completely rejected)
+        desc.start_description_tag(true, matcher.score(Some("zh-Hant")));
+        desc.add_paragraph(false, None, "管理所有 Flatpak");
+        desc.end_description_tag();
+
+        let final_text = desc.finish().unwrap();
+        assert_eq!(final_text, "Manage all things Flatpak.");
     }
 
     #[test]
