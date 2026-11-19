@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   build-x86_64:
@@ -85,29 +86,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Build on Arch Linux ARM
+        uses: uraimo/run-on-arch-action@v3
         with:
-          platforms: linux/arm64
-
-      - name: Build in Arch Linux ARM container
-        run: |
-          docker run --rm --platform linux/arm64 \
-            -v "$PWD:/workspace" \
-            -w /workspace \
-            agners/archlinuxarm-base-devel:latest /bin/bash -c "
-              set -ex
-              pacman -Syu --noconfirm --needed git cargo rust gettext gtk4 libadwaita flatpak appstream openssl
-              if [ -f po/LINGUAS ]; then
-                while read -r lang; do
-                  [ -z \"\$lang\" ] && continue
-                  if [ -f \"po/\${lang}.po\" ]; then
-                    msgfmt -c \"po/\${lang}.po\" -o \"po/\${lang}.mo\"
-                  fi
-                done < po/LINGUAS
-              fi
-              cargo build --release -p pastor-ui
-            "
+          arch: aarch64
+          distro: archarm_latest
+          githubToken: ${{ github.token }}
+          install: |
+            pacman -Syu --noconfirm --needed git cargo rust gettext gtk4 libadwaita flatpak appstream openssl
+          run: |
+            if [ -f po/LINGUAS ]; then
+              while read -r lang; do
+                [ -z "$lang" ] && continue
+                if [ -f "po/${lang}.po" ]; then
+                  msgfmt -c "po/${lang}.po" -o "po/${lang}.mo"
+                fi
+              done < po/LINGUAS
+            fi
+            cargo build --release -p pastor-ui
 
       - name: Assemble release package
         run: |
