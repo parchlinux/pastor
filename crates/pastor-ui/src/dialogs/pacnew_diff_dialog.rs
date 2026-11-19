@@ -1,5 +1,7 @@
 use std::path::Path;
 use adw::prelude::*;
+use pastor_core::doctor::generate_diff;
+use pastor_core::tr;
 
 pub fn show_pacnew_diff_dialog(
     parent: &impl IsA<gtk4::Widget>,
@@ -8,16 +10,18 @@ pub fn show_pacnew_diff_dialog(
     on_keep: impl FnOnce() + 'static,
     on_replace: impl FnOnce() + 'static,
 ) {
-    let title = format!(
-        "{}: {}",
-        pastor_core::tr("Configuration Diff"),
-        original_path.file_name().and_then(|n| n.to_str()).unwrap_or("config")
-    );
+    let file_name = original_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("config");
+
+    let window_title = format!("{}: {}", tr("Configuration Diff"), file_name);
 
     let window = adw::Window::builder()
-        .title(&title)
-        .default_width(900)
-        .default_height(650)
+        .title(&window_title)
+        .default_width(740)
+        .default_height(580)
+        .width_request(340)
         .modal(true)
         .build();
 
@@ -35,9 +39,10 @@ pub fn show_pacnew_diff_dialog(
 
     let win_weak = window.downgrade();
     let keep_btn = gtk4::Button::builder()
-        .label(pastor_core::tr("Keep Current"))
-        .tooltip_text(pastor_core::tr("Discard the new .pacnew candidate and preserve existing configuration"))
+        .label(tr("Keep Current"))
+        .tooltip_text(tr("Discard the .pacnew template and preserve your existing configuration"))
         .css_classes(["flat"])
+        .valign(gtk4::Align::Center)
         .build();
     let cb_keep = on_keep_cell.clone();
     let w_k = win_weak.clone();
@@ -51,9 +56,10 @@ pub fn show_pacnew_diff_dialog(
     });
 
     let replace_btn = gtk4::Button::builder()
-        .label(pastor_core::tr("Replace with New"))
-        .tooltip_text(pastor_core::tr("Overwrite the existing file with the .pacnew configuration"))
+        .label(tr("Replace with New"))
+        .tooltip_text(tr("Overwrite the existing file with the new configuration template"))
         .css_classes(["suggested-action"])
+        .valign(gtk4::Align::Center)
         .build();
     let cb_replace = on_replace_cell.clone();
     let w_r = win_weak.clone();
@@ -70,79 +76,200 @@ pub fn show_pacnew_diff_dialog(
     header_bar.pack_end(&replace_btn);
     toolbar_view.add_top_bar(&header_bar);
 
-    let orig_text = std::fs::read_to_string(original_path)
-        .unwrap_or_else(|_| pastor_core::tr("(Original file does not exist or cannot be read)").to_string());
-    let cand_text = std::fs::read_to_string(candidate_path)
-        .unwrap_or_else(|_| pastor_core::tr("(Candidate .pacnew file cannot be read)").to_string());
+    // ViewStack with:
+    // 1. Changes (Unified Colorful Diff)
+    // 2. Current File
+    // 3. New Template
+    let view_stack = adw::ViewStack::new();
 
-    let paned = gtk4::Paned::builder()
+    // 1. Unified Diff View
+    let diff_text = generate_diff(original_path, candidate_path);
+    let mut additions_count = 0;
+    let mut deletions_count = 0;
+    for line in diff_text.lines() {
+        if line.starts_with('+') && !line.starts_with("+++") {
+            additions_count += 1;
+        } else if line.starts_with('-') && !line.starts_with("---") {
+            deletions_count += 1;
+        }
+    }
+
+    let diff_box = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(6)
+        .build();
+
+    let stats_bar = gtk4::Box::builder()
         .orientation(gtk4::Orientation::Horizontal)
-        .position(440)
-        .wide_handle(true)
+        .spacing(8)
+        .margin_top(8)
+        .margin_bottom(4)
+        .margin_start(12)
+        .margin_end(12)
         .build();
 
-    // Left pane: Current file
-    let left_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(6)
-        .margin_top(8)
-        .margin_bottom(8)
-        .margin_start(8)
-        .margin_end(4)
+    let adds_badge = gtk4::Label::builder()
+        .label(format!("+{} {}", additions_count, tr("additions")))
+        .css_classes(["badge", "success-badge"])
         .build();
-    let left_lbl = gtk4::Label::builder()
-        .label(format!("{}: {}", pastor_core::tr("Current"), original_path.display()))
-        .css_classes(["heading", "caption"])
-        .halign(gtk4::Align::Start)
+
+    let dels_badge = gtk4::Label::builder()
+        .label(format!("-{} {}", deletions_count, tr("removals")))
+        .css_classes(["badge", "destructive-badge"])
+        .build();
+
+    let path_label = gtk4::Label::builder()
+        .label(format!("{}: {}", tr("File"), original_path.display()))
+        .css_classes(["dim-label", "caption"])
         .ellipsize(gtk4::pango::EllipsizeMode::Middle)
+        .hexpand(true)
+        .halign(gtk4::Align::End)
         .build();
-    let left_tv = gtk4::TextView::builder()
+
+    stats_bar.append(&adds_badge);
+    stats_bar.append(&dels_badge);
+    stats_bar.append(&path_label);
+    diff_box.append(&stats_bar);
+
+    let diff_tv = gtk4::TextView::builder()
         .monospace(true)
         .editable(false)
+        .cursor_visible(false)
         .wrap_mode(gtk4::WrapMode::WordChar)
+        .left_margin(12)
+        .right_margin(12)
+        .top_margin(8)
+        .bottom_margin(8)
         .build();
-    left_tv.buffer().set_text(&orig_text);
-    let left_sw = gtk4::ScrolledWindow::builder()
+    populate_diff_buffer(&diff_tv.buffer(), &diff_text);
+
+    let diff_sw = gtk4::ScrolledWindow::builder()
         .vexpand(true)
         .hexpand(true)
-        .child(&left_tv)
+        .child(&diff_tv)
         .build();
-    left_box.append(&left_lbl);
-    left_box.append(&left_sw);
+    diff_box.append(&diff_sw);
 
-    // Right pane: .pacnew candidate
-    let right_box = gtk4::Box::builder()
-        .orientation(gtk4::Orientation::Vertical)
-        .spacing(6)
-        .margin_top(8)
-        .margin_bottom(8)
-        .margin_start(4)
-        .margin_end(8)
-        .build();
-    let right_lbl = gtk4::Label::builder()
-        .label(format!("{}: {}", pastor_core::tr("New Candidate"), candidate_path.display()))
-        .css_classes(["heading", "caption"])
-        .halign(gtk4::Align::Start)
-        .ellipsize(gtk4::pango::EllipsizeMode::Middle)
-        .build();
-    let right_tv = gtk4::TextView::builder()
+    let diff_page = view_stack.add_titled(&diff_box, Some("changes"), &tr("Changes"));
+    diff_page.set_icon_name(Some("format-text-diff-symbolic"));
+
+    // 2. Current File View
+    let orig_text = std::fs::read_to_string(original_path)
+        .unwrap_or_else(|_| tr("(Original file does not exist or cannot be read)").to_string());
+    let orig_tv = gtk4::TextView::builder()
         .monospace(true)
         .editable(false)
+        .cursor_visible(false)
         .wrap_mode(gtk4::WrapMode::WordChar)
+        .left_margin(12)
+        .right_margin(12)
+        .top_margin(8)
+        .bottom_margin(8)
         .build();
-    right_tv.buffer().set_text(&cand_text);
-    let right_sw = gtk4::ScrolledWindow::builder()
+    orig_tv.buffer().set_text(&orig_text);
+    let orig_sw = gtk4::ScrolledWindow::builder()
         .vexpand(true)
         .hexpand(true)
-        .child(&right_tv)
+        .child(&orig_tv)
         .build();
-    right_box.append(&right_lbl);
-    right_box.append(&right_sw);
+    let orig_page = view_stack.add_titled(&orig_sw, Some("current"), &tr("Current File"));
+    orig_page.set_icon_name(Some("document-open-symbolic"));
 
-    paned.set_start_child(Some(&left_box));
-    paned.set_end_child(Some(&right_box));
+    // 3. New Candidate View
+    let cand_text = std::fs::read_to_string(candidate_path)
+        .unwrap_or_else(|_| tr("(Candidate .pacnew file cannot be read)").to_string());
+    let cand_tv = gtk4::TextView::builder()
+        .monospace(true)
+        .editable(false)
+        .cursor_visible(false)
+        .wrap_mode(gtk4::WrapMode::WordChar)
+        .left_margin(12)
+        .right_margin(12)
+        .top_margin(8)
+        .bottom_margin(8)
+        .build();
+    cand_tv.buffer().set_text(&cand_text);
+    let cand_sw = gtk4::ScrolledWindow::builder()
+        .vexpand(true)
+        .hexpand(true)
+        .child(&cand_tv)
+        .build();
+    let cand_page = view_stack.add_titled(&cand_sw, Some("incoming"), &tr("New Template"));
+    cand_page.set_icon_name(Some("document-new-symbolic"));
 
-    toolbar_view.set_content(Some(&paned));
+    // View Switchers: Top (Desktop) and Bottom Bar (Mobile)
+    let top_switcher = adw::ViewSwitcher::builder()
+        .stack(&view_stack)
+        .policy(adw::ViewSwitcherPolicy::Wide)
+        .build();
+    header_bar.set_title_widget(Some(&top_switcher));
+
+    let bottom_switcher_bar = adw::ViewSwitcherBar::builder()
+        .stack(&view_stack)
+        .build();
+    toolbar_view.add_bottom_bar(&bottom_switcher_bar);
+
+    // Adaptive mobile layout breakpoint (< 540px)
+    let mobile_bp = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
+        adw::BreakpointConditionLengthType::MaxWidth,
+        540.0,
+        adw::LengthUnit::Px,
+    ));
+    mobile_bp.add_setter(&bottom_switcher_bar, "reveal", Some(&true.into()));
+    mobile_bp.add_setter(&top_switcher, "visible", Some(&false.into()));
+    window.add_breakpoint(mobile_bp);
+
+    toolbar_view.set_content(Some(&view_stack));
     window.set_content(Some(&toolbar_view));
     window.present();
+}
+
+fn populate_diff_buffer(buffer: &gtk4::TextBuffer, diff_text: &str) {
+    let tag_table = buffer.tag_table();
+
+    let tag_add = gtk4::TextTag::builder()
+        .name("diff-add")
+        .foreground("#2ec27e")
+        .paragraph_background("rgba(46, 194, 126, 0.15)")
+        .build();
+
+    let tag_del = gtk4::TextTag::builder()
+        .name("diff-del")
+        .foreground("#e01b24")
+        .paragraph_background("rgba(224, 27, 36, 0.15)")
+        .build();
+
+    let tag_chunk = gtk4::TextTag::builder()
+        .name("diff-chunk")
+        .foreground("#3584e4")
+        .weight(700)
+        .build();
+
+    let tag_meta = gtk4::TextTag::builder()
+        .name("diff-meta")
+        .foreground("#9a9996")
+        .weight(700)
+        .build();
+
+    let _ = tag_table.add(&tag_add);
+    let _ = tag_table.add(&tag_del);
+    let _ = tag_table.add(&tag_chunk);
+    let _ = tag_table.add(&tag_meta);
+
+    buffer.set_text("");
+    let mut iter = buffer.end_iter();
+
+    for line in diff_text.lines() {
+        if line.starts_with("+++") || line.starts_with("---") {
+            buffer.insert_with_tags(&mut iter, &format!("{line}\n"), &[&tag_meta]);
+        } else if line.starts_with("@@") {
+            buffer.insert_with_tags(&mut iter, &format!("{line}\n"), &[&tag_chunk]);
+        } else if line.starts_with('+') {
+            buffer.insert_with_tags(&mut iter, &format!("{line}\n"), &[&tag_add]);
+        } else if line.starts_with('-') {
+            buffer.insert_with_tags(&mut iter, &format!("{line}\n"), &[&tag_del]);
+        } else {
+            buffer.insert(&mut iter, &format!("{line}\n"));
+        }
+    }
 }

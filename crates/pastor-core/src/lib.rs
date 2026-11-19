@@ -10,8 +10,9 @@ pub mod transaction;
 pub use backend::PackageBackend;
 pub use cache::{cleanup_stale_caches, pastor_cache_dir};
 pub use doctor::{
-    check_database_lock, parse_pacman_pkg_filename, scan_pacman_cache, scan_pacnew_files,
-    CacheHealthInfo, DatabaseLockInfo, DoctorReport, OrphanPackage, PacnewFile, PacnewKind,
+    check_database_lock, generate_diff, parse_pacman_pkg_filename, scan_pacman_cache,
+    scan_pacnew_files, CacheHealthInfo, DatabaseLockInfo, DoctorReport, OrphanPackage, PacnewFile,
+    PacnewKind,
 };
 pub use error::PastorError;
 pub use locale::{

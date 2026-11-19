@@ -329,6 +329,24 @@ button.dependency-tag:hover {
     padding: 1px 6px;
 }
 
+.success-badge {
+    background-color: alpha(#2ec27e, 0.18);
+    color: #2ec27e;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.76rem;
+}
+
+.destructive-badge {
+    background-color: alpha(#e01b24, 0.18);
+    color: #e01b24;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 0.76rem;
+}
+
 .package-grid-action-btn,
 .pastor-narrow .package-grid-action-btn {
     min-height: 28px;

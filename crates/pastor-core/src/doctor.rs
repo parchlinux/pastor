@@ -287,6 +287,30 @@ pub fn parse_pacman_pkg_filename(filename: &str) -> Option<(String, String)> {
     Some((name.to_string(), full_version))
 }
 
+/// Generates a unified diff between the original file and candidate file using diff -u.
+pub fn generate_diff(original: impl AsRef<Path>, candidate: impl AsRef<Path>) -> String {
+    let orig = original.as_ref();
+    let cand = candidate.as_ref();
+
+    let output = std::process::Command::new("diff")
+        .args(["-u", "-N"])
+        .arg(orig)
+        .arg(cand)
+        .output();
+
+    match output {
+        Ok(out) => {
+            let s = String::from_utf8_lossy(&out.stdout).to_string();
+            if s.trim().is_empty() {
+                "(No differences found between current configuration and candidate file)".to_string()
+            } else {
+                s
+            }
+        }
+        Err(e) => format!("Failed to execute diff: {e}"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -377,6 +401,27 @@ mod tests {
         let info = scan_pacman_cache(&cache, 2);
         assert_eq!(info.total_packages_cached, 4);
         assert_eq!(info.reclaimable_packages, 1);
+        let _ = std::fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn test_generate_diff() {
+        use std::io::Write;
+        let temp = make_test_dir("doctor_diff");
+        let a = temp.join("config.conf");
+        let b = temp.join("config.conf.pacnew");
+
+        let mut fa = File::create(&a).unwrap();
+        writeln!(fa, "old line 1\nkeep line").unwrap();
+
+        let mut fb = File::create(&b).unwrap();
+        writeln!(fb, "new line 1\nkeep line\nadded line").unwrap();
+
+        let diff = generate_diff(&a, &b);
+        assert!(diff.contains("-old line 1"));
+        assert!(diff.contains("+new line 1"));
+        assert!(diff.contains("+added line"));
+
         let _ = std::fs::remove_dir_all(temp);
     }
 }
