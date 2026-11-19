@@ -24,7 +24,7 @@ pub fn create_snapshots_view(
 
     // View Title Header
     let title_label = gtk4::Label::builder()
-        .label("Snapper System Snapshots")
+        .label(pastor_core::tr("Snapper System Snapshots"))
         .css_classes(["title-2"])
         .halign(gtk4::Align::Start)
         .build();
@@ -32,15 +32,15 @@ pub fn create_snapshots_view(
 
     // Banner
     let banner = adw::Banner::builder()
-        .title("Parch Store automatically creates a paired Snapper Btrfs snapshot before and after every package transaction.")
+        .title(pastor_core::tr("Parch Store automatically creates a paired Snapper Btrfs snapshot before and after every package transaction."))
         .revealed(true)
         .build();
     content_box.append(&banner);
 
     // Snapshots List Group
     let list_group = adw::PreferencesGroup::builder()
-        .title("Available System Restore Points")
-        .description("Snapshots stored on your root Btrfs filesystem subvolume")
+        .title(pastor_core::tr("Available System Restore Points"))
+        .description(pastor_core::tr("Snapshots stored on your root Btrfs filesystem subvolume"))
         .build();
 
     let list_box = gtk4::ListBox::builder()
@@ -55,24 +55,27 @@ pub fn create_snapshots_view(
         if let Ok(snaps) = backend_clone.list_snapshots().await {
             if snaps.is_empty() {
                 let empty_row = adw::ActionRow::builder()
-                    .title("No Btrfs restore points found")
-                    .subtitle("Snapshots are automatically created during package installations and updates")
+                    .title(pastor_core::tr("No Btrfs restore points found"))
+                    .subtitle(pastor_core::tr("Snapshots are automatically created during package installations and updates"))
                     .sensitive(false)
                     .build();
                 list_box_clone.append(&empty_row);
             } else {
                 for s in snaps {
                     let is_post = s.pre_number.is_some();
+                    let type_str = if is_post {
+                        pastor_core::tr("Post-transaction")
+                    } else {
+                        pastor_core::tr("Pre-transaction")
+                    };
                     let row = adw::ActionRow::builder()
                         .title(format!("#{} - {}", s.number, s.description))
                         .subtitle(format!(
-                            "Date: {} • Type: {}",
+                            "{}: {} • {}: {}",
+                            pastor_core::tr("Date"),
                             s.date.format("%Y-%m-%d %H:%M:%S UTC"),
-                            if is_post {
-                                "Post-transaction"
-                            } else {
-                                "Pre-transaction"
-                            }
+                            pastor_core::tr("Type"),
+                            type_str
                         ))
                         .build();
 
@@ -81,9 +84,9 @@ pub fn create_snapshots_view(
 
                     // Pre/Post visual distinction (SNAP-002)
                     let (badge_lbl, badge_css) = if is_post {
-                        ("Post", "parch-badge-bootc")
+                        (pastor_core::tr("Post"), "parch-badge-bootc")
                     } else {
-                        ("Pre", "parch-badge-world")
+                        (pastor_core::tr("Pre"), "parch-badge-world")
                     };
 
                     let badge = gtk4::Label::builder()
@@ -95,26 +98,28 @@ pub fn create_snapshots_view(
 
                     // Restore Action Button (SNAP-001)
                     let restore_btn = gtk4::Button::builder()
-                        .label("Restore…")
+                        .label(pastor_core::tr("Restore…"))
                         .css_classes(["destructive-action", "flat", "pill"])
                         .valign(gtk4::Align::Center)
-                        .tooltip_text("Rollback system to this snapshot")
+                        .tooltip_text(pastor_core::tr("Rollback system to this snapshot"))
                         .build();
 
                     let s_copy = s.clone();
                     let row_for_dialog = row.clone();
                     restore_btn.connect_clicked(move |_| {
                         let dialog = adw::AlertDialog::builder()
-                            .heading(format!("Restore snapshot #{}?", s_copy.number))
+                            .heading(format!("{} #{}?", pastor_core::tr("Restore snapshot"), s_copy.number))
                             .body(format!(
-                                "\"{}\"\n\nThis will revert your system to the state at {}.\nAny changes made after this snapshot will be lost.",
+                                "\"{}\"\n\n{}: {}.\n{}",
                                 s_copy.description,
-                                s_copy.date.format("%Y-%m-%d %H:%M UTC")
+                                pastor_core::tr("This will revert your system to the state at"),
+                                s_copy.date.format("%Y-%m-%d %H:%M UTC"),
+                                pastor_core::tr("Any changes made after this snapshot will be lost.")
                             ))
                             .build();
 
-                        dialog.add_response("cancel", "Cancel");
-                        dialog.add_response("restore", "Restore System");
+                        dialog.add_response("cancel", pastor_core::tr("Cancel"));
+                        dialog.add_response("restore", pastor_core::tr("Restore System"));
                         dialog.set_response_appearance("restore", adw::ResponseAppearance::Destructive);
                         dialog.set_default_response(Some("cancel"));
                         dialog.set_close_response("cancel");

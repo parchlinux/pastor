@@ -1,0 +1,200 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. v0.4.0)'
+        required: false
+        default: 'v0.4.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-x86_64:
+    name: Build x86_64
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --needed git cargo rust gettext gtk4 libadwaita flatpak appstream openssl
+
+      - name: Compile translation catalogs
+        run: |
+          if [ -f po/LINGUAS ]; then
+            while read -r lang; do
+              [ -z "$lang" ] && continue
+              if [ -f "po/${lang}.po" ]; then
+                msgfmt -c "po/${lang}.po" -o "po/${lang}.mo"
+              fi
+            done < po/LINGUAS
+          fi
+
+      - name: Build release binary
+        run: |
+          cargo build --release -p pastor-ui
+
+      - name: Assemble release package
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if [ -z "$TAG_NAME" ] || [[ "$TAG_NAME" != v* ]]; then
+            TAG_NAME="${{ inputs.version || 'v0.4.0' }}"
+          fi
+          DIST_DIR="dist/pastor-${TAG_NAME}-x86_64"
+          mkdir -p "${DIST_DIR}/usr/bin"
+          mkdir -p "${DIST_DIR}/usr/share/applications"
+          mkdir -p "${DIST_DIR}/usr/share/icons/hicolor/scalable/apps"
+          mkdir -p "${DIST_DIR}/etc/xdg/autostart"
+
+          cp target/release/pastor-ui "${DIST_DIR}/usr/bin/pastor"
+          cp data/com.parchlinux.pastor.desktop "${DIST_DIR}/usr/share/applications/"
+          cp data/com.parchlinux.pastor-autostart.desktop "${DIST_DIR}/etc/xdg/autostart/com.parchlinux.pastor.desktop"
+          cp data/icons/com.parchlinux.pastor.svg "${DIST_DIR}/usr/share/icons/hicolor/scalable/apps/"
+
+          if [ -f po/LINGUAS ]; then
+            while read -r lang; do
+              [ -z "$lang" ] && continue
+              if [ -f "po/${lang}.mo" ]; then
+                mkdir -p "${DIST_DIR}/usr/share/locale/${lang}/LC_MESSAGES"
+                cp "po/${lang}.mo" "${DIST_DIR}/usr/share/locale/${lang}/LC_MESSAGES/pastor.mo"
+              fi
+            done < po/LINGUAS
+          fi
+
+          tar -czvf "pastor-${TAG_NAME}-x86_64.tar.gz" -C dist "pastor-${TAG_NAME}-x86_64"
+
+      - name: Upload x86_64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pastor-x86_64
+          path: pastor-*-x86_64.tar.gz
+
+  build-aarch64:
+    name: Build aarch64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/arm64
+
+      - name: Build in Arch Linux ARM container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            agners/archlinuxarm-base-devel:latest /bin/bash -c "
+              set -ex
+              pacman -Syu --noconfirm --needed git cargo rust gettext gtk4 libadwaita flatpak appstream openssl
+              if [ -f po/LINGUAS ]; then
+                while read -r lang; do
+                  [ -z \"\$lang\" ] && continue
+                  if [ -f \"po/\${lang}.po\" ]; then
+                    msgfmt -c \"po/\${lang}.po\" -o \"po/\${lang}.mo\"
+                  fi
+                done < po/LINGUAS
+              fi
+              cargo build --release -p pastor-ui
+            "
+
+      - name: Assemble release package
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if [ -z "$TAG_NAME" ] || [[ "$TAG_NAME" != v* ]]; then
+            TAG_NAME="${{ inputs.version || 'v0.4.0' }}"
+          fi
+          DIST_DIR="dist/pastor-${TAG_NAME}-aarch64"
+          mkdir -p "${DIST_DIR}/usr/bin"
+          mkdir -p "${DIST_DIR}/usr/share/applications"
+          mkdir -p "${DIST_DIR}/usr/share/icons/hicolor/scalable/apps"
+          mkdir -p "${DIST_DIR}/etc/xdg/autostart"
+
+          cp target/release/pastor-ui "${DIST_DIR}/usr/bin/pastor"
+          cp data/com.parchlinux.pastor.desktop "${DIST_DIR}/usr/share/applications/"
+          cp data/com.parchlinux.pastor-autostart.desktop "${DIST_DIR}/etc/xdg/autostart/com.parchlinux.pastor.desktop"
+          cp data/icons/com.parchlinux.pastor.svg "${DIST_DIR}/usr/share/icons/hicolor/scalable/apps/"
+
+          if [ -f po/LINGUAS ]; then
+            while read -r lang; do
+              [ -z "$lang" ] && continue
+              if [ -f "po/${lang}.mo" ]; then
+                mkdir -p "${DIST_DIR}/usr/share/locale/${lang}/LC_MESSAGES"
+                cp "po/${lang}.mo" "${DIST_DIR}/usr/share/locale/${lang}/LC_MESSAGES/pastor.mo"
+              fi
+            done < po/LINGUAS
+          fi
+
+          tar -czvf "pastor-${TAG_NAME}-aarch64.tar.gz" -C dist "pastor-${TAG_NAME}-aarch64"
+
+      - name: Upload aarch64 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pastor-aarch64
+          path: pastor-*-aarch64.tar.gz
+
+  release:
+    name: Create GitHub Release
+    needs: [build-x86_64, build-aarch64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release_assets
+          find artifacts -type f -name "*.tar.gz" -exec cp {} release_assets/ \;
+          cp PKGBUILD release_assets/
+          ls -la release_assets/
+
+      - name: Extract Release Notes from Changelog
+        id: notes
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          if [ -z "$TAG_NAME" ] || [[ "$TAG_NAME" != v* ]]; then
+            TAG_NAME="${{ inputs.version || 'v0.4.0' }}"
+          fi
+          VERSION="${TAG_NAME#v}"
+          python3 -c "
+          import re
+          version = '$VERSION'
+          with open('CHANGELOG.md', 'r') as f:
+              content = f.read()
+          pattern = r'## \[' + re.escape(version) + r'\][^\n]*\n(.*?)(?=\n## \[|\Z)'
+          match = re.search(pattern, content, re.DOTALL)
+          if match:
+              notes = match.group(1).strip()
+          else:
+              notes = 'Release ' + version
+          with open('RELEASE_NOTES.md', 'w') as out:
+              out.write(notes + '\n')
+          "
+          cat RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.version || 'v0.4.0' }}
+          name: Pastor ${{ github.ref_name || inputs.version || 'v0.4.0' }}
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          files: |
+            release_assets/*

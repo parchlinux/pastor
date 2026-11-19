@@ -339,26 +339,21 @@ fn unescape_po_string(raw: &str) -> String {
 }
 
 static PERSIAN_CATALOG: std::sync::OnceLock<PoCatalog> = std::sync::OnceLock::new();
+static ARABIC_CATALOG: std::sync::OnceLock<PoCatalog> = std::sync::OnceLock::new();
 
-/// Returns the Persian translation catalog parsed from system `.mo` file or embedded `po/fa.po`.
+/// Returns the Persian translation catalog parsed from embedded `po/fa.po`.
 pub fn persian_po_catalog() -> &'static PoCatalog {
     PERSIAN_CATALOG.get_or_init(|| {
-        for path in &[
-            "/usr/share/locale/fa/LC_MESSAGES/pastor.mo",
-            "/usr/share/locale/fa_IR/LC_MESSAGES/pastor.mo",
-            "/usr/local/share/locale/fa/LC_MESSAGES/pastor.mo",
-            "po/fa.mo",
-        ] {
-            if let Ok(bytes) = std::fs::read(path) {
-                if let Some(cat) = PoCatalog::parse_mo(&bytes) {
-                    if !cat.is_empty() {
-                        return cat;
-                    }
-                }
-            }
-        }
         const EMBEDDED_FA_PO: &str = include_str!("../../../po/fa.po");
         PoCatalog::parse(EMBEDDED_FA_PO)
+    })
+}
+
+/// Returns the Arabic translation catalog parsed from embedded `po/ar.po`.
+pub fn arabic_po_catalog() -> &'static PoCatalog {
+    ARABIC_CATALOG.get_or_init(|| {
+        const EMBEDDED_AR_PO: &str = include_str!("../../../po/ar.po");
+        PoCatalog::parse(EMBEDDED_AR_PO)
     })
 }
 
@@ -367,12 +362,12 @@ fn load_catalog_for_lang(lang: &str) -> Option<&'static HashMap<String, &'static
     let base = clean.split('_').next().unwrap_or(&clean);
 
     let search_paths = [
+        format!("po/{clean}.mo"),
+        format!("po/{base}.mo"),
         format!("/usr/share/locale/{clean}/LC_MESSAGES/pastor.mo"),
         format!("/usr/share/locale/{base}/LC_MESSAGES/pastor.mo"),
         format!("/usr/local/share/locale/{clean}/LC_MESSAGES/pastor.mo"),
         format!("/usr/local/share/locale/{base}/LC_MESSAGES/pastor.mo"),
-        format!("po/{clean}.mo"),
-        format!("po/{base}.mo"),
     ];
 
     let mut parsed: Option<PoCatalog> = None;
@@ -390,6 +385,9 @@ fn load_catalog_for_lang(lang: &str) -> Option<&'static HashMap<String, &'static
     if parsed.is_none() && base == "fa" {
         const EMBEDDED_FA_PO: &str = include_str!("../../../po/fa.po");
         parsed = Some(PoCatalog::parse(EMBEDDED_FA_PO));
+    } else if parsed.is_none() && base == "ar" {
+        const EMBEDDED_AR_PO: &str = include_str!("../../../po/ar.po");
+        parsed = Some(PoCatalog::parse(EMBEDDED_AR_PO));
     }
 
     let cat = parsed?;
@@ -445,6 +443,22 @@ pub fn tr(text: &str) -> &str {
             }
         }
     }
+
+    // Fallback to embedded catalogs if the loaded system/local .mo file is outdated or missing keys
+    if base == "fa" {
+        if let Some(trans) = persian_po_catalog().get(text) {
+            if !trans.is_empty() {
+                return trans;
+            }
+        }
+    } else if base == "ar" {
+        if let Some(trans) = arabic_po_catalog().get(text) {
+            if !trans.is_empty() {
+                return trans;
+            }
+        }
+    }
+
     text
 }
 
@@ -466,6 +480,22 @@ pub fn tr_static(text: &'static str) -> &'static str {
             }
         }
     }
+
+    // Fallback to embedded catalogs if the loaded system/local .mo file is outdated or missing keys
+    if base == "fa" {
+        if let Some(trans) = persian_po_catalog().get(text) {
+            if !trans.is_empty() {
+                return trans;
+            }
+        }
+    } else if base == "ar" {
+        if let Some(trans) = arabic_po_catalog().get(text) {
+            if !trans.is_empty() {
+                return trans;
+            }
+        }
+    }
+
     text
 }
 
@@ -700,6 +730,10 @@ mod tests {
         assert_eq!(tr("Uninstall"), "حذف");
         assert_eq!(tr("Share Application"), "اشتراک‌گذاری برنامه");
         assert_eq!(tr("Flathub (Flatpak)"), "فلت‌هاب (فلت‌پک)");
+        assert_eq!(tr("Parch Doctor"), "پزشک پارچ");
+        assert_eq!(tr("Snapshots"), "نقاط بازیابی");
+        assert_eq!(tr("Snapper System Snapshots"), "نقاط بازیابی سیستم Snapper");
+        assert_eq!(tr("A complete store for Parch GNU/Linux."), "یک فروشگاه کامل برای پارچ گنو/لینوکس.");
 
         // Reset
         set_persian_mode(None);
@@ -731,6 +765,17 @@ mod tests {
         assert!(!is_persian());
         assert!(!is_rtl());
         assert_eq!(tr("Explore"), "Explore");
+
+        // Test Arabic language
+        set_language(Some("ar"));
+        assert_eq!(active_language(), "ar");
+        assert!(is_rtl());
+        assert_eq!(tr("Explore"), "استكشاف");
+        assert_eq!(tr_static("Explore"), "استكشاف");
+        assert_eq!(tr("Parch Doctor"), "طبيب بارتش");
+        assert_eq!(tr("Snapshots"), "اللقطات");
+        assert_eq!(tr("Snapper System Snapshots"), "لقطات نظام Snapper");
+        assert_eq!(tr("A complete store for Parch GNU/Linux."), "متجر متكامل لنظام بارتش غنو/لينكس.");
 
         // Clean reset
         set_language(None);

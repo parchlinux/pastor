@@ -1,23 +1,22 @@
-# Persian translation for pastor.
+# Translation template for pastor.
 # Copyright (C) 2026 ParchLinux Team
 # This file is distributed under the same license as the pastor package.
-# Sohrab Behdani <behdanisohrab@gmail.com>, 2026.
+# ParchLinux Team <contact@parchlinux.com>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: pastor 0.3.2\n"
+"Project-Id-Version: pastor 0.4.0\n"
 "Report-Msgid-Bugs-To: https://github.com/parchlinux/pastor/issues\n"
-"POT-Creation-Date: 2026-10-26 10:00+0330\n"
-"PO-Revision-Date: 2026-10-26 10:00+0330\n"
-"Last-Translator: Sohrab Behdani <behdanisohrab@gmail.com>\n"
-"Language-Team: Persian <parchlinux@googlegroups.com>\n"
+"POT-Creation-Date: 2026-11-19 13:40+0330\n"
+"PO-Revision-Date: 2026-11-19 13:40+0330\n"
+"Last-Translator: ParchLinux Team <contact@parchlinux.com>\n"
+"Language-Team: \n"
 "Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-# Navigation & Sidebar
 msgid "Parch Store"
 msgstr ""
 
@@ -51,7 +50,6 @@ msgstr ""
 msgid "Search packages…"
 msgstr ""
 
-# Categories
 msgid "Featured"
 msgstr ""
 
@@ -103,7 +101,6 @@ msgstr ""
 msgid "Utilities"
 msgstr ""
 
-# Explore View Sections
 msgid "Featured Applications"
 msgstr ""
 
@@ -167,7 +164,6 @@ msgstr ""
 msgid "See All"
 msgstr ""
 
-# Installed View
 msgid "Installed Applications"
 msgstr ""
 
@@ -222,7 +218,6 @@ msgstr ""
 msgid "No packages match the selected filters."
 msgstr ""
 
-# Updates View
 msgid "Software Updates"
 msgstr ""
 
@@ -280,7 +275,6 @@ msgstr ""
 msgid "Android Apps"
 msgstr ""
 
-# Action Buttons & States
 msgid "Install"
 msgstr ""
 
@@ -338,7 +332,6 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-# Package Details View
 msgid "Screenshots"
 msgstr ""
 
@@ -411,7 +404,6 @@ msgstr ""
 msgid "ParchLinux Contributors"
 msgstr ""
 
-# Badges & Sources
 msgid "Parch [world]"
 msgstr ""
 
@@ -433,7 +425,6 @@ msgstr ""
 msgid "Waydroid"
 msgstr ""
 
-# Share Feature
 msgid "Share application"
 msgstr ""
 
@@ -479,7 +470,6 @@ msgstr ""
 msgid "ParchLinux repository package"
 msgstr ""
 
-# Transaction Bar & Operations
 msgid "Transactions"
 msgstr ""
 
@@ -510,7 +500,6 @@ msgstr ""
 msgid "Clear Finished"
 msgstr ""
 
-# Settings / Preferences
 msgid "Preferences"
 msgstr ""
 
@@ -553,7 +542,6 @@ msgstr ""
 msgid "Clear Package Cache"
 msgstr ""
 
-# AUR Review Dialog
 msgid "AUR Package Review"
 msgstr ""
 
@@ -572,7 +560,6 @@ msgstr ""
 msgid "Diff"
 msgstr ""
 
-# About & Shortcuts
 msgid "About Pastor"
 msgstr ""
 
@@ -600,7 +587,10 @@ msgstr ""
 msgid "ParchLinux Team"
 msgstr ""
 
-msgid "A modern, native package management and software center for ParchLinux.\n\nSupporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots."
+msgid ""
+"A modern, native package management and software center for ParchLinux.\n"
+"\n"
+"Supporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots."
 msgstr ""
 
 msgid "Navigation & Search"
@@ -880,4 +870,319 @@ msgid "Display Repository Badges"
 msgstr ""
 
 msgid "Show [world], [void], AUR, and Flatpak badges on application cards"
+msgstr ""
+
+msgid "(Candidate .pacnew file cannot be read)"
+msgstr ""
+
+msgid "(Original file does not exist or cannot be read)"
+msgstr ""
+
+msgid "All Sources"
+msgstr ""
+
+msgid "All configuration files are up to date"
+msgstr ""
+
+msgid "All installed packages are required by the system or explicitly tracked"
+msgstr ""
+
+msgid "Arch Linux package archives stored in /var/cache/pacman/pkg"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "Browse applications in this category"
+msgstr ""
+
+msgid "Btrfs Snapshots"
+msgstr ""
+
+msgid "Candidate"
+msgstr ""
+
+msgid "Changes"
+msgstr ""
+
+msgid "Choose a link below to copy or open in browser"
+msgstr ""
+
+msgid "Clean"
+msgstr ""
+
+msgid "Clean Cache"
+msgstr ""
+
+msgid "Clean Package Cache?"
+msgstr ""
+
+msgid "Configuration Diff"
+msgstr ""
+
+msgid "Configuration Drift (.pacnew)"
+msgstr ""
+
+msgid "Copied!"
+msgstr ""
+
+msgid "Create Btrfs system restore point before applying changes"
+msgstr ""
+
+msgid "Current File"
+msgstr ""
+
+msgid "Database Lock Active"
+msgstr ""
+
+msgid "Database Lock Status"
+msgstr ""
+
+msgid "Discard .pacnew and keep existing file"
+msgstr ""
+
+msgid "Discard the .pacnew template and preserve your existing configuration"
+msgstr ""
+
+msgid "File"
+msgstr ""
+
+msgid "Filter by source"
+msgstr ""
+
+msgid "Grid view"
+msgstr ""
+
+msgid "Held by process"
+msgstr ""
+
+msgid "Immutable Base OS"
+msgstr ""
+
+msgid "Installed Software"
+msgstr ""
+
+msgid "Keep Current"
+msgstr ""
+
+msgid "List view"
+msgstr ""
+
+msgid "Menu and Preferences"
+msgstr ""
+
+msgid "Name (Z-A)"
+msgstr ""
+
+msgid "New Template"
+msgstr ""
+
+msgid "No .pacnew or .pacsave files found in /etc"
+msgstr ""
+
+msgid "No orphaned packages found"
+msgstr ""
+
+msgid "No running pacman process detected. Safe to remove."
+msgstr ""
+
+msgid "Official web link (apps.parchlinux.com)"
+msgstr ""
+
+msgid "Orphaned Packages"
+msgstr ""
+
+msgid "Overwrite current file with .pacnew"
+msgstr ""
+
+msgid "Overwrite the existing file with the new configuration template"
+msgstr ""
+
+msgid "Package Cache Storage"
+msgstr ""
+
+msgid "Pacman process lock file at /var/lib/pacman/db.lck"
+msgstr ""
+
+msgid "Parch Apps Store"
+msgstr ""
+
+msgid "Parch Doctor"
+msgstr ""
+
+msgid "Parch Doctor found"
+msgstr ""
+
+msgid "Parch Linux Package"
+msgstr ""
+
+msgid "Proceed"
+msgstr ""
+
+msgid "Reclaimable Cache Space"
+msgstr ""
+
+msgid "Refresh Diagnostics"
+msgstr ""
+
+msgid "Remove All Orphans"
+msgstr ""
+
+msgid "Remove Database Lock?"
+msgstr ""
+
+msgid "Remove Orphaned Packages?"
+msgstr ""
+
+msgid "Remove Stale Lock"
+msgstr ""
+
+msgid "Replace"
+msgstr ""
+
+msgid "Replace Configuration"
+msgstr ""
+
+msgid "Replace with New"
+msgstr ""
+
+msgid "Scanning system health and configuration status…"
+msgstr ""
+
+msgid "Security"
+msgstr ""
+
+msgid "Size"
+msgstr ""
+
+msgid "Snapshots"
+msgstr ""
+
+msgid "Stale Database Lock Detected"
+msgstr ""
+
+msgid "System health, configuration drift, and maintenance diagnostics"
+msgstr ""
+
+msgid "System is healthy: No configuration drift, stale locks, or orphaned packages detected."
+msgstr ""
+
+msgid "These packages were installed as dependencies but are no longer needed by any installed software."
+msgstr ""
+
+msgid "This will delete /var/lib/pacman/db.lck so new package installations can proceed."
+msgstr ""
+
+msgid "This will overwrite your existing configuration file with the new package template."
+msgstr ""
+
+msgid "This will remove obsolete cached package tarballs, keeping the two latest versions for safe rollbacks."
+msgstr ""
+
+msgid "Total Cached Packages"
+msgstr ""
+
+msgid "Total reclaimable space"
+msgstr ""
+
+msgid "Unneeded dependencies that are no longer required by any installed package"
+msgstr ""
+
+msgid "Updates are installed safely. Snapper snapshots are created prior to applying."
+msgstr ""
+
+msgid "Upstream package updates that installed new configuration templates"
+msgstr ""
+
+msgid "Varies"
+msgstr ""
+
+msgid "View Diff"
+msgstr ""
+
+msgid "additions"
+msgstr ""
+
+msgid "items requiring review."
+msgstr ""
+
+msgid "older versions beyond latest 2"
+msgstr ""
+
+msgid "orphans detected"
+msgstr ""
+
+msgid "removals"
+msgstr ""
+
+msgid "translator-credits"
+msgstr ""
+
+msgid "Source Repository"
+msgstr ""
+
+msgid "Parch Wiki"
+msgstr ""
+
+msgid "Parch Community Forum"
+msgstr ""
+
+msgid "Parch Apps Web"
+msgstr ""
+
+msgid "A complete store for Parch GNU/Linux."
+msgstr ""
+
+msgid "Any changes made after this snapshot will be lost."
+msgstr ""
+
+msgid "Available System Restore Points"
+msgstr ""
+
+msgid "Date"
+msgstr ""
+
+msgid "No Btrfs restore points found"
+msgstr ""
+
+msgid "Parch Store automatically creates a paired Snapper Btrfs snapshot before and after every package transaction."
+msgstr ""
+
+msgid "Post"
+msgstr ""
+
+msgid "Post-transaction"
+msgstr ""
+
+msgid "Pre"
+msgstr ""
+
+msgid "Pre-transaction"
+msgstr ""
+
+msgid "Restore System"
+msgstr ""
+
+msgid "Restore snapshot"
+msgstr ""
+
+msgid "Restore…"
+msgstr ""
+
+msgid "Rollback system to this snapshot"
+msgstr ""
+
+msgid "Snapper System Snapshots"
+msgstr ""
+
+msgid "Snapshots are automatically created during package installations and updates"
+msgstr ""
+
+msgid "Snapshots stored on your root Btrfs filesystem subvolume"
+msgstr ""
+
+msgid "This will revert your system to the state at"
+msgstr ""
+
+msgid "Type"
 msgstr ""

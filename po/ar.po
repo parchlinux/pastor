@@ -1,0 +1,1191 @@
+# Arabic translation for pastor.
+# Copyright (C) 2026 ParchLinux Team
+# This file is distributed under the same license as the pastor package.
+# ParchLinux Team <contact@parchlinux.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: pastor 0.4.0\n"
+"Report-Msgid-Bugs-To: https://github.com/parchlinux/pastor/issues\n"
+"POT-Creation-Date: 2026-11-19 13:40+0330\n"
+"PO-Revision-Date: 2026-11-19 13:40+0330\n"
+"Last-Translator: ParchLinux Team <contact@parchlinux.com>\n"
+"Language-Team: Arabic <parchlinux@googlegroups.com>\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 && n%100<=99 ? 4 : 5);\n"
+
+msgid "Parch Store"
+msgstr "متجر بارتش"
+
+msgid "Explore"
+msgstr "استكشاف"
+
+msgid "Installed"
+msgstr "المثبتة"
+
+msgid "Updates"
+msgstr "التحديثات"
+
+msgid "Discover"
+msgstr "اكتشف"
+
+msgid "Categories"
+msgstr "الفئات"
+
+msgid "Collapse Sidebar (F9)"
+msgstr "طي الشريط الجانبي (F9)"
+
+msgid "Search packages, apps, AUR… (Ctrl+F)"
+msgstr "ابحث عن الحزم والتطبيقات ومستودع AUR… (Ctrl+F)"
+
+msgid "Search"
+msgstr "بحث"
+
+msgid "Search results"
+msgstr "نتائج البحث"
+
+msgid "Search packages…"
+msgstr "ابحث عن الحزم…"
+
+msgid "Featured"
+msgstr "مميز"
+
+msgid "Parch Picks"
+msgstr "مختارات بارتش"
+
+msgid "Development"
+msgstr "التطوير"
+
+msgid "Games"
+msgstr "الألعاب"
+
+msgid "Graphics & Design"
+msgstr "الرسوميات والتصميم"
+
+msgid "Graphics"
+msgstr "الرسوميات"
+
+msgid "Internet & Web"
+msgstr "الإنترنت والويب"
+
+msgid "Internet"
+msgstr "الإنترنت"
+
+msgid "Audio & Video"
+msgstr "الصوت والفيديو"
+
+msgid "Multimedia"
+msgstr "الوسائط المتعددة"
+
+msgid "Office & Productivity"
+msgstr "المكتب والإنتاجية"
+
+msgid "Office"
+msgstr "المكتب"
+
+msgid "System Tools"
+msgstr "أدوات النظام"
+
+msgid "System"
+msgstr "النظام"
+
+msgid "Android Apps (Waydroid)"
+msgstr "تطبيقات أندرويد (Waydroid)"
+
+msgid "Android"
+msgstr "أندرويد"
+
+msgid "Utilities"
+msgstr "أدوات مساعدة"
+
+msgid "Featured Applications"
+msgstr "تطبيقات مميزة"
+
+msgid "Browse Categories"
+msgstr "تصفح الفئات"
+
+msgid "Trending Software"
+msgstr "البرمجيات الشائعة"
+
+msgid "Trending Applications"
+msgstr "التطبيقات الشائعة"
+
+msgid "Most popular community software and essentials"
+msgstr "أشهر برمجيات المجتمع والبرامج الأساسية"
+
+msgid "Curated utilities and verified software for your desktop"
+msgstr "أدوات مساعدة وبرمجيات موثوقة ومختارة لسطح مكتبك"
+
+msgid "Browsers, messengers, downloaders, and network tools"
+msgstr "المتصفحات، تطبيقات المراسلة، برامج التنزيل، وأدوات الشبكة"
+
+msgid "Media players, video editors, and audio production tools"
+msgstr "مشغلات الوسائط، محررات الفيديو، وأدوات الإنتاج الصوتي"
+
+msgid "Productivity & Office"
+msgstr "الإنتاجية والمكتب"
+
+msgid "Document editors, spreadsheets, and organizational apps"
+msgstr "محررات المستندات، جداول البيانات، والتطبيقات التنظيمية"
+
+msgid "Development Tools"
+msgstr "أدوات التطوير"
+
+msgid "IDEs, compilers, debuggers, and developer utilities"
+msgstr "بيئات التطوير، المترجمات، مصححات الأخطاء، وأدوات المطورين"
+
+msgid "Internet & Communication"
+msgstr "الإنترنت والتواصل"
+
+msgid "Creativity & Graphics"
+msgstr "الإبداع والرسوميات"
+
+msgid "Audio & Video Production"
+msgstr "إنتاج الصوت والفيديو"
+
+msgid "Image editors, 3D modeling, vector design, and animation"
+msgstr "محررات الصور، النمذجة ثلاثية الأبعاد، التصميم الشعاعي، والرسوم المتحركة"
+
+msgid "Action, strategy, simulation, and casual gaming"
+msgstr "ألعاب الحركة، الاستراتيجية، المحاكاة، والألعاب الخفيفة"
+
+msgid "System utilities, terminal emulators, and management tools"
+msgstr "أدوات مساعدة للنظام، محاكيات الطرفية، وأدوات الإدارة"
+
+msgid "Run native Android apps seamlessly on Linux via Waydroid"
+msgstr "تشغيل تطبيقات أندرويد الأصلية بسلاسة على لينكس عبر Waydroid"
+
+msgid "Everyday utility tools, calculators, and system accessories"
+msgstr "الأدوات المساعدة اليومية، الآلات الحاسبة، وملحقات النظام"
+
+msgid "See All"
+msgstr "عرض الكل"
+
+msgid "Installed Applications"
+msgstr "التطبيقات المثبتة"
+
+msgid "Manage software and system packages installed on your system"
+msgstr "إدارة البرمجيات وحزم النظام المثبتة على نظامك"
+
+msgid "Filter:"
+msgstr "تصفية:"
+
+msgid "All"
+msgstr "الكل"
+
+msgid "Applications"
+msgstr "التطبيقات"
+
+msgid "Applications only"
+msgstr "التطبيقات فقط"
+
+msgid "Official"
+msgstr "رسمي"
+
+msgid "Show all packages (including dependencies & libraries)"
+msgstr "إظهار كافة الحزم (بما في ذلك الاعتماديات والمكتبات)"
+
+msgid "Sort:"
+msgstr "ترتيب:"
+
+msgid "Sort packages"
+msgstr "ترتيب الحزم"
+
+msgid "Name (A–Z)"
+msgstr "الاسم (أ–ي)"
+
+msgid "Name (Z–A)"
+msgstr "الاسم (ي–أ)"
+
+msgid "Size (largest first)"
+msgstr "الحجم (الأكبر أولاً)"
+
+msgid "Name (A-Z)"
+msgstr "الاسم (أ–ي)"
+
+msgid "Size (Largest)"
+msgstr "الحجم (الأكبر)"
+
+msgid "Source"
+msgstr "المصدر"
+
+msgid "No installed packages found"
+msgstr "لم يُعثر على حزم مثبتة"
+
+msgid "No packages match the selected filters."
+msgstr "لا توجد حزم تطابق معايير التصفية المحددة."
+
+msgid "Software Updates"
+msgstr "تحديثات البرمجيات"
+
+msgid "Check for Updates"
+msgstr "التحقق من وجود تحديثات"
+
+msgid "Checking for updates…"
+msgstr "جاري التحقق من وجود تحديثات…"
+
+msgid "Checking for application and system updates…"
+msgstr "جاري التحقق من تحديثات التطبيقات والنظام…"
+
+msgid "Update All"
+msgstr "تحديث الكل"
+
+msgid "All packages are up to date"
+msgstr "كافة الحزم محدثة"
+
+msgid "Your system software is current"
+msgstr "برمجيات نظامك محدثة بالكامل"
+
+msgid "Updates Available"
+msgstr "تحديثات متوفرة"
+
+msgid "Total download size:"
+msgstr "إجمالي حجم التنزيل:"
+
+msgid "Packages"
+msgstr "الحزم"
+
+msgid "Error checking for updates"
+msgstr "خطأ أثناء التحقق من التحديثات"
+
+msgid "Could not check for updates. Check your connection and try again."
+msgstr "تعذر التحقق من التحديثات. تحقق من اتصالك بالإنترنت وحاول مجددًا."
+
+msgid "Retry"
+msgstr "إعادة المحاولة"
+
+msgid "Refresh Databases"
+msgstr "تحديث قواعد البيانات"
+
+msgid "System Packages (Native)"
+msgstr "حزم النظام (أصلية)"
+
+msgid "Flatpak Applications"
+msgstr "تطبيقات Flatpak"
+
+msgid "AUR Community Packages"
+msgstr "حزم مجتمع AUR"
+
+msgid "System Image"
+msgstr "صورة النظام"
+
+msgid "Android Apps"
+msgstr "تطبيقات أندرويد"
+
+msgid "Install"
+msgstr "تثبيت"
+
+msgid "Update"
+msgstr "تحديث"
+
+msgid "Uninstall"
+msgstr "إلغاء التثبيت"
+
+msgid "Open"
+msgstr "فتح"
+
+msgid "Launch"
+msgstr "تشغيل"
+
+msgid "Installing…"
+msgstr "جاري التثبيت…"
+
+msgid "Updating…"
+msgstr "جاري التحديث…"
+
+msgid "Uninstalling…"
+msgstr "جاري إلغاء التثبيت…"
+
+msgid "Processing…"
+msgstr "جاري المعالجة…"
+
+msgid "Cancel"
+msgstr "إلغاء"
+
+msgid "Cancel installation"
+msgstr "إلغاء التثبيت"
+
+msgid "Cancel uninstallation"
+msgstr "إلغاء عملية الحذف"
+
+msgid "Quick uninstall"
+msgstr "إلغاء تثبيت سريع"
+
+msgid "More Options"
+msgstr "المزيد من الخيارات"
+
+msgid "Downgrade Version…"
+msgstr "التراجع عن الإصدار…"
+
+msgid "Project Website"
+msgstr "موقع المشروع"
+
+msgid "Official Website"
+msgstr "الموقع الرسمي"
+
+msgid "More"
+msgstr "المزيد"
+
+msgid "Close"
+msgstr "إغلاق"
+
+msgid "Screenshots"
+msgstr "لقطات الشاشة"
+
+msgid "About"
+msgstr "حول"
+
+msgid "What's New in Version"
+msgstr "ما الجديد في الإصدار"
+
+msgid "Release Notes"
+msgstr "ملاحظات الإصدار"
+
+msgid "Click to view changelog and update details"
+msgstr "انقر لعرض سجل التغييرات وتفاصيل التحديث"
+
+msgid "Details"
+msgstr "التفاصيل"
+
+msgid "Technical Specifications"
+msgstr "المواصفات التقنية"
+
+msgid "Dependencies"
+msgstr "الاعتماديات"
+
+msgid "No dependencies listed"
+msgstr "لا توجد اعتماديات مدرجة"
+
+msgid "Source:"
+msgstr "المصدر:"
+
+msgid "Sandboxed"
+msgstr "معزول"
+
+msgid "Snapper Protected"
+msgstr "محمي بلقطات Snapper"
+
+msgid "Verified PKGBUILD"
+msgstr "ملف PKGBUILD موثوق"
+
+msgid "Immutable Root"
+msgstr "جذر غير قابل للتعديل"
+
+msgid "Developer"
+msgstr "المطور"
+
+msgid "License"
+msgstr "الترخيص"
+
+msgid "Download Size"
+msgstr "حجم التنزيل"
+
+msgid "Installed Size"
+msgstr "الحجم بعد التثبيت"
+
+msgid "Version"
+msgstr "الإصدار"
+
+msgid "Architecture"
+msgstr "المعمارية"
+
+msgid "Publisher"
+msgstr "الناشر"
+
+msgid "Maintainer"
+msgstr "المشرف"
+
+msgid "Open Source"
+msgstr "مفتوح المصدر"
+
+msgid "ParchLinux Contributors"
+msgstr "مساهمو بارتش لينكس"
+
+msgid "Parch [world]"
+msgstr "بارتش [world]"
+
+msgid "Parch [void]"
+msgstr "بارتش [void]"
+
+msgid "Arch Repo"
+msgstr "مستودع آرش"
+
+msgid "AUR"
+msgstr "AUR"
+
+msgid "Flatpak"
+msgstr "Flatpak"
+
+msgid "bootc OS"
+msgstr "نظام bootc"
+
+msgid "Waydroid"
+msgstr "Waydroid"
+
+msgid "Share application"
+msgstr "مشاركة التطبيق"
+
+msgid "Share Application"
+msgstr "مشاركة التطبيق"
+
+msgid "Copy link to share this application"
+msgstr "انسخ الرابط لمشاركة هذا التطبيق"
+
+msgid "Copy link to clipboard"
+msgstr "نسخ الرابط إلى الحافظة"
+
+msgid "✓ Link copied to clipboard"
+msgstr "✓ تم نسخ الرابط إلى الحافظة"
+
+msgid "Open in browser"
+msgstr "فتح في المتصفح"
+
+msgid "Flathub (Flatpak)"
+msgstr "Flathub (Flatpak)"
+
+msgid "Cross-distro link for all Linux systems"
+msgstr "رابط متوافق مع كافة توزيعات لينكس"
+
+msgid "Project homepage"
+msgstr "الصفحة الرئيسية للمشروع"
+
+msgid "Arch User Repository (AUR)"
+msgstr "مستودع مستخدمي آرش (AUR)"
+
+msgid "AppStream Link"
+msgstr "رابط AppStream"
+
+msgid "Direct link to open in software centers"
+msgstr "رابط مباشر للفتح في مراكز البرمجيات"
+
+msgid "Official Arch repository package"
+msgstr "حزمة مستودع آرش الرسمي"
+
+msgid "AUR package details and PKGBUILD"
+msgstr "تفاصيل حزمة AUR وملف PKGBUILD"
+
+msgid "ParchLinux repository package"
+msgstr "حزمة مستودع بارتش لينكس"
+
+msgid "Transactions"
+msgstr "العمليات"
+
+msgid "Cancel Operation"
+msgstr "إلغاء العملية"
+
+msgid "Show Console"
+msgstr "إظهار الطرفية"
+
+msgid "Hide Console"
+msgstr "إخفاء الطرفية"
+
+msgid "Running transaction…"
+msgstr "جاري تنفيذ العملية…"
+
+msgid "Completed successfully"
+msgstr "اكتملت بنجاح"
+
+msgid "Transaction failed"
+msgstr "فشلت العملية"
+
+msgid "Active Operations"
+msgstr "العمليات النشطة"
+
+msgid "No operations running"
+msgstr "لا توجد عمليات قيد التشغيل"
+
+msgid "Clear Finished"
+msgstr "مسح العمليات المنتهية"
+
+msgid "Preferences"
+msgstr "التفضيلات"
+
+msgid "Settings"
+msgstr "الإعدادات"
+
+msgid "Configure package engines, repository priorities, automatic updates, and storage"
+msgstr "ضبط محركات الحزم، أولويات المستودعات، التحديثات التلقائية، والتخزين"
+
+msgid "Packaging Engines & Cores"
+msgstr "محركات ونوى إدارة الحزم"
+
+msgid "Enable or disable package management backends and ecosystems"
+msgstr "تفعيل أو تعطيل محركات وإيكوسيستم إدارة الحزم"
+
+msgid "Arch & Parch Native Packages (ALPM)"
+msgstr "حزم آرش وبارتش الأصلية (ALPM)"
+
+msgid "Native package repositories and pacman management"
+msgstr "مستودعات الحزم الأصلية وإدارة مدير الحزم pacman"
+
+msgid "Flatpak Applications (Flathub)"
+msgstr "تطبيقات Flatpak (Flathub)"
+
+msgid "System Snapshots (Snapper)"
+msgstr "لقطات النظام (Snapper)"
+
+msgid "Automatic snapshots before system modifications"
+msgstr "لقطات تلقائية قبل أي تعديلات على النظام"
+
+msgid "Automatic Updates"
+msgstr "التحديثات التلقائية"
+
+msgid "Storage & Cache"
+msgstr "التخزين والذاكرة المؤقتة"
+
+msgid "Clear Cache"
+msgstr "مسح الذاكرة المؤقتة"
+
+msgid "Clear Package Cache"
+msgstr "مسح الذاكرة المؤقتة للحزم"
+
+msgid "AUR Package Review"
+msgstr "مراجعة حزمة AUR"
+
+msgid "Proceed with Installation"
+msgstr "المتابعة مع التثبيت"
+
+msgid "Review PKGBUILD before building"
+msgstr "مراجعة ملف PKGBUILD قبل البناء"
+
+msgid "Security Scan"
+msgstr "الفحص الأمني"
+
+msgid "Trust Warning"
+msgstr "تحذير الثقة"
+
+msgid "Diff"
+msgstr "الفروقات"
+
+msgid "About Pastor"
+msgstr "حول متجر بارتش"
+
+msgid "Modern Software Center for ParchLinux"
+msgstr "مركز البرمجيات الحديث لنظام بارتش لينكس"
+
+msgid "Keyboard Shortcuts"
+msgstr "اختصارات لوحة المفاتيح"
+
+msgid "Focus search"
+msgstr "التركيز على مربع البحث"
+
+msgid "Toggle sidebar"
+msgstr "تبديل الشريط الجانبي"
+
+msgid "Back to previous view"
+msgstr "الرجوع إلى العرض السابق"
+
+msgid "Quit"
+msgstr "إنهاء"
+
+msgid "Parch Store (Pastor)"
+msgstr "متجر بارتش (Pastor)"
+
+msgid "ParchLinux Team"
+msgstr "فريق بارتش لينكس"
+
+msgid ""
+"A modern, native package management and software center for ParchLinux.\n"
+"\n"
+"Supporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots."
+msgstr ""
+"مركز برمجيات وإدارة حزم أصلي وحديث لنظام بارتش لينكس.\n"
+"\n"
+"يدعم مستودعات [world] و[void] ومستودع AUR وFlatpak ولقطات Snapper."
+
+msgid "Navigation & Search"
+msgstr "التنقل والبحث"
+
+msgid "Search packages and applications"
+msgstr "البحث عن الحزم والتطبيقات"
+
+msgid "Go back to previous page"
+msgstr "الرجوع إلى الصفحة السابقة"
+
+msgid "General"
+msgstr "عام"
+
+msgid "Show keyboard shortcuts"
+msgstr "عرض اختصارات لوحة المفاتيح"
+
+msgid "Close window"
+msgstr "إغلاق النافذة"
+
+msgid "AUR Security Review"
+msgstr "المراجعة الأمنية لمستودع AUR"
+
+msgid "⚠️ Maintainer Identity Changed!"
+msgstr "⚠️ تغيرت هوية المشرف!"
+
+msgid "Package maintainer changed"
+msgstr "تغير المشرف على الحزمة"
+
+msgid "This matches known 2026 supply-chain attack vectors. Please inspect the code changes carefully."
+msgstr "يتطابق هذا مع نواقل هجمات سلاسل التوريد المعروفة. يرجى فحص تغييرات الكود بعناية."
+
+msgid "First Time Install: New Maintainer"
+msgstr "تثبيت لأول مرة: مشرف جديد"
+
+msgid "⚠️ Orphaned Package"
+msgstr "⚠️ حزمة يتيمة"
+
+msgid "Verified Maintainer"
+msgstr "مشرف موثوق"
+
+msgid "Maintainer identity matches previous install baseline. Showing diff against last known-good commit."
+msgstr "تتطابق هوية المشرف مع الأساس المرجعي السابق. يتم عرض الفروقات مقارنة بآخر إيداع موثوق."
+
+msgid "Dependencies to be installed with elevated privileges"
+msgstr "اعتماديات سيتم تثبيتها بصلاحيات مرتفعة"
+
+msgid "These are official-repository packages required by the PKGBUILD. They will be installed via the pacman worker (marked as dependencies, removable later via `pacman -Qdt`). AUR dependencies are resolved and shown during the build."
+msgstr "هذه حزم من المستودعات الرسمية يطلبها ملف PKGBUILD. سيتم تثبيتها عبر عامل pacman (مع تعليمها كاعتماديات يمكن حذفها لاحقًا عبر `pacman -Qdt`). يتم حل اعتماديات AUR وعرضها أثناء البناء."
+
+msgid "PKGBUILD / Commit Changes"
+msgstr "تغييرات PKGBUILD والإيداع"
+
+msgid "⛔ Critical security threats detected in PKGBUILD / install script. Installation has been blocked for safety."
+msgstr "⛔ تم اكتشاف تهديدات أمنية حرجة في PKGBUILD أو سكربت التثبيت. تم حظر التثبيت لسلامة النظام."
+
+msgid "Build & Install"
+msgstr "بناء وتثبيت"
+
+msgid "Installation is blocked due to critical security threats"
+msgstr "التثبيت محظور بسبب تهديدات أمنية حرجة"
+
+msgid "Scroll through the full PKGBUILD review below to continue"
+msgstr "مرر عبر مراجعة PKGBUILD الكاملة أدناه للمتابعة"
+
+msgid "Scroll through the full PKGBUILD review to enable this button"
+msgstr "مرر عبر مراجعة PKGBUILD الكاملة لتمكين هذا الزر"
+
+msgid "Preparing transaction..."
+msgstr "جاري تجهيز العملية..."
+
+msgid "Cancel current transaction"
+msgstr "إلغاء العملية الحالية"
+
+msgid "Show native transaction console"
+msgstr "إظهار طرفية العمليات الأصلية"
+
+msgid "Dismiss transaction"
+msgstr "تجاهل العملية"
+
+msgid "Transaction starting..."
+msgstr "بدء العملية..."
+
+msgid "0 operations active"
+msgstr "0 عملية نشطة"
+
+msgid "Cancel all operations"
+msgstr "إلغاء كافة العمليات"
+
+msgid "Native Transaction Console"
+msgstr "طرفية العمليات الأصلية"
+
+msgid "operations active"
+msgstr "عمليات نشطة"
+
+msgid "Search results for"
+msgstr "نتائج البحث عن"
+
+msgid "Searching repositories and Flathub catalog…"
+msgstr "جارٍ البحث في المستودعات ودليل Flathub…"
+
+msgid "Filtered packages matching your search query across all active ecosystems"
+msgstr "الحزم المصفاة المطابقة لبحثك عبر كافة البيئات النشطة"
+
+msgid "Open Sidebar (F9)"
+msgstr "فتح الشريط الجانبي (F9)"
+
+msgid "Open sidebar"
+msgstr "فتح الشريط الجانبي"
+
+msgid "Go back"
+msgstr "رجوع"
+
+msgid "Snapper Snapshots"
+msgstr "لقطات نظام Snapper"
+
+msgid "Downgrade Tool"
+msgstr "أداة التراجع عن الإصدار"
+
+msgid "Parch Mirror Manager"
+msgstr "مدير خوادم بارتش"
+
+msgid "About Parch Store"
+msgstr "حول متجر بارتش"
+
+msgid "Category"
+msgstr "الفئة"
+
+msgid "Fetching applications:"
+msgstr "جاري جلب التطبيقات:"
+
+msgid "Scanning installed packages and Flatpaks on your system…"
+msgstr "جاري فحص الحزم المثبتة وحزم Flatpak على نظامك…"
+
+msgid "Applications and system packages currently installed on your ParchLinux system"
+msgstr "التطبيقات وحزم النظام المثبتة حاليًا على نظام بارتش لينكس لديك"
+
+msgid "Pacman sync repository configured in /etc/pacman.conf"
+msgstr "مستودع مزامنة pacman مضبوط في /etc/pacman.conf"
+
+msgid "Compile and install community-maintained packages natively"
+msgstr "بناء وتثبيت الحزم التي يديرها المجتمع محليًا"
+
+msgid "Pacman Mirror Management"
+msgstr "إدارة خوادم Pacman"
+
+msgid "Rank, speed test, and update mirrorlists using Parch Mirror Manager"
+msgstr "ترتيب، اختبار سرعة، وتحديث قوائم الخوادم باستخدام مدير خوادم بارتش"
+
+msgid "Launch mirrorman"
+msgstr "تشغيل mirrorman"
+
+msgid "Sandboxed application ecosystem from Flathub via libflatpak"
+msgstr "بيئة تطبيقات معزولة من Flathub عبر libflatpak"
+
+msgid "Updates and Automation"
+msgstr "التحديثات والأتمتة"
+
+msgid "Manage automated checks, background tasks, and desktop notifications"
+msgstr "إدارة الفحوصات التلقائية، المهام في الخلفية، وإشعارات سطح المكتب"
+
+msgid "Frequency of automatic repository synchronization"
+msgstr "تكرار مزامنة المستودعات تلقائيًا"
+
+msgid "Daily (Recommended)"
+msgstr "يوميًا (موصى به)"
+
+msgid "Every 6 Hours"
+msgstr "كل 6 ساعات"
+
+msgid "Weekly"
+msgstr "أسبوعيًا"
+
+msgid "Manual Only"
+msgstr "يدويًا فقط"
+
+msgid "Update Notifications"
+msgstr "إشعارات التحديث"
+
+msgid "Display a desktop notification when system or app updates are ready"
+msgstr "عرض إشعار على سطح المكتب عند توفر تحديثات للنظام أو التطبيقات"
+
+msgid "Completion Alerts"
+msgstr "تنبيهات الاكتمال"
+
+msgid "Notify when lengthy package downloads and installations finish"
+msgstr "إشعار عند اكتمال تنزيلات وتثبيتات الحزم الطويلة"
+
+msgid "Parallel Downloads"
+msgstr "تنزيلات متزامنة"
+
+msgid "Maximum simultaneous package download connections (ALPM / AUR)"
+msgstr "الحد الأقصى لاتصالات تنزيل الحزم المتزامنة (ALPM / AUR)"
+
+msgid "Snapper Snapshots and Safety"
+msgstr "لقطات Snapper والأمان"
+
+msgid "Automated Btrfs restore points and rollback protection"
+msgstr "نقاط استعادة Btrfs التلقائية وحماية التراجع"
+
+msgid "Automatic Pre/Post Snapshots"
+msgstr "لقطات تلقائية قبل وبعد العمليات"
+
+msgid "Create paired Btrfs snapshots before modifying packages or kernel"
+msgstr "إنشاء زوج من لقطات Btrfs قبل تعديل الحزم أو النواة"
+
+msgid "Retained Store Snapshots"
+msgstr "اللقطات المحتفظ بها للمتجر"
+
+msgid "Maximum number of auto-created snapshots to keep before pruning"
+msgstr "الحد الأقصى لعدد اللقطات التلقائية المحتفظ بها قبل الحذف"
+
+msgid "Manage System Snapshots"
+msgstr "إدارة لقطات النظام"
+
+msgid "Inspect timeline, compare file diffs, or initiate rollback"
+msgstr "فحص الخط الزمني، مقارنة الفروقات، أو بدء استعادة النظام"
+
+msgid "Open Snapshots"
+msgstr "فتح اللقطات"
+
+msgid "Cache and Storage Maintenance"
+msgstr "صيانة التخزين والذاكرة المؤقتة"
+
+msgid "Manage downloaded package archives and disk space with native tools"
+msgstr "إدارة أرشيفات الحزم المنزلة ومساحة القرص بأدوات أصلية"
+
+msgid "Pacman Package Cache"
+msgstr "ذاكرة pacman المؤقتة للحزم"
+
+msgid "Calculating cache size..."
+msgstr "جاري حساب حجم الذاكرة المؤقتة..."
+
+msgid "Clean Uninstalled"
+msgstr "تنظيف الحزم غير المثبتة"
+
+msgid "packages"
+msgstr "حزم"
+
+msgid "Cleaning..."
+msgstr "جاري التنظيف..."
+
+msgid "Cleaned"
+msgstr "تم التنظيف"
+
+msgid "Cleaned uninstalled packages:"
+msgstr "الحزم غير المثبتة التي تم تنظيفها:"
+
+msgid "Cache is already optimal. No uninstalled packages found."
+msgstr "الذاكرة المؤقتة بحالة مثالية بالفعل. لم يُعثر على حزم محذوفة."
+
+msgid "Flatpak Runtimes"
+msgstr "بيئات تشغيل Flatpak"
+
+msgid "Inspecting installed Flatpak runtimes..."
+msgstr "جاري فحص بيئات تشغيل Flatpak المثبتة..."
+
+msgid "Prune Runtimes"
+msgstr "تشذيب بيئات التشغيل"
+
+msgid "runtimes installed"
+msgstr "بيئة تشغيل مثبتة"
+
+msgid "Pruning..."
+msgstr "جاري التشذيب..."
+
+msgid "Pruned"
+msgstr "تم التشذيب"
+
+msgid "Interface and Display"
+msgstr "الواجهة والعرض"
+
+msgid "Visual cues and badge indicators (Theme is managed by your operating system)"
+msgstr "المؤشرات المرئية والشارات (يتم إدارة السمة عبر نظام التشغيل لديك)"
+
+msgid "Display Repository Badges"
+msgstr "عرض شارات المستودعات"
+
+msgid "Show [world], [void], AUR, and Flatpak badges on application cards"
+msgstr "إظهار شارات [world] و[void] وAUR وFlatpak على بطاقات التطبيقات"
+
+msgid "(Candidate .pacnew file cannot be read)"
+msgstr "(تعذرت قراءة ملف pacnew. المرشح)"
+
+msgid "(Original file does not exist or cannot be read)"
+msgstr "(الملف الأصلي غير موجود أو تعذرت قراءته)"
+
+msgid "All Sources"
+msgstr "كافة المصادر"
+
+msgid "All configuration files are up to date"
+msgstr "كافة ملفات الإعدادات محدثة"
+
+msgid "All installed packages are required by the system or explicitly tracked"
+msgstr "كافة الحزم المثبتة مطلوبة للنظام أو يتم تتبعها صراحة"
+
+msgid "Arch Linux package archives stored in /var/cache/pacman/pkg"
+msgstr "أرشيفات حزم آرش لينكس المخزنة في /var/cache/pacman/pkg"
+
+msgid "Back"
+msgstr "رجوع"
+
+msgid "Browse applications in this category"
+msgstr "تصفح التطبيقات في هذه الفئة"
+
+msgid "Btrfs Snapshots"
+msgstr "لقطات نظام Btrfs"
+
+msgid "Candidate"
+msgstr "المرشح"
+
+msgid "Changes"
+msgstr "التغييرات"
+
+msgid "Choose a link below to copy or open in browser"
+msgstr "اختر رابطًا من الأسفل لنسخه أو فتحه في المتصفح"
+
+msgid "Clean"
+msgstr "تنظيف"
+
+msgid "Clean Cache"
+msgstr "تنظيف الذاكرة المؤقتة"
+
+msgid "Clean Package Cache?"
+msgstr "تنظيف الذاكرة المؤقتة للحزم؟"
+
+msgid "Configuration Diff"
+msgstr "فروقات الإعدادات"
+
+msgid "Configuration Drift (.pacnew)"
+msgstr "انحراف الإعدادات (pacnew.)"
+
+msgid "Copied!"
+msgstr "تم النسخ!"
+
+msgid "Create Btrfs system restore point before applying changes"
+msgstr "إنشاء نقطة استعادة لنظام Btrfs قبل تطبيق التغييرات"
+
+msgid "Current File"
+msgstr "الملف الحالي"
+
+msgid "Database Lock Active"
+msgstr "قفل قاعدة البيانات نشط"
+
+msgid "Database Lock Status"
+msgstr "حالة قفل قاعدة البيانات"
+
+msgid "Discard .pacnew and keep existing file"
+msgstr "استبعاد pacnew. والاحتفاظ بالملف الحالي"
+
+msgid "Discard the .pacnew template and preserve your existing configuration"
+msgstr "استبعاد قالب pacnew. والاحتفاظ بإعداداتك الحالية"
+
+msgid "File"
+msgstr "الملف"
+
+msgid "Filter by source"
+msgstr "تصفية حسب المصدر"
+
+msgid "Grid view"
+msgstr "عرض الشبكة"
+
+msgid "Held by process"
+msgstr "محجوز بواسطة العملية"
+
+msgid "Immutable Base OS"
+msgstr "نظام تشغيل أساسي غير قابل للتعديل"
+
+msgid "Installed Software"
+msgstr "البرمجيات المثبتة"
+
+msgid "Keep Current"
+msgstr "الإبقاء على الملف الحالي"
+
+msgid "List view"
+msgstr "عرض القائمة"
+
+msgid "Menu and Preferences"
+msgstr "القائمة والتفضيلات"
+
+msgid "Name (Z-A)"
+msgstr "الاسم (ي–أ)"
+
+msgid "New Template"
+msgstr "القالب الجديد"
+
+msgid "No .pacnew or .pacsave files found in /etc"
+msgstr "لم يُعثر على أي ملفات pacnew. أو pacsave. في /etc"
+
+msgid "No orphaned packages found"
+msgstr "لم يُعثر على أي حزم يتيمة"
+
+msgid "No running pacman process detected. Safe to remove."
+msgstr "لم يتم اكتشاف أي عملية pacman قيد التشغيل. من الآمن إزالته."
+
+msgid "Official web link (apps.parchlinux.com)"
+msgstr "الرابط الرسمي على الويب (apps.parchlinux.com)"
+
+msgid "Orphaned Packages"
+msgstr "الحزم اليتيمة"
+
+msgid "Overwrite current file with .pacnew"
+msgstr "الكتابة فوق الملف الحالي بواسطة pacnew."
+
+msgid "Overwrite the existing file with the new configuration template"
+msgstr "الكتابة فوق الملف الحالي باستخدام قالب الإعدادات الجديد"
+
+msgid "Package Cache Storage"
+msgstr "تخزين الذاكرة المؤقتة للحزم"
+
+msgid "Pacman process lock file at /var/lib/pacman/db.lck"
+msgstr "ملف قفل عملية pacman في /var/lib/pacman/db.lck"
+
+msgid "Parch Apps Store"
+msgstr "متجر تطبيقات بارتش"
+
+msgid "Parch Doctor"
+msgstr "طبيب بارتش"
+
+msgid "Parch Doctor found"
+msgstr "عثر طبيب بارتش على"
+
+msgid "Parch Linux Package"
+msgstr "حزمة بارتش لينكس"
+
+msgid "Proceed"
+msgstr "متابعة"
+
+msgid "Reclaimable Cache Space"
+msgstr "المساحة القابلة للاسترداد من الذاكرة المؤقتة"
+
+msgid "Refresh Diagnostics"
+msgstr "تحديث الفحوصات"
+
+msgid "Remove All Orphans"
+msgstr "إزالة جميع الحزم اليتيمة"
+
+msgid "Remove Database Lock?"
+msgstr "إزالة قفل قاعدة البيانات؟"
+
+msgid "Remove Orphaned Packages?"
+msgstr "إزالة الحزم اليتيمة؟"
+
+msgid "Remove Stale Lock"
+msgstr "إزالة القفل المعلق"
+
+msgid "Replace"
+msgstr "استبدال"
+
+msgid "Replace Configuration"
+msgstr "استبدال ملف الإعدادات"
+
+msgid "Replace with New"
+msgstr "استبدال بالقالب الجديد"
+
+msgid "Scanning system health and configuration status…"
+msgstr "جاري فحص صحة النظام وحالة الإعدادات…"
+
+msgid "Security"
+msgstr "الأمان"
+
+msgid "Size"
+msgstr "الحجم"
+
+msgid "Snapshots"
+msgstr "اللقطات"
+
+msgid "Stale Database Lock Detected"
+msgstr "تم اكتشاف قفل قاعدة بيانات معلق"
+
+msgid "System health, configuration drift, and maintenance diagnostics"
+msgstr "صحة النظام، انحراف الإعدادات، وفحوصات الصيانة"
+
+msgid "System is healthy: No configuration drift, stale locks, or orphaned packages detected."
+msgstr "النظام بحالة جيدة: لم يتم اكتشاف أي انحراف في الإعدادات أو أقفال معلقة أو حزم يتيمة."
+
+msgid "These packages were installed as dependencies but are no longer needed by any installed software."
+msgstr "تم تثبيت هذه الحزم كاعتماديات ولكن لم تعد هناك حاجة إليها بواسطة أي برنامج مثبت."
+
+msgid "This will delete /var/lib/pacman/db.lck so new package installations can proceed."
+msgstr "سيؤدي هذا إلى حذف /var/lib/pacman/db.lck حتى تتمكن عمليات تثبيت الحزم من المتابعة."
+
+msgid "This will overwrite your existing configuration file with the new package template."
+msgstr "سيؤدي هذا إلى استبدال ملف الإعدادات الحالي لديك بقالب الحزمة الجديد."
+
+msgid "This will remove obsolete cached package tarballs, keeping the two latest versions for safe rollbacks."
+msgstr "سيؤدي هذا إلى إزالة أرشيفات الحزم القديمة، مع الاحتفاظ بآخر إصدارين للاستعادة الآمنة."
+
+msgid "Total Cached Packages"
+msgstr "إجمالي الحزم المخزنة مؤقتًا"
+
+msgid "Total reclaimable space"
+msgstr "إجمالي المساحة القابلة للاسترداد"
+
+msgid "Unneeded dependencies that are no longer required by any installed package"
+msgstr "اعتماديات غير ضرورية لم تعد مطلوبة من قِبل أي حزمة مثبتة"
+
+msgid "Updates are installed safely. Snapper snapshots are created prior to applying."
+msgstr "يتم تثبيت التحديثات بأمان، مع إنشاء لقطات Snapper قبل التطبيق."
+
+msgid "Upstream package updates that installed new configuration templates"
+msgstr "تحديثات الحزم المصدرية التي قامت بتثبيت قوالب إعدادات جديدة"
+
+msgid "Varies"
+msgstr "متغير"
+
+msgid "View Diff"
+msgstr "عرض الفروقات"
+
+msgid "additions"
+msgstr "إضافات"
+
+msgid "items requiring review."
+msgstr "عناصر تتطلب المراجعة."
+
+msgid "older versions beyond latest 2"
+msgstr "إصدارات أقدم من آخر إصدارين"
+
+msgid "orphans detected"
+msgstr "حزم يتيمة مكتشفة"
+
+msgid "removals"
+msgstr "حذف"
+
+msgid "translator-credits"
+msgstr "فريق بارتش لينكس"
+
+msgid "Source Repository"
+msgstr "مستودع الكود المصدري"
+
+msgid "Parch Wiki"
+msgstr "موسوعة بارتش"
+
+msgid "Parch Community Forum"
+msgstr "منتدى مجتمع بارتش"
+
+msgid "Parch Apps Web"
+msgstr "بوابة تطبيقات بارتش على الويب"
+
+msgid "A complete store for Parch GNU/Linux."
+msgstr "متجر متكامل لنظام بارتش غنو/لينكس."
+
+msgid "Any changes made after this snapshot will be lost."
+msgstr "ستُفقد أي تغييرات تم إجراؤها بعد هذه اللقطة."
+
+msgid "Available System Restore Points"
+msgstr "نقاط استعادة النظام المتاحة"
+
+msgid "Date"
+msgstr "التاريخ"
+
+msgid "No Btrfs restore points found"
+msgstr "لم يتم العثور على أي نقاط استعادة Btrfs"
+
+msgid "Parch Store automatically creates a paired Snapper Btrfs snapshot before and after every package transaction."
+msgstr "ينشئ متجر بارتش تلقائيًا لقطة Snapper Btrfs مقترنة قبل وبعد كل عملية حزم."
+
+msgid "Post"
+msgstr "بعد"
+
+msgid "Post-transaction"
+msgstr "بعد العملية"
+
+msgid "Pre"
+msgstr "قبل"
+
+msgid "Pre-transaction"
+msgstr "قبل العملية"
+
+msgid "Restore System"
+msgstr "استعادة النظام"
+
+msgid "Restore snapshot"
+msgstr "استعادة اللقطة"
+
+msgid "Restore…"
+msgstr "استعادة…"
+
+msgid "Rollback system to this snapshot"
+msgstr "استعادة النظام إلى هذه اللقطة"
+
+msgid "Snapper System Snapshots"
+msgstr "لقطات نظام Snapper"
+
+msgid "Snapshots are automatically created during package installations and updates"
+msgstr "يتم إنشاء اللقطات تلقائيًا أثناء تثبيت الحزم وتحديثها"
+
+msgid "Snapshots stored on your root Btrfs filesystem subvolume"
+msgstr "اللقطات المخزنة في القسم الفرعي لنظام ملفات Btrfs الجذري"
+
+msgid "This will revert your system to the state at"
+msgstr "سيعيد هذا النظام إلى حالته في"
+
+msgid "Type"
+msgstr "النوع"

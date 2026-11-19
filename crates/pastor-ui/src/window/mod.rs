@@ -128,8 +128,12 @@ impl MainWindow {
             let col = sidebar.collapse_btn.clone();
             Rc::new(move || {
                 let open = sv.shows_sidebar() && !sv.is_collapsed();
-                rev.set_visible(!open);
-                col.set_visible(open);
+                if rev.is_visible() == open {
+                    rev.set_visible(!open);
+                }
+                if col.is_visible() != open {
+                    col.set_visible(open);
+                }
             })
         };
 
@@ -171,23 +175,17 @@ impl MainWindow {
         {
             let w = window.clone();
             let bar = transaction_bar.clone();
-            let sv = split_view.clone();
             desktop_bp.connect_apply(move |_| {
                 w.remove_css_class("pastor-narrow");
                 bar.set_narrow(false);
-                sv.set_collapsed(false);
-                sv.set_show_sidebar(true);
             });
         }
         {
             let w = window.clone();
             let bar = transaction_bar.clone();
-            let sv = split_view.clone();
             desktop_bp.connect_unapply(move |_| {
                 w.add_css_class("pastor-narrow");
                 bar.set_narrow(true);
-                sv.set_collapsed(true);
-                sv.set_show_sidebar(false);
             });
         }
         window.add_breakpoint(desktop_bp);
@@ -282,6 +280,7 @@ impl MainWindow {
                         "snapshots" => (pastor_core::tr("Btrfs Snapshots").to_string(), "".to_string()),
                         "downgrade" => (pastor_core::tr("Downgrade Tool").to_string(), "".to_string()),
                         "settings" => (pastor_core::tr("Settings").to_string(), "".to_string()),
+                        "doctor" => (pastor_core::tr("Parch Doctor").to_string(), "".to_string()),
                         _ => (prev.clone(), "".to_string()),
                     };
                     *cur_t.borrow_mut() = t;
@@ -391,14 +390,14 @@ impl MainWindow {
                     }
                 }
                 let (t, s) = match name {
-                    "explore" => ("Explore", ""),
-                    "installed" => ("Installed Software", ""),
-                    "updates" => ("Updates", ""),
-                    "immutable" => ("Immutable Base OS", ""),
-                    "snapshots" => ("Btrfs Snapshots", ""),
-                    "downgrade" => ("Downgrade Tool", ""),
-                    "settings" => ("Settings", ""),
-                    "doctor" => ("Parch Doctor", ""),
+                    "explore" => (pastor_core::tr("Explore"), ""),
+                    "installed" => (pastor_core::tr("Installed Software"), ""),
+                    "updates" => (pastor_core::tr("Updates"), ""),
+                    "immutable" => (pastor_core::tr("Immutable Base OS"), ""),
+                    "snapshots" => (pastor_core::tr("Btrfs Snapshots"), ""),
+                    "downgrade" => (pastor_core::tr("Downgrade Tool"), ""),
+                    "settings" => (pastor_core::tr("Settings"), ""),
+                    "doctor" => (pastor_core::tr("Parch Doctor"), ""),
                     _ => (name, ""),
                 };
                 *cur_t.borrow_mut() = t.to_string();
@@ -1121,6 +1120,12 @@ mod tests {
 
         let (sv_doc_min, _, _, _) = split_view.measure(gtk4::Orientation::Horizontal, -1);
         assert!(sv_doc_min <= 360, "OverlaySplitView with DoctorView requested {sv_doc_min}px which exceeds 360px width");
+
+        // Verify window size allocations across responsive breakpoints
+        main_win.window.allocate(1080, 720, -1, None);
+        main_win.window.allocate(768, 720, -1, None);
+        main_win.window.allocate(500, 700, -1, None);
+        main_win.window.allocate(360, 600, -1, None);
     }
 
     #[test]

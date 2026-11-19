@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: pastor 0.3.2\n"
+"Project-Id-Version: pastor 0.4.0\n"
 "Report-Msgid-Bugs-To: https://github.com/parchlinux/pastor/issues\n"
-"POT-Creation-Date: 2026-10-26 10:00+0330\n"
-"PO-Revision-Date: 2026-10-26 10:00+0330\n"
+"POT-Creation-Date: 2026-11-19 13:40+0330\n"
+"PO-Revision-Date: 2026-11-19 13:40+0330\n"
 "Last-Translator: Sohrab Behdani <behdanisohrab@gmail.com>\n"
 "Language-Team: Persian <parchlinux@googlegroups.com>\n"
 "Language: fa\n"
@@ -17,7 +17,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-# Navigation & Sidebar
 msgid "Parch Store"
 msgstr "فروشگاه پارچ"
 
@@ -51,7 +50,6 @@ msgstr "نتایج جستجو"
 msgid "Search packages…"
 msgstr "جستجوی بسته‌ها…"
 
-# Categories
 msgid "Featured"
 msgstr "برگزیده"
 
@@ -103,7 +101,6 @@ msgstr "اندروید"
 msgid "Utilities"
 msgstr "ابزارها"
 
-# Explore View Sections
 msgid "Featured Applications"
 msgstr "برنامه‌های برگزیده"
 
@@ -167,7 +164,6 @@ msgstr "ابزارهای کاربردی روزمره، ماشین‌حساب‌�
 msgid "See All"
 msgstr "مشاهده همه"
 
-# Installed View
 msgid "Installed Applications"
 msgstr "برنامه‌های نصب‌شده"
 
@@ -222,7 +218,6 @@ msgstr "هیچ بسته نصب‌شده‌ای یافت نشد"
 msgid "No packages match the selected filters."
 msgstr "هیچ بسته‌ای با فیلترهای انتخاب‌شده مطابقت ندارد."
 
-# Updates View
 msgid "Software Updates"
 msgstr "به‌روزرسانی‌های نرم‌افزاری"
 
@@ -280,7 +275,6 @@ msgstr "تصویر سیستم"
 msgid "Android Apps"
 msgstr "برنامه‌های اندروید"
 
-# Action Buttons & States
 msgid "Install"
 msgstr "نصب"
 
@@ -338,7 +332,6 @@ msgstr "بیشتر"
 msgid "Close"
 msgstr "بستن"
 
-# Package Details View
 msgid "Screenshots"
 msgstr "نماگرفت‌ها"
 
@@ -411,7 +404,6 @@ msgstr "متن‌باز"
 msgid "ParchLinux Contributors"
 msgstr "مشارکت‌کنندگان پارچ‌لینوکس"
 
-# Badges & Sources
 msgid "Parch [world]"
 msgstr "پارچ [world]"
 
@@ -433,7 +425,6 @@ msgstr "سیستم‌عامل bootc"
 msgid "Waydroid"
 msgstr "ویدروید"
 
-# Share Feature
 msgid "Share application"
 msgstr "اشتراک‌گذاری برنامه"
 
@@ -454,12 +445,6 @@ msgstr "باز کردن در مرورگر"
 
 msgid "Flathub (Flatpak)"
 msgstr "فلت‌هاب (فلت‌پک)"
-
-msgid "Parch Apps Store"
-msgstr "فروشگاه وب برنامه‌های پارچ"
-
-msgid "Official web link (apps.parchlinux.com)"
-msgstr "پیوند رسمی وب (apps.parchlinux.com)"
 
 msgid "Cross-distro link for all Linux systems"
 msgstr "پیوند سراسری برای همه توزیع‌های لینوکس"
@@ -485,7 +470,6 @@ msgstr "جزئیات بسته AUR و PKGBUILD"
 msgid "ParchLinux repository package"
 msgstr "بسته مخزن پارچ‌لینوکس"
 
-# Transaction Bar & Operations
 msgid "Transactions"
 msgstr "عملیات‌ها"
 
@@ -516,7 +500,6 @@ msgstr "هیچ عملیاتی در حال اجرا نیست"
 msgid "Clear Finished"
 msgstr "پاک‌سازی پایان‌یافته‌ها"
 
-# Settings / Preferences
 msgid "Preferences"
 msgstr "ترجیحات"
 
@@ -559,7 +542,6 @@ msgstr "پاک‌سازی حافظه موقت"
 msgid "Clear Package Cache"
 msgstr "پاک‌سازی حافظه موقت بسته‌ها"
 
-# AUR Review Dialog
 msgid "AUR Package Review"
 msgstr "بررسی بسته AUR"
 
@@ -578,7 +560,6 @@ msgstr "هشدار اعتماد"
 msgid "Diff"
 msgstr "تغییرات"
 
-# About & Shortcuts
 msgid "About Pastor"
 msgstr "درباره پاستور"
 
@@ -606,8 +587,14 @@ msgstr "فروشگاه پارچ (پاستور)"
 msgid "ParchLinux Team"
 msgstr "تیم پارچ‌لینوکس"
 
-msgid "A modern, native package management and software center for ParchLinux.\n\nSupporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots."
-msgstr "یک مرکز نرم‌افزاری و مدیریت بسته مدرن و بومی برای پارچ‌لینوکس.\n\nبا پشتیبانی از مخازن [world] و [void]، AUR، فلت‌پک و تصویرهای لحظه‌ای اسنپر."
+msgid ""
+"A modern, native package management and software center for ParchLinux.\n"
+"\n"
+"Supporting [world] and [void] repositories, AUR, Flatpak, and Snapper snapshots."
+msgstr ""
+"یک مرکز نرم‌افزاری و مدیریت بسته مدرن و بومی برای پارچ‌لینوکس.\n"
+"\n"
+"با پشتیبانی از مخازن [world] و [void]، AUR، فلت‌پک و تصویرهای لحظه‌ای اسنپر."
 
 msgid "Navigation & Search"
 msgstr "ناوبری و جستجو"
@@ -887,3 +874,318 @@ msgstr "نمایش نشان‌های مخزن"
 
 msgid "Show [world], [void], AUR, and Flatpak badges on application cards"
 msgstr "نمایش نشان‌های [world]، [void]، AUR و فلت‌پک روی کارت‌های برنامه"
+
+msgid "(Candidate .pacnew file cannot be read)"
+msgstr "(خواندن پرونده pacnew. کاندید امکان‌پذیر نیست)"
+
+msgid "(Original file does not exist or cannot be read)"
+msgstr "(پرونده اصلی وجود ندارد یا قابل خواندن نیست)"
+
+msgid "All Sources"
+msgstr "تمام منابع"
+
+msgid "All configuration files are up to date"
+msgstr "تمام پرونده‌های پیکربندی به‌روز هستند"
+
+msgid "All installed packages are required by the system or explicitly tracked"
+msgstr "تمام بسته‌های نصب‌شده توسط سیستم مورد نیاز هستند یا صریحاً ردیابی می‌شوند"
+
+msgid "Arch Linux package archives stored in /var/cache/pacman/pkg"
+msgstr "بایگانی بسته‌های آرچ لینوکس ذخیره شده در var/cache/pacman/pkg/"
+
+msgid "Back"
+msgstr "بازگشت"
+
+msgid "Browse applications in this category"
+msgstr "مرور برنامه‌ها در این دسته‌بندی"
+
+msgid "Btrfs Snapshots"
+msgstr "نقاط بازیابی Btrfs"
+
+msgid "Candidate"
+msgstr "کاندید"
+
+msgid "Changes"
+msgstr "تغییرات"
+
+msgid "Choose a link below to copy or open in browser"
+msgstr "پیوندی را از زیر برای کپی یا باز کردن در مرورگر انتخاب کنید"
+
+msgid "Clean"
+msgstr "پاک‌سازی"
+
+msgid "Clean Cache"
+msgstr "پاک‌سازی حافظه پنهان"
+
+msgid "Clean Package Cache?"
+msgstr "حافظه پنهان بسته‌ها پاک‌سازی شود؟"
+
+msgid "Configuration Diff"
+msgstr "تفاوت پیکربندی"
+
+msgid "Configuration Drift (.pacnew)"
+msgstr "تغییرات پیکربندی (pacnew.)"
+
+msgid "Copied!"
+msgstr "کپی شد!"
+
+msgid "Create Btrfs system restore point before applying changes"
+msgstr "ایجاد نقطه بازیابی سیستم Btrfs قبل از اعمال تغییرات"
+
+msgid "Current File"
+msgstr "پرونده کنونی"
+
+msgid "Database Lock Active"
+msgstr "قفل پایگاه داده فعال است"
+
+msgid "Database Lock Status"
+msgstr "وضعیت قفل پایگاه داده"
+
+msgid "Discard .pacnew and keep existing file"
+msgstr "دور انداختن pacnew. و حفظ پرونده کنونی"
+
+msgid "Discard the .pacnew template and preserve your existing configuration"
+msgstr "دور انداختن قالب pacnew. و حفظ پیکربندی کنونی شما"
+
+msgid "File"
+msgstr "پرونده"
+
+msgid "Filter by source"
+msgstr "فیلتر بر اساس منبع"
+
+msgid "Grid view"
+msgstr "نمای شبکه‌ای"
+
+msgid "Held by process"
+msgstr "در اختیار فرآیند"
+
+msgid "Immutable Base OS"
+msgstr "سیستم‌عامل پایه تغییرناپذیر"
+
+msgid "Installed Software"
+msgstr "نرم‌افزارهای نصب‌شده"
+
+msgid "Keep Current"
+msgstr "حفظ پرونده کنونی"
+
+msgid "List view"
+msgstr "نمای فهرستی"
+
+msgid "Menu and Preferences"
+msgstr "منو و ترجیحات"
+
+msgid "Name (Z-A)"
+msgstr "نام (ی-الف)"
+
+msgid "New Template"
+msgstr "قالب جدید"
+
+msgid "No .pacnew or .pacsave files found in /etc"
+msgstr "هیچ پرونده pacnew. یا pacsave. در etc/ یافت نشد"
+
+msgid "No orphaned packages found"
+msgstr "هیچ بسته یتیمی یافت نشد"
+
+msgid "No running pacman process detected. Safe to remove."
+msgstr "هیچ فرآیند پک‌من در حال اجرایی یافت نشد. حذف قفل امن است."
+
+msgid "Official web link (apps.parchlinux.com)"
+msgstr "پیوند رسمی وب (apps.parchlinux.com)"
+
+msgid "Orphaned Packages"
+msgstr "بسته‌های یتیم"
+
+msgid "Overwrite current file with .pacnew"
+msgstr "بازنویسی پرونده کنونی با pacnew."
+
+msgid "Overwrite the existing file with the new configuration template"
+msgstr "بازنویسی پرونده کنونی با قالب پیکربندی جدید"
+
+msgid "Package Cache Storage"
+msgstr "فضای ذخیره‌سازی حافظه پنهان بسته‌ها"
+
+msgid "Pacman process lock file at /var/lib/pacman/db.lck"
+msgstr "پرونده قفل فرآیند پک‌من در var/lib/pacman/db.lck/"
+
+msgid "Parch Apps Store"
+msgstr "فروشگاه برنامه‌های پارچ"
+
+msgid "Parch Doctor"
+msgstr "پزشک پارچ"
+
+msgid "Parch Doctor found"
+msgstr "پزشک پارچ یافت"
+
+msgid "Parch Linux Package"
+msgstr "بسته پارچ لینوکس"
+
+msgid "Proceed"
+msgstr "ادامه"
+
+msgid "Reclaimable Cache Space"
+msgstr "فضای قابل آزادسازی حافظه پنهان"
+
+msgid "Refresh Diagnostics"
+msgstr "تازه‌سازی عیب‌یابی"
+
+msgid "Remove All Orphans"
+msgstr "حذف تمام بسته‌های یتیم"
+
+msgid "Remove Database Lock?"
+msgstr "قفل پایگاه داده حذف شود؟"
+
+msgid "Remove Orphaned Packages?"
+msgstr "بسته‌های یتیم حذف شوند؟"
+
+msgid "Remove Stale Lock"
+msgstr "حذف قفل معلق"
+
+msgid "Replace"
+msgstr "جایگزینی"
+
+msgid "Replace Configuration"
+msgstr "جایگزینی پیکربندی"
+
+msgid "Replace with New"
+msgstr "جایگزینی با پرونده جدید"
+
+msgid "Scanning system health and configuration status…"
+msgstr "در حال بررسی سلامت سیستم و وضعیت پیکربندی…"
+
+msgid "Security"
+msgstr "امنیت"
+
+msgid "Size"
+msgstr "اندازه"
+
+msgid "Snapshots"
+msgstr "نقاط بازیابی"
+
+msgid "Stale Database Lock Detected"
+msgstr "قفل معلق پایگاه داده شناسایی شد"
+
+msgid "System health, configuration drift, and maintenance diagnostics"
+msgstr "سلامت سیستم، مغایرت پیکربندی و عیب‌یابی نگهداری"
+
+msgid "System is healthy: No configuration drift, stale locks, or orphaned packages detected."
+msgstr "سیستم سالم است: هیچ مغایرت پیکربندی، قفل معلق یا بسته یتیمی شناسایی نشد."
+
+msgid "These packages were installed as dependencies but are no longer needed by any installed software."
+msgstr "این بسته‌ها به عنوان وابستگی نصب شده بودند اما دیگر مورد نیاز هیچ برنامه نصب‌شده‌ای نیستند."
+
+msgid "This will delete /var/lib/pacman/db.lck so new package installations can proceed."
+msgstr "این کار var/lib/pacman/db.lck/ را حذف می‌کند تا نصب بسته‌های جدید بتواند انجام شود."
+
+msgid "This will overwrite your existing configuration file with the new package template."
+msgstr "این کار پرونده پیکربندی کنونی شما را با قالب بسته جدید بازنویسی می‌کند."
+
+msgid "This will remove obsolete cached package tarballs, keeping the two latest versions for safe rollbacks."
+msgstr "این کار بسته‌های قدیمی ذخیره‌شده را پاک می‌کند و دو نسخه آخر را برای بازگشت امن نگه می‌دارد."
+
+msgid "Total Cached Packages"
+msgstr "کل بسته‌های ذخیره‌شده در حافظه پنهان"
+
+msgid "Total reclaimable space"
+msgstr "کل فضای قابل آزادسازی"
+
+msgid "Unneeded dependencies that are no longer required by any installed package"
+msgstr "وابستگی‌های غیرضروری که دیگر توسط هیچ بسته نصب‌شده‌ای نیاز نیستند"
+
+msgid "Updates are installed safely. Snapper snapshots are created prior to applying."
+msgstr "به‌روزرسانی‌ها با امنیت نصب می‌شوند. نقاط بازیابی Snapper قبل از اعمال ایجاد می‌شوند."
+
+msgid "Upstream package updates that installed new configuration templates"
+msgstr "به‌روزرسانی‌های بالادست که قالب‌های پیکربندی جدید را نصب کرده‌اند"
+
+msgid "Varies"
+msgstr "متغیر"
+
+msgid "View Diff"
+msgstr "مشاهده تفاوت‌ها"
+
+msgid "additions"
+msgstr "افزوده‌ها"
+
+msgid "items requiring review."
+msgstr "مورد نیازمند بررسی."
+
+msgid "older versions beyond latest 2"
+msgstr "نسخه‌های قدیمی‌تر از ۲ نسخه آخر"
+
+msgid "orphans detected"
+msgstr "بسته یتیم شناسایی شد"
+
+msgid "removals"
+msgstr "حذف‌شده‌ها"
+
+msgid "translator-credits"
+msgstr "تیم پارچ لینوکس"
+
+msgid "Source Repository"
+msgstr "مخزن سورس‌کد"
+
+msgid "Parch Wiki"
+msgstr "دانشنامه پارچ"
+
+msgid "Parch Community Forum"
+msgstr "انجمن گفتگوی پارچ"
+
+msgid "Parch Apps Web"
+msgstr "پورتال وب برنامه‌های پارچ"
+
+msgid "A complete store for Parch GNU/Linux."
+msgstr "یک فروشگاه کامل برای پارچ گنو/لینوکس."
+
+msgid "Any changes made after this snapshot will be lost."
+msgstr "هرگونه تغییری که پس از این نقطه بازیابی انجام شده باشد از دست خواهد رفت."
+
+msgid "Available System Restore Points"
+msgstr "نقاط بازیابی در دسترس سیستم"
+
+msgid "Date"
+msgstr "تاریخ"
+
+msgid "No Btrfs restore points found"
+msgstr "هیچ نقطه بازیابی Btrfs یافت نشد"
+
+msgid "Parch Store automatically creates a paired Snapper Btrfs snapshot before and after every package transaction."
+msgstr "فروشگاه پارچ به طور خودکار قبل و بعد از هر عملیات بسته‌ای یک جفت نقطه بازیابی اسنپر Btrfs ایجاد می‌کند."
+
+msgid "Post"
+msgstr "پس"
+
+msgid "Post-transaction"
+msgstr "پس از عملیات"
+
+msgid "Pre"
+msgstr "پیش"
+
+msgid "Pre-transaction"
+msgstr "پیش از عملیات"
+
+msgid "Restore System"
+msgstr "بازیابی سیستم"
+
+msgid "Restore snapshot"
+msgstr "بازیابی نقطه بازیابی"
+
+msgid "Restore…"
+msgstr "بازیابی…"
+
+msgid "Rollback system to this snapshot"
+msgstr "بازگردانی سیستم به این نقطه بازیابی"
+
+msgid "Snapper System Snapshots"
+msgstr "نقاط بازیابی سیستم Snapper"
+
+msgid "Snapshots are automatically created during package installations and updates"
+msgstr "نقاط بازیابی در حین نصب و به‌روزرسانی بسته‌ها به صورت خودکار ایجاد می‌شوند"
+
+msgid "Snapshots stored on your root Btrfs filesystem subvolume"
+msgstr "نقاط بازیابی ذخیره‌شده در زیرحجم ریشه فایل‌سیستم Btrfs شما"
+
+msgid "This will revert your system to the state at"
+msgstr "این عملیات سیستم شما را به وضعیت این زمان برمی‌گرداند"
+
+msgid "Type"
+msgstr "نوع"

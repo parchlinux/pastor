@@ -100,6 +100,7 @@ impl TransactionBar {
             .editable(false)
             .cursor_visible(false)
             .monospace(true)
+            .wrap_mode(gtk4::WrapMode::WordChar)
             .css_classes(["console-box"])
             .top_margin(8)
             .bottom_margin(8)
@@ -108,6 +109,10 @@ impl TransactionBar {
             .build();
 
         let scrolled = gtk4::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk4::PolicyType::Never)
+            .vscrollbar_policy(gtk4::PolicyType::Automatic)
+            .propagate_natural_width(false)
+            .propagate_natural_height(false)
             .min_content_height(140)
             .max_content_height(200)
             .child(&text_view)

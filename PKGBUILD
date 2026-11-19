@@ -2,10 +2,10 @@
 # Maintainer: ParchLinux Team <contact@parchlinux.com>
 
 pkgname=pastor
-pkgver=0.3.2
+pkgver=0.4.0
 pkgrel=1
 pkgdesc="Modern, native software management center for ParchLinux"
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url="https://github.com/parchlinux/pastor"
 license=('GPL-3.0-only')
 depends=(
