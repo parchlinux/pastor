@@ -61,7 +61,8 @@ impl MainWindow {
             .sidebar_width_fraction(0.25)
             .enable_hide_gesture(true)
             .enable_show_gesture(true)
-            .show_sidebar(true)
+            .collapsed(true)
+            .show_sidebar(false)
             .build();
 
         // -------------------------
@@ -156,40 +157,40 @@ impl MainWindow {
 
         let transaction_bar = TransactionBar::new();
 
-        // Narrow-window adaptive mode: applies .pastor-narrow so CSS can compact
-        // chips below 768 px, collapses the split view for mobile phones (POCO F1, etc.),
-        // and collapses the transaction bar console button.
-        let narrow_bp = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
-            adw::BreakpointConditionLengthType::MaxWidth,
+        // Adaptive mode: Base layout is mobile-first collapsed (< 768 px, POCO F1 at 360 px).
+        // Desktop breakpoint applies on viewports >= 768 px: uncollapses split view, shows
+        // sidebar side-by-side, and switches header centering to strict.
+        let desktop_bp = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
+            adw::BreakpointConditionLengthType::MinWidth,
             768.0,
             adw::LengthUnit::Px,
         ));
-        narrow_bp.add_setter(&split_view, "collapsed", Some(&true.into()));
-        narrow_bp.add_setter(&split_view, "show-sidebar", Some(&false.into()));
-        narrow_bp.add_setter(&content_header, "centering-policy", Some(&adw::CenteringPolicy::Loose.into()));
+        desktop_bp.add_setter(&split_view, "collapsed", Some(&false.into()));
+        desktop_bp.add_setter(&split_view, "show-sidebar", Some(&true.into()));
+        desktop_bp.add_setter(&content_header, "centering-policy", Some(&adw::CenteringPolicy::Strict.into()));
         {
             let w = window.clone();
             let bar = transaction_bar.clone();
             let sv = split_view.clone();
-            narrow_bp.connect_apply(move |_| {
-                w.add_css_class("pastor-narrow");
-                bar.set_narrow(true);
-                sv.set_collapsed(true);
-                sv.set_show_sidebar(false);
-            });
-        }
-        {
-            let w = window.clone();
-            let bar = transaction_bar.clone();
-            let sv = split_view.clone();
-            narrow_bp.connect_unapply(move |_| {
+            desktop_bp.connect_apply(move |_| {
                 w.remove_css_class("pastor-narrow");
                 bar.set_narrow(false);
                 sv.set_collapsed(false);
                 sv.set_show_sidebar(true);
             });
         }
-        window.add_breakpoint(narrow_bp);
+        {
+            let w = window.clone();
+            let bar = transaction_bar.clone();
+            let sv = split_view.clone();
+            desktop_bp.connect_unapply(move |_| {
+                w.add_css_class("pastor-narrow");
+                bar.set_narrow(true);
+                sv.set_collapsed(true);
+                sv.set_show_sidebar(false);
+            });
+        }
+        window.add_breakpoint(desktop_bp);
 
         content_container.append(&content_stack);
         content_container.append(transaction_bar.widget());
@@ -1095,13 +1096,11 @@ mod tests {
         let main_win = MainWindow::new(&app, store);
 
         let split_view = main_win.window.content().and_downcast::<adw::OverlaySplitView>().unwrap();
-        split_view.set_collapsed(true);
-        split_view.set_show_sidebar(false);
 
-        let (sv_min, _, _, _) = split_view.measure(gtk4::Orientation::Horizontal, 360);
-        assert!(sv_min <= 360, "OverlaySplitView requested {sv_min}px which exceeds 360px available width");
-
+        let (sv_min, _, _, _) = split_view.measure(gtk4::Orientation::Horizontal, -1);
         let (win_min, _, _, _) = main_win.window.measure(gtk4::Orientation::Horizontal, -1);
+
+        assert!(sv_min <= 360, "OverlaySplitView requested {sv_min}px which exceeds 360px available width");
         assert!(win_min <= 360, "ApplicationWindow requested {win_min}px which exceeds 360px minimum width");
     }
 }

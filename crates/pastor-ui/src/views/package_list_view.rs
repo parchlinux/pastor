@@ -561,3 +561,51 @@ pub fn create_loading_view(title: &str, description: &str) -> gtk4::Widget {
     scrolled.set_child(Some(&clamp));
     scrolled.upcast()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pastor_core::{PackageCategory, PackageId, PackageSource, PackageState};
+
+    #[test]
+    fn test_grid_card_measurements() {
+        if !gtk4::is_initialized_main_thread() {
+            if gtk4::is_initialized() || gtk4::init().is_err() {
+                return;
+            }
+        }
+        let store = Store::empty();
+        let monitor = TxMonitor::new(&store);
+        let pkg = Package {
+            id: PackageId {
+                name: "test-app".to_string(),
+                source: PackageSource::Arch("extra".to_string()),
+            },
+            name: "test-app".to_string(),
+            display_name: None,
+            version: "1.0.0".to_string(),
+            installed_version: None,
+            summary: "Test application".to_string(),
+            description: None,
+            icon: None,
+            screenshots: vec![],
+            homepage: None,
+            license: None,
+            maintainer: None,
+            categories: vec![PackageCategory::Internet],
+            size_installed: None,
+            size_download: None,
+            dependencies: vec![],
+            changelog: None,
+            state: PackageState::NotInstalled,
+        };
+
+        let card = PackageRowWidgets::build_card(&pkg, &store, &monitor, |_| {}, |_| {});
+        let (min_w, _, _, _) = card.root().measure(gtk4::Orientation::Horizontal, -1);
+        let (min_h, _, _, _) = card.root().measure(gtk4::Orientation::Vertical, 160);
+
+        assert!(min_w <= 160, "Card min width exceeds target column width: {min_w}");
+        assert!(min_h >= 100 && min_h <= 240, "Card min height out of expected range: {min_h}");
+    }
+}
+
