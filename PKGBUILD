@@ -24,7 +24,7 @@ optdepends=(
     'snapper: for btrfs system snapshot protection and recovery'
     'btrfs-progs: for btrfs snapshot maintenance'
 )
-source=("git+https://github.com/parchlinux/pastor.git#branch=main")
+source=("git+https://github.com/parchlinux/pastor.git#tag=v${pkgver}")
 sha256sums=('SKIP')
 
 prepare() {
