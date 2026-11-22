@@ -53,60 +53,8 @@ jobs:
             TAG_NAME="${{ inputs.version || 'v0.4.0' }}"
           fi
           VERSION="${TAG_NAME#v}"
-
-          useradd -m -s /bin/bash builder || true
-          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          chown -R builder:builder .
-
-          sudo -u builder bash -c "
-            cat << 'PKGEOD' > PKGBUILD.packaging
-pkgname=pastor
-pkgver=${VERSION}
-pkgrel=1
-pkgdesc=\"Modern, native software management center for ParchLinux\"
-arch=('x86_64')
-url=\"https://github.com/parchlinux/pastor\"
-license=('GPL-3.0-only')
-depends=('gtk4' 'libadwaita' 'flatpak' 'appstream' 'openssl')
-optdepends=(
-    'snapper: for btrfs system snapshot protection and recovery'
-    'btrfs-progs: for btrfs snapshot maintenance'
-)
-options=(!debug)
-
-package() {
-    install -Dm755 \"\${startdir}/target/release/pastor-ui\" \"\${pkgdir}/usr/bin/pastor\"
-    ln -sf /usr/bin/pastor \"\${pkgdir}/usr/bin/pastor-ui\"
-    ln -sf /usr/bin/pastor \"\${pkgdir}/usr/bin/pastor-store\"
-
-    if [ -f \"\${startdir}/po/LINGUAS\" ]; then
-        while read -r lang; do
-            [ -z \"\$lang\" ] && continue
-            if [ -f \"\${startdir}/po/\${lang}.mo\" ]; then
-                install -Dm644 \"\${startdir}/po/\${lang}.mo\" \"\${pkgdir}/usr/share/locale/\${lang}/LC_MESSAGES/\${pkgname}.mo\"
-                if [ \"\$lang\" = \"fa\" ]; then
-                    install -d \"\${pkgdir}/usr/share/locale/fa_IR/LC_MESSAGES\"
-                    ln -sf \"../../../locale/fa/LC_MESSAGES/\${pkgname}.mo\" \
-                        \"\${pkgdir}/usr/share/locale/fa_IR/LC_MESSAGES/\${pkgname}.mo\"
-                fi
-            fi
-        done < \"\${startdir}/po/LINGUAS\"
-    fi
-
-    install -Dm644 \"\${startdir}/data/com.parchlinux.pastor.desktop\" \
-        \"\${pkgdir}/usr/share/applications/com.parchlinux.pastor.desktop\"
-    install -Dm644 \"\${startdir}/data/com.parchlinux.pastor-autostart.desktop\" \
-        \"\${pkgdir}/etc/xdg/autostart/com.parchlinux.pastor.desktop\"
-    install -Dm644 \"\${startdir}/data/icons/com.parchlinux.pastor.svg\" \
-        \"\${pkgdir}/usr/share/icons/hicolor/scalable/apps/com.parchlinux.pastor.svg\"
-    install -Dm644 \"\${startdir}/data/icons/com.parchlinux.pastor.svg\" \
-        \"\${pkgdir}/usr/share/pixmaps/com.parchlinux.pastor.svg\"
-    install -Dm644 \"\${startdir}/LICENSE\" \"\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE\"
-}
-PKGEOD
-            makepkg -f --nodeps -p PKGBUILD.packaging
-          "
-          chmod -R a+rw .
+          chmod +x .github/scripts/package_arch.sh
+          .github/scripts/package_arch.sh x86_64 "$VERSION"
 
       - name: Upload x86_64 artifacts
         uses: actions/upload-artifact@v4
@@ -151,59 +99,8 @@ PKGEOD
             cp target/release/pastor-ui pastor-aarch64
             strip pastor-aarch64
 
-            useradd -m -s /bin/bash builder || true
-            echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-            chown -R builder:builder .
-
-            sudo -u builder bash -c "
-              cat << 'PKGEOD' > PKGBUILD.packaging
-pkgname=pastor
-pkgver=${VERSION}
-pkgrel=1
-pkgdesc=\"Modern, native software management center for ParchLinux\"
-arch=('aarch64')
-url=\"https://github.com/parchlinux/pastor\"
-license=('GPL-3.0-only')
-depends=('gtk4' 'libadwaita' 'flatpak' 'appstream' 'openssl')
-optdepends=(
-    'snapper: for btrfs system snapshot protection and recovery'
-    'btrfs-progs: for btrfs snapshot maintenance'
-)
-options=(!debug)
-
-package() {
-    install -Dm755 \"\${startdir}/target/release/pastor-ui\" \"\${pkgdir}/usr/bin/pastor\"
-    ln -sf /usr/bin/pastor \"\${pkgdir}/usr/bin/pastor-ui\"
-    ln -sf /usr/bin/pastor \"\${pkgdir}/usr/bin/pastor-store\"
-
-    if [ -f \"\${startdir}/po/LINGUAS\" ]; then
-        while read -r lang; do
-            [ -z \"\$lang\" ] && continue
-            if [ -f \"\${startdir}/po/\${lang}.mo\" ]; then
-                install -Dm644 \"\${startdir}/po/\${lang}.mo\" \"\${pkgdir}/usr/share/locale/\${lang}/LC_MESSAGES/\${pkgname}.mo\"
-                if [ \"\$lang\" = \"fa\" ]; then
-                    install -d \"\${pkgdir}/usr/share/locale/fa_IR/LC_MESSAGES\"
-                    ln -sf \"../../../locale/fa/LC_MESSAGES/\${pkgname}.mo\" \
-                        \"\${pkgdir}/usr/share/locale/fa_IR/LC_MESSAGES/\${pkgname}.mo\"
-                fi
-            fi
-        done < \"\${startdir}/po/LINGUAS\"
-    fi
-
-    install -Dm644 \"\${startdir}/data/com.parchlinux.pastor.desktop\" \
-        \"\${pkgdir}/usr/share/applications/com.parchlinux.pastor.desktop\"
-    install -Dm644 \"\${startdir}/data/com.parchlinux.pastor-autostart.desktop\" \
-        \"\${pkgdir}/etc/xdg/autostart/com.parchlinux.pastor.desktop\"
-    install -Dm644 \"\${startdir}/data/icons/com.parchlinux.pastor.svg\" \
-        \"\${pkgdir}/usr/share/icons/hicolor/scalable/apps/com.parchlinux.pastor.svg\"
-    install -Dm644 \"\${startdir}/data/icons/com.parchlinux.pastor.svg\" \
-        \"\${pkgdir}/usr/share/pixmaps/com.parchlinux.pastor.svg\"
-    install -Dm644 \"\${startdir}/LICENSE\" \"\${pkgdir}/usr/share/licenses/\${pkgname}/LICENSE\"
-}
-PKGEOD
-              makepkg -f --nodeps -p PKGBUILD.packaging
-            "
-            chmod -R a+rw .
+            chmod +x .github/scripts/package_arch.sh
+            .github/scripts/package_arch.sh aarch64 "$VERSION"
 
       - name: Upload aarch64 artifacts
         uses: actions/upload-artifact@v4
