@@ -274,6 +274,26 @@ pub fn get_package(
     }
 }
 
+pub fn get_packages_batch(
+    pacman: &pacmanconf::Config,
+    catalog: &AlpmCatalog,
+    names: &[String],
+) -> Result<Vec<Package>, PastorError> {
+    let alpm = create_alpm(pacman)?;
+    let localdb = alpm.localdb();
+    let syncdbs = alpm.syncdbs();
+
+    let mut pkgs = Vec::with_capacity(names.len());
+    for name in names {
+        let pkg_opt = syncdbs.pkg(name.as_str()).ok().or_else(|| localdb.pkg(name.as_str()).ok());
+        if let Some(pkg) = pkg_opt {
+            let inst = localdb.pkg(name.as_str()).ok();
+            pkgs.push(build_package(&alpm, &pkg, inst, catalog));
+        }
+    }
+    Ok(pkgs)
+}
+
 pub fn installed(
     pacman: &pacmanconf::Config,
     catalog: &AlpmCatalog,

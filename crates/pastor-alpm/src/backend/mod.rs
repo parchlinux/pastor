@@ -295,6 +295,31 @@ impl PackageBackend for AlpmBackend {
         })?
     }
 
+    async fn get_packages_batch(&self, ids: &[PackageId]) -> Result<Vec<Package>, PastorError> {
+        let names: Vec<String> = ids
+            .iter()
+            .filter(|id| self.handles(id))
+            .map(|id| id.name.clone())
+            .collect();
+
+        if names.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let pacman = self.pacman_config.clone();
+        let catalog_arc = self.catalog.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let catalog = catalog_arc.read().unwrap();
+            search::get_packages_batch(&pacman, &catalog, &names)
+        })
+        .await
+        .map_err(|e| PastorError::BackendError {
+            backend: "alpm".into(),
+            message: format!("get_packages_batch task failed: {e}"),
+        })?
+    }
+
     async fn installed(&self) -> Result<Vec<Package>, PastorError> {
         let pacman = self.pacman_config.clone();
         let catalog_arc = self.catalog.clone();

@@ -239,8 +239,18 @@ impl TransactionBar {
 
                     let mark = log_buffer.create_mark(None, &log_buffer.end_iter(), false);
                     text_view.scroll_to_mark(&mark, 0.0, true, 0.0, 1.0);
+                    log_buffer.delete_mark(&mark);
+
                     let vadj = scrolled.vadjustment();
                     vadj.set_value(vadj.upper());
+
+                    // Bound buffer growth to avoid high memory during huge system upgrades
+                    if log_buffer.line_count() > 1000 {
+                        if let Some(mut cutoff) = log_buffer.iter_at_line(200) {
+                            let mut start = log_buffer.start_iter();
+                            log_buffer.delete(&mut start, &mut cutoff);
+                        }
+                    }
                 }
 
                 if matches!(evt.step, TransactionStep::Failed(_)) {

@@ -29,6 +29,19 @@ pub trait PackageBackend: Send + Sync {
     /// Retrieve detailed package information
     async fn get_package(&self, id: &PackageId) -> Result<Option<Package>, PastorError>;
 
+    /// Retrieve multiple packages in a batch efficiently
+    async fn get_packages_batch(&self, ids: &[PackageId]) -> Result<Vec<Package>, PastorError> {
+        let mut pkgs = Vec::new();
+        for id in ids {
+            if self.handles(id) {
+                if let Ok(Some(pkg)) = self.get_package(id).await {
+                    pkgs.push(pkg);
+                }
+            }
+        }
+        Ok(pkgs)
+    }
+
     /// List all currently installed packages managed by this backend
     async fn installed(&self) -> Result<Vec<Package>, PastorError>;
 

@@ -814,6 +814,29 @@ impl PackageBackend for FlatpakBackend {
         Ok(Some(pkg))
     }
 
+    async fn get_packages_batch(&self, ids: &[PackageId]) -> Result<Vec<Package>, PastorError> {
+        let relevant: Vec<&PackageId> = ids.iter().filter(|id| self.handles(id)).collect();
+        if relevant.is_empty() {
+            return Ok(vec![]);
+        }
+        self.ensure_catalog().await;
+        let installed_map = self.get_installed_map().await.unwrap_or_default();
+        let catalog_guard = self.catalog.read().map_err(|_| PastorError::BackendError {
+            backend: "flatpak".into(),
+            message: "Failed to read AppStream catalog lock".to_string(),
+        })?;
+
+        let mut pkgs = Vec::with_capacity(relevant.len());
+        for id in relevant {
+            let PackageSource::Flatpak { ref remote } = id.source else { continue; };
+            let installed_info = installed_map.get(&id.name);
+            let installed_ver = installed_info.map(|(v, _)| v.clone());
+            let comp = catalog_guard.get_component(&id.name);
+            pkgs.push(self.build_package(&id.name, comp, installed_ver, Some(remote.clone())));
+        }
+        Ok(pkgs)
+    }
+
     async fn installed(&self) -> Result<Vec<Package>, PastorError> {
         let user = self.user;
 

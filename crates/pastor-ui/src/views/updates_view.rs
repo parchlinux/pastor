@@ -247,44 +247,42 @@ fn render_updates(
             return;
         }
 
-        let fetch_futures = updates.into_iter().map(|up| {
-            let s = store_c.clone();
-            async move {
-                if let Ok(Some(mut p)) = s.get_package(&up.id).await {
-                    p.state = PackageState::UpdateAvailable;
-                    p.installed_version = Some(up.current_version.clone());
-                    p.version = up.new_version.clone();
-                    p.size_download = up.download_size;
-                    if p.changelog.is_none() {
-                        p.changelog = up.changelog.clone();
-                    }
-                    p
-                } else {
-                    Package {
-                        id: up.id.clone(),
-                        name: up.id.name.clone(),
-                        display_name: Some(up.id.name.clone()),
-                        version: up.new_version.clone(),
-                        installed_version: Some(up.current_version.clone()),
-                        summary: format!("Update: {} → {}", up.current_version, up.new_version),
-                        description: up.changelog.clone(),
-                        icon: Some(PackageIcon::Themed("package-x-generic".to_string())),
-                        screenshots: vec![],
-                        homepage: None,
-                        license: None,
-                        maintainer: None,
-                        categories: vec![],
-                        size_installed: None,
-                        size_download: up.download_size,
-                        dependencies: vec![],
-                        changelog: up.changelog.clone(),
-                        state: PackageState::UpdateAvailable,
-                    }
+        let update_ids: Vec<pastor_core::PackageId> = updates.iter().map(|u| u.id.clone()).collect();
+        let mut batch_pkgs = store_c.get_packages_batch(&update_ids).await;
+
+        let pkgs: Vec<Package> = updates.into_iter().map(|up| {
+            if let Some(mut p) = batch_pkgs.remove(&up.id) {
+                p.state = PackageState::UpdateAvailable;
+                p.installed_version = Some(up.current_version.clone());
+                p.version = up.new_version.clone();
+                p.size_download = up.download_size;
+                if p.changelog.is_none() {
+                    p.changelog = up.changelog.clone();
+                }
+                p
+            } else {
+                Package {
+                    id: up.id.clone(),
+                    name: up.id.name.clone(),
+                    display_name: Some(up.id.name.clone()),
+                    version: up.new_version.clone(),
+                    installed_version: Some(up.current_version.clone()),
+                    summary: format!("Update: {} → {}", up.current_version, up.new_version),
+                    description: up.changelog.clone(),
+                    icon: Some(PackageIcon::Themed("package-x-generic".to_string())),
+                    screenshots: vec![],
+                    homepage: None,
+                    license: None,
+                    maintainer: None,
+                    categories: vec![],
+                    size_installed: None,
+                    size_download: up.download_size,
+                    dependencies: vec![],
+                    changelog: up.changelog.clone(),
+                    state: PackageState::UpdateAvailable,
                 }
             }
-        });
-
-        let pkgs = futures::future::join_all(fetch_futures).await;
+        }).collect();
 
         // Top Summary Card (Responsive vertical card structure with header and actions rows)
         let summary_card = gtk4::Box::builder()

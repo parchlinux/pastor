@@ -316,6 +316,37 @@ impl Store {
         Ok(None)
     }
 
+    pub async fn get_packages_batch(&self, ids: &[PackageId]) -> HashMap<PackageId, Package> {
+        let config = self.module_config();
+        let mut futures = Vec::new();
+        for b in &self.backends {
+            if self.is_backend_enabled(b.as_ref(), &config) {
+                let relevant_ids: Vec<PackageId> = ids
+                    .iter()
+                    .filter(|id| b.handles(id))
+                    .cloned()
+                    .collect();
+                if !relevant_ids.is_empty() {
+                    let b = b.clone();
+                    futures.push(async move {
+                        b.get_packages_batch(&relevant_ids).await
+                    });
+                }
+            }
+        }
+
+        let results = futures::future::join_all(futures).await;
+        let mut map = HashMap::new();
+        for res in results {
+            if let Ok(pkgs) = res {
+                for p in pkgs {
+                    map.insert(p.id.clone(), p);
+                }
+            }
+        }
+        map
+    }
+
     pub async fn get_installed(&self) -> Result<Vec<Package>, PastorError> {
         let config = self.module_config();
         let mut futures = Vec::new();

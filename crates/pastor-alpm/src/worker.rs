@@ -92,11 +92,13 @@ mod tests {
 }
 
 fn setup_callbacks(alpm: &mut alpm::Alpm) {
+    use std::time::{Duration, Instant};
+
     alpm.set_log_cb((), |_level: LogLevel, msg: &str, _| {
         tracing::debug!("alpm: {}", msg);
     });
 
-    alpm.set_dl_cb((), |filename: &str, event: AnyDownloadEvent, _| {
+    alpm.set_dl_cb(Instant::now(), |filename: &str, event: AnyDownloadEvent, last_time: &mut Instant| {
         match event.event() {
             DownloadEvent::Init(_) => {
                 WorkerEvent {
@@ -107,6 +109,12 @@ fn setup_callbacks(alpm: &mut alpm::Alpm) {
                 .emit();
             }
             DownloadEvent::Progress(p) => {
+                let now = Instant::now();
+                if now.duration_since(*last_time) < Duration::from_millis(150) {
+                    return;
+                }
+                *last_time = now;
+
                 let frac = (p.downloaded as f32 / p.total.max(1) as f32).min(0.99);
                 WorkerEvent {
                     step: "Downloading".to_string(),
@@ -134,7 +142,13 @@ fn setup_callbacks(alpm: &mut alpm::Alpm) {
         }
     });
 
-    alpm.set_progress_cb((), |prog: Progress, pkgname: &str, percent: i32, howmany: usize, current: usize, _| {
+    alpm.set_progress_cb(Instant::now(), |prog: Progress, pkgname: &str, percent: i32, howmany: usize, current: usize, last_time: &mut Instant| {
+        let now = Instant::now();
+        if percent < 100 && now.duration_since(*last_time) < Duration::from_millis(100) {
+            return;
+        }
+        *last_time = now;
+
         let frac = (percent as f32 / 100.0).min(0.99);
         let step_name = match prog {
             Progress::AddStart | Progress::UpgradeStart => "Installing",

@@ -124,6 +124,26 @@ impl PackageBackend for AurBackend {
         }
     }
 
+    async fn get_packages_batch(&self, ids: &[PackageId]) -> Result<Vec<Package>, PastorError> {
+        let names: Vec<String> = ids
+            .iter()
+            .filter(|id| self.handles(id))
+            .map(|id| id.name.clone())
+            .collect();
+
+        if names.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let rpc_pkgs = self.client.multi_info(&names).await?;
+        let mut pkgs = Vec::with_capacity(rpc_pkgs.len());
+        for rpc in rpc_pkgs {
+            let installed_ver = self.alpm.get_installed_pkg_version(&rpc.name);
+            pkgs.push(rpc_pkg_to_package(rpc, installed_ver));
+        }
+        Ok(pkgs)
+    }
+
     async fn installed(&self) -> Result<Vec<Package>, PastorError> {
         let foreign_pkgs = self.alpm.get_foreign_packages();
         let store = self.state_store.read().clone();

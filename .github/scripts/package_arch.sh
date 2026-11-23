@@ -72,8 +72,17 @@ package() {
 }
 PKGEOD
 
-makepkg -f --nodeps -p PKGBUILD.packaging
+# Ensure makepkg puts package into ROOT_DIR regardless of system makepkg.conf
+PKGDEST="$ROOT_DIR" makepkg -f --nodeps -p PKGBUILD.packaging
 rm -f PKGBUILD.packaging
+
+# Ensure package is at the root level if placed in a subdirectory
+find "$ROOT_DIR" -maxdepth 2 -name "*.pkg.tar.zst" -exec cp -u {} "$ROOT_DIR/" \; 2>/dev/null || true
+
+if ! ls "$ROOT_DIR"/*.pkg.tar.zst >/dev/null 2>&1; then
+    echo "ERROR: No .pkg.tar.zst package found in $ROOT_DIR!"
+    exit 1
+fi
 EOF
 
 chmod -R a+rw "$START_DIR"

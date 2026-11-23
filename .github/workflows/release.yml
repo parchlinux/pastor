@@ -43,8 +43,6 @@ jobs:
       - name: Build release binary
         run: |
           cargo build --release -p pastor-ui
-          cp target/release/pastor-ui pastor-x86_64
-          strip pastor-x86_64
 
       - name: Build Arch Linux package (.pkg.tar.zst)
         run: |
@@ -60,9 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pastor-x86_64
-          path: |
-            pastor-*-x86_64.pkg.tar.zst
-            pastor-x86_64
+          path: pastor-*-x86_64.pkg.tar.zst
 
   build-aarch64:
     name: Build aarch64
@@ -96,8 +92,6 @@ jobs:
             fi
 
             cargo build --release -p pastor-ui
-            cp target/release/pastor-ui pastor-aarch64
-            strip pastor-aarch64
 
             chmod +x .github/scripts/package_arch.sh
             .github/scripts/package_arch.sh aarch64 "$VERSION"
@@ -106,9 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pastor-aarch64
-          path: |
-            pastor-*-aarch64.pkg.tar.zst
-            pastor-aarch64
+          path: pastor-*-aarch64.pkg.tar.zst
 
   release:
     name: Create GitHub Release
@@ -126,7 +118,7 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release_assets
-          find artifacts -type f \( -name "*.pkg.tar.zst" -o -name "pastor-x86_64" -o -name "pastor-aarch64" \) -exec cp {} release_assets/ \;
+          find artifacts -type f -name "*.pkg.tar.zst" -exec cp {} release_assets/ \;
           cp PKGBUILD release_assets/
           cd release_assets
           sha256sum * > SHA256SUMS
