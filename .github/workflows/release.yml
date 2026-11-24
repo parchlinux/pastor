@@ -27,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pacman -Syu --noconfirm --needed base-devel pkgconf git cargo rust gettext gtk4 libadwaita flatpak appstream openssl sudo
+          pacman -Syu --noconfirm --needed base-devel pkgconf git cargo rust gettext gtk4 libadwaita flatpak appstream openssl sudo zstd
 
       - name: Compile translation catalogs
         run: |
@@ -62,7 +62,7 @@ jobs:
 
   build-aarch64:
     name: Build aarch64
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
           distro: archarm_latest
           githubToken: ${{ github.token }}
           install: |
-            pacman -Syu --noconfirm --needed base-devel pkgconf git cargo rust gettext gtk4 libadwaita flatpak appstream openssl sudo
+            pacman -Syu --noconfirm --needed base-devel pkgconf git cargo rust gettext gtk4 libadwaita flatpak appstream openssl sudo zstd
           run: |
             TAG_NAME="${{ github.ref_name }}"
             if [ -z "$TAG_NAME" ] || [[ "$TAG_NAME" != v* ]]; then

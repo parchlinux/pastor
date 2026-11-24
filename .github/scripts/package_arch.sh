@@ -17,6 +17,15 @@ else
     RUN_PREFIX=""
 fi
 
+# Ensure /etc/makepkg.conf enforces .pkg.tar.zst if writable
+if [ -f /etc/makepkg.conf ] && [ -w /etc/makepkg.conf ]; then
+    sed -i "s/^PKGEXT=.*/PKGEXT='.pkg.tar.zst'/" /etc/makepkg.conf || true
+    sed -i "s|^COMPRESSZST=.*|COMPRESSZST=(zstd -c -T0 --fast -)|" /etc/makepkg.conf || true
+elif [ -f /etc/makepkg.conf ] && [ "$(id -u)" -eq 0 ]; then
+    sed -i "s/^PKGEXT=.*/PKGEXT='.pkg.tar.zst'/" /etc/makepkg.conf || true
+    sed -i "s|^COMPRESSZST=.*|COMPRESSZST=(zstd -c -T0 --fast -)|" /etc/makepkg.conf || true
+fi
+
 $RUN_PREFIX bash -s -- "$ARCH" "$VERSION" "$START_DIR" << 'EOF'
 set -euo pipefail
 
@@ -25,6 +34,14 @@ TARGET_VER="$2"
 ROOT_DIR="$3"
 
 cd "$ROOT_DIR"
+
+# Ensure user-level makepkg config explicitly enforces PKGDEST and PKGEXT=.pkg.tar.zst
+mkdir -p "$HOME/.config/pacman"
+cat << MKEOD > "$HOME/.makepkg.conf"
+PKGDEST="$ROOT_DIR"
+PKGEXT='.pkg.tar.zst'
+COMPRESSZST=(zstd -c -T0 --fast -)
+MKEOD
 
 cat << PKGEOD > PKGBUILD.packaging
 pkgname=pastor
@@ -73,16 +90,34 @@ package() {
 PKGEOD
 
 # Ensure makepkg puts package into ROOT_DIR regardless of system makepkg.conf
-PKGDEST="$ROOT_DIR" makepkg -f --nodeps -p PKGBUILD.packaging
+PKGDEST="$ROOT_DIR" PKGEXT='.pkg.tar.zst' makepkg -f --nodeps -p PKGBUILD.packaging
 rm -f PKGBUILD.packaging
+
+# If makepkg created .pkg.tar.xz (e.g. from system default in Arch Linux ARM), convert it to .pkg.tar.zst
+for pkg_xz in $(find "$ROOT_DIR" -maxdepth 2 -name "*.pkg.tar.xz"); do
+    echo "Converting $pkg_xz to .pkg.tar.zst..."
+    pkg_zst="${pkg_xz%.xz}.zst"
+    xz -dc "$pkg_xz" | zstd -T0 -3 -c > "$pkg_zst"
+    rm -f "$pkg_xz"
+done
+
+# If makepkg created uncompressed .pkg.tar, compress it with zstd
+for pkg_tar in $(find "$ROOT_DIR" -maxdepth 2 -name "*.pkg.tar" ! -name "*.pkg.tar.*"); do
+    echo "Compressing $pkg_tar to .pkg.tar.zst..."
+    zstd -T0 -3 --rm "$pkg_tar" -o "${pkg_tar}.zst"
+done
 
 # Ensure package is at the root level if placed in a subdirectory
 find "$ROOT_DIR" -maxdepth 2 -name "*.pkg.tar.zst" -exec cp -u {} "$ROOT_DIR/" \; 2>/dev/null || true
 
 if ! ls "$ROOT_DIR"/*.pkg.tar.zst >/dev/null 2>&1; then
     echo "ERROR: No .pkg.tar.zst package found in $ROOT_DIR!"
+    ls -la "$ROOT_DIR"
     exit 1
 fi
+
+echo "Arch package generated successfully:"
+ls -la "$ROOT_DIR"/*.pkg.tar.zst
 EOF
 
 chmod -R a+rw "$START_DIR"

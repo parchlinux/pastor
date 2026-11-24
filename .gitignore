@@ -1,3 +1,6 @@
 /target
 po/*.mo
+pkg/
+src/
+*.pkg.tar.*
 
