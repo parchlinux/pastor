@@ -35,9 +35,12 @@ ROOT_DIR="$3"
 
 cd "$ROOT_DIR"
 
-# Ensure user-level makepkg config explicitly enforces PKGDEST and PKGEXT=.pkg.tar.zst
-mkdir -p "$HOME/.config/pacman"
-cat << MKEOD > "$HOME/.makepkg.conf"
+# Create a temporary makepkg config so we never clobber $HOME/.makepkg.conf on local hosts
+TMP_MAKEPKG_CONF="$(mktemp /tmp/pastor-makepkg.XXXXXX.conf)"
+if [ -f /etc/makepkg.conf ]; then
+    cp /etc/makepkg.conf "$TMP_MAKEPKG_CONF"
+fi
+cat << MKEOD >> "$TMP_MAKEPKG_CONF"
 PKGDEST="$ROOT_DIR"
 PKGEXT='.pkg.tar.zst'
 COMPRESSZST=(zstd -c -T0 --fast -)
@@ -90,8 +93,8 @@ package() {
 PKGEOD
 
 # Ensure makepkg puts package into ROOT_DIR regardless of system makepkg.conf
-PKGDEST="$ROOT_DIR" PKGEXT='.pkg.tar.zst' makepkg -f --nodeps -p PKGBUILD.packaging
-rm -f PKGBUILD.packaging
+PKGDEST="$ROOT_DIR" PKGEXT='.pkg.tar.zst' makepkg --config "$TMP_MAKEPKG_CONF" -f --nodeps -p PKGBUILD.packaging
+rm -f PKGBUILD.packaging "$TMP_MAKEPKG_CONF"
 
 # If makepkg created .pkg.tar.xz (e.g. from system default in Arch Linux ARM), convert it to .pkg.tar.zst
 for pkg_xz in $(find "$ROOT_DIR" -maxdepth 2 -name "*.pkg.tar.xz"); do
