@@ -1,5 +1,6 @@
 pub mod backend;
 pub mod cache;
+pub mod deb;
 pub mod doctor;
 pub mod error;
 pub mod locale;
@@ -9,6 +10,11 @@ pub mod transaction;
 
 pub use backend::PackageBackend;
 pub use cache::{cleanup_stale_caches, pastor_cache_dir};
+pub use deb::{
+    convert_deb_to_pkg, host_arch, inspect_deb, map_debian_arch, map_debian_dep_candidates,
+    map_debian_depends_offline, sanitize_arch_pkgname, sanitize_arch_pkgver,
+    search_candidates_for_deb, DebMetadata,
+};
 pub use doctor::{
     check_database_lock, generate_diff, parse_pacman_pkg_filename, scan_pacman_cache,
     scan_pacnew_files, CacheHealthInfo, DatabaseLockInfo, DoctorReport, OrphanPackage, PacnewFile,

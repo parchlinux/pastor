@@ -183,6 +183,10 @@ impl Application {
                     );
                 }
 
+                // Register Parch Store as the default opener for .deb packages when an
+                // archive manager or no handler is currently configured.
+                ensure_default_deb_handler();
+
                 // Spawn StatusNotifierItem tray and background update checker on Tokio runtime
                 let store = store.clone();
                 let state = indicator_state.clone();
@@ -327,6 +331,11 @@ impl Application {
                     let _ = manual_tx.try_send(());
                 }
 
+                // Check for .deb file argument
+                let deb_arg = args.iter().skip(1).find(|a| {
+                    !a.starts_with('-') && a.to_lowercase().ends_with(".deb")
+                });
+
                 // Check for URI or positional arguments
                 let uri_arg = args.iter().skip(1).find(|a| {
                     a.starts_with("pastor:")
@@ -336,7 +345,14 @@ impl Application {
                         || a.starts_with("apps.parchlinux.com")
                 });
 
-                if let Some(uri) = uri_arg {
+                if let Some(deb_str) = deb_arg {
+                    let w = get_window(app);
+                    if deb_str.starts_with("file://") {
+                        w.handle_uri(deb_str);
+                    } else {
+                        w.open_deb_file(std::path::PathBuf::from(deb_str));
+                    }
+                } else if let Some(uri) = uri_arg {
                     let w = get_window(app);
                     w.handle_uri(uri);
                 } else if args.len() >= 3 && args[1] == "install" {
@@ -365,5 +381,50 @@ impl Application {
 
     pub fn run(&self) -> glib::ExitCode {
         self.app.run()
+    }
+}
+
+fn ensure_default_deb_handler() {
+    let Some(app_info) = gio::AppInfo::all()
+        .into_iter()
+        .find(|info| info.id().as_deref() == Some("com.parchlinux.pastor.desktop"))
+    else {
+        return;
+    };
+
+    const DEB_MIMES: &[&str] = &[
+        "application/vnd.debian.binary-package",
+        "application/x-deb",
+        "application/x-debian-package",
+    ];
+
+    for mime in DEB_MIMES {
+        let should_set = match gio::AppInfo::default_for_type(mime, false) {
+            None => true,
+            Some(current) => {
+                let id = current
+                    .id()
+                    .map(|s| s.to_string().to_lowercase())
+                    .unwrap_or_default();
+                if id == "com.parchlinux.pastor.desktop" {
+                    false
+                } else {
+                    // Override generic archive managers so .deb files open in Parch Store by default
+                    id.contains("ark")
+                        || id.contains("fileroller")
+                        || id.contains("file-roller")
+                        || id.contains("engrampa")
+                        || id.contains("xarchiver")
+                        || id.contains("peazip")
+                        || id.contains("lxqt-archiver")
+                }
+            }
+        };
+
+        if should_set {
+            if let Err(e) = app_info.set_as_default_for_type(mime) {
+                tracing::debug!("Could not set default handler for {mime}: {e}");
+            }
+        }
     }
 }

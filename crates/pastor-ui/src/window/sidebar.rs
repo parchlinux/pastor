@@ -111,9 +111,11 @@ pub fn build_sidebar() -> SidebarComponents {
 
     let doctor_row = create_nav_row(tr("Parch Doctor"), &crate::icons::doctor_icon());
     let snapshots_row = create_nav_row(tr("Snapshots"), &crate::icons::snapshot_icon());
+    let deb_row = create_nav_row(tr("Deb Installer"), &crate::icons::deb_icon());
 
     system_list.append(&doctor_row);
     system_list.append(&snapshots_row);
+    system_list.append(&deb_row);
     system_group.add(&system_list);
     sidebar_box.append(&system_group);
 

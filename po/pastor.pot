@@ -1186,3 +1186,114 @@ msgstr ""
 
 msgid "Type"
 msgstr ""
+
+msgid "Deb Installer"
+msgstr ""
+
+msgid "Official Repository"
+msgstr ""
+
+msgid "Debian Packages (*.deb)"
+msgstr ""
+
+msgid "Select Debian Package (.deb)"
+msgstr ""
+
+msgid "Save Converted Arch Package"
+msgstr ""
+
+msgid "Debian Package (.deb) Installer"
+msgstr ""
+
+msgid "Open a .deb file to check for native Official, Flatpak, or AUR alternatives first, or convert and install it cleanly on ParchLinux."
+msgstr ""
+
+msgid "Choose .deb File..."
+msgstr ""
+
+msgid "Inspecting .deb package and searching Flatpak, AUR, and Official Repositories..."
+msgstr ""
+
+msgid "Could Not Open .deb Package"
+msgstr ""
+
+msgid "Choose Another .deb File..."
+msgstr ""
+
+msgid "Open Another..."
+msgstr ""
+
+msgid "This application is available natively in Flatpak, AUR, or Official Repositories. Installing from those sources is recommended for automatic updates and better system integration."
+msgstr ""
+
+msgid "Recommended Native & Community Alternatives"
+msgstr ""
+
+msgid "You can install directly from these sources instead of converting the .deb file."
+msgstr ""
+
+msgid "View & Install"
+msgstr ""
+
+msgid "Architecture mismatch"
+msgstr ""
+
+msgid "Debian Maintainer Scripts Detected"
+msgstr ""
+
+msgid "Debian-specific postinst/prerm scripts are omitted for safety. Standard Arch ALPM hooks will handle desktop entries and icon caches automatically."
+msgstr ""
+
+msgid "Debian Package Details"
+msgstr ""
+
+msgid "Converted Arch Package"
+msgstr ""
+
+msgid "Mapped Arch Dependencies"
+msgstr ""
+
+msgid "Resolved"
+msgstr ""
+
+msgid "Skipped"
+msgstr ""
+
+msgid "No external dependencies declared"
+msgstr ""
+
+msgid "Available in Arch/Parch repositories"
+msgstr ""
+
+msgid "Debian-specific or unavailable in sync databases (skipped)"
+msgstr ""
+
+msgid "Save as .pkg.tar.zst"
+msgstr ""
+
+msgid "Convert & Install"
+msgstr ""
+
+msgid "Convert & Install .deb Anyway"
+msgstr ""
+
+msgid "Converting .deb to .pkg.tar.zst..."
+msgstr ""
+
+msgid "Saved Arch package"
+msgstr ""
+
+msgid "Conversion failed"
+msgstr ""
+
+msgid "Converting .deb package to Arch .pkg.tar.zst..."
+msgstr ""
+
+msgid "Installing converted package..."
+msgstr ""
+
+msgid "Package converted and installed successfully."
+msgstr ""
+
+msgid "Installation failed"
+msgstr ""

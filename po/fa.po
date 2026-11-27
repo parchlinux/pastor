@@ -1189,3 +1189,114 @@ msgstr "این عملیات سیستم شما را به وضعیت این زما
 
 msgid "Type"
 msgstr "نوع"
+
+msgid "Deb Installer"
+msgstr "نصب‌کننده بسته Deb"
+
+msgid "Official Repository"
+msgstr "مخزن رسمی"
+
+msgid "Debian Packages (*.deb)"
+msgstr "بسته‌های دبیان (*.deb)"
+
+msgid "Select Debian Package (.deb)"
+msgstr "انتخاب بسته دبیان (.deb)"
+
+msgid "Save Converted Arch Package"
+msgstr "ذخیره بسته تبدیل‌شده آرچ"
+
+msgid "Debian Package (.deb) Installer"
+msgstr "نصب‌کننده بسته‌های دبیان (.deb)"
+
+msgid "Open a .deb file to check for native Official, Flatpak, or AUR alternatives first, or convert and install it cleanly on ParchLinux."
+msgstr "یک فایل .deb را باز کنید تا ابتدا جایگزین‌های بومی در مخازن رسمی، Flatpak یا AUR بررسی شوند، یا آن را به شکل تمیز روی پارچ‌لینوکس تبدیل و نصب کنید."
+
+msgid "Choose .deb File..."
+msgstr "انتخاب فایل .deb..."
+
+msgid "Inspecting .deb package and searching Flatpak, AUR, and Official Repositories..."
+msgstr "در حال بررسی بسته .deb و جستجو در Flatpak، AUR و مخازن رسمی..."
+
+msgid "Could Not Open .deb Package"
+msgstr "باز کردن بسته .deb ممکن نشد"
+
+msgid "Choose Another .deb File..."
+msgstr "انتخاب فایل .deb دیگر..."
+
+msgid "Open Another..."
+msgstr "باز کردن فایل دیگر..."
+
+msgid "This application is available natively in Flatpak, AUR, or Official Repositories. Installing from those sources is recommended for automatic updates and better system integration."
+msgstr "این برنامه به صورت بومی در Flatpak، AUR یا مخازن رسمی موجود است. نصب از آن منابع برای دریافت به‌روزرسانی‌های خودکار و یکپارچگی بهتر با سیستم توصیه می‌شود."
+
+msgid "Recommended Native & Community Alternatives"
+msgstr "جایگزین‌های پیشنهادی بومی و جامعه کاربری"
+
+msgid "You can install directly from these sources instead of converting the .deb file."
+msgstr "می‌توانید به جای تبدیل فایل .deb، برنامه را مستقیماً از این منابع نصب کنید."
+
+msgid "View & Install"
+msgstr "مشاهده و نصب"
+
+msgid "Architecture mismatch"
+msgstr "عدم تطابق معماری"
+
+msgid "Debian Maintainer Scripts Detected"
+msgstr "اسکریپت‌های نگه‌دارنده دبیان شناسایی شد"
+
+msgid "Debian-specific postinst/prerm scripts are omitted for safety. Standard Arch ALPM hooks will handle desktop entries and icon caches automatically."
+msgstr "اسکریپت‌های مخصوص دبیان (postinst/prerm) برای ایمنی حذف شده‌اند. هوک‌های استاندارد ALPM در آرچ فایل‌های دسکتاپ و کش آیکون‌ها را به صورت خودکار مدیریت می‌کنند."
+
+msgid "Debian Package Details"
+msgstr "جزئیات بسته دبیان"
+
+msgid "Converted Arch Package"
+msgstr "بسته تبدیل‌شده آرچ"
+
+msgid "Mapped Arch Dependencies"
+msgstr "وابستگی‌های نگاشت‌شده آرچ"
+
+msgid "Resolved"
+msgstr "حل‌شده"
+
+msgid "Skipped"
+msgstr "ردشده"
+
+msgid "No external dependencies declared"
+msgstr "هیچ وابستگی خارجی اعلام نشده است"
+
+msgid "Available in Arch/Parch repositories"
+msgstr "موجود در مخازن آرچ و پارچ"
+
+msgid "Debian-specific or unavailable in sync databases (skipped)"
+msgstr "مختص دبیان یا ناموجود در پایگاه‌داده مخازن (رد شد)"
+
+msgid "Save as .pkg.tar.zst"
+msgstr "ذخیره با فرمت .pkg.tar.zst"
+
+msgid "Convert & Install"
+msgstr "تبدیل و نصب"
+
+msgid "Convert & Install .deb Anyway"
+msgstr "تبدیل و نصب بسته .deb به هر حال"
+
+msgid "Converting .deb to .pkg.tar.zst..."
+msgstr "در حال تبدیل .deb به .pkg.tar.zst..."
+
+msgid "Saved Arch package"
+msgstr "بسته آرچ ذخیره شد"
+
+msgid "Conversion failed"
+msgstr "تبدیل ناموفق بود"
+
+msgid "Converting .deb package to Arch .pkg.tar.zst..."
+msgstr "در حال تبدیل بسته .deb به .pkg.tar.zst..."
+
+msgid "Installing converted package..."
+msgstr "در حال نصب بسته تبدیل‌شده..."
+
+msgid "Package converted and installed successfully."
+msgstr "بسته با موفقیت تبدیل و نصب شد."
+
+msgid "Installation failed"
+msgstr "نصب ناموفق بود"

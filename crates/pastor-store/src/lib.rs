@@ -1270,6 +1270,202 @@ impl Store {
             message: e.to_string(),
         })?
     }
+
+    /// Resolves Debian dependencies against the live Arch/Parch ALPM sync & local databases.
+    pub async fn resolve_deb_dependencies(
+        &self,
+        deb_depends: &[String],
+    ) -> (Vec<String>, Vec<String>) {
+        if let Some(ref alpm) = self.alpm_backend {
+            alpm.resolve_deb_dependencies(deb_depends).await
+        } else {
+            (map_debian_depends_offline(deb_depends), Vec::new())
+        }
+    }
+
+    /// Searches Official Repositories, Flatpak, and AUR for native alternatives to a `.deb` package.
+    /// Returns matching packages sorted by priority: Official Repos -> Flatpak -> AUR.
+    pub async fn find_deb_alternatives(&self, deb: &DebMetadata) -> Vec<Package> {
+        let candidates = search_candidates_for_deb(deb);
+        if candidates.is_empty() {
+            return Vec::new();
+        }
+
+        let search_futures = candidates.iter().map(|q| self.search(q));
+        let results = join_all(search_futures).await;
+
+        let candidate_set: HashSet<String> = candidates.iter().cloned().collect();
+        let mut seen_ids = HashSet::new();
+        let mut scored: Vec<(u8, Package)> = Vec::new();
+
+        for res in results {
+            let Ok(pkgs) = res else { continue };
+            for pkg in pkgs {
+                if !seen_ids.insert(pkg.id.clone()) {
+                    continue;
+                }
+
+                let raw_name = pkg.id.name.to_lowercase();
+                let tail_name = raw_name
+                    .rsplit('.')
+                    .next()
+                    .unwrap_or(&raw_name)
+                    .to_lowercase();
+                let stripped_bin = raw_name
+                    .strip_suffix("-bin")
+                    .or_else(|| raw_name.strip_suffix("-git"))
+                    .unwrap_or(&raw_name)
+                    .to_string();
+                let display_lower = pkg
+                    .display_name
+                    .as_deref()
+                    .unwrap_or(&pkg.name)
+                    .to_lowercase()
+                    .replace(' ', "-");
+
+                let is_exact = candidate_set.contains(&raw_name)
+                    || candidate_set.contains(&tail_name)
+                    || candidate_set.contains(&stripped_bin)
+                    || candidate_set.contains(&display_lower);
+
+                let is_close = !is_exact
+                    && candidates.iter().any(|c| {
+                        c.len() >= 4
+                            && (raw_name.starts_with(&format!("{c}-"))
+                                || tail_name == *c
+                                || display_lower.contains(c))
+                    });
+
+                if !is_exact && !is_close {
+                    continue;
+                }
+
+                let source_rank: u8 = match &pkg.id.source {
+                    PackageSource::Parch(_) | PackageSource::Arch(_) => 0,
+                    PackageSource::Flatpak { .. } => 1,
+                    PackageSource::Aur => 2,
+                    _ => 3,
+                };
+                let match_rank: u8 = if is_exact { 0 } else { 10 };
+                scored.push((source_rank + match_rank, pkg));
+            }
+        }
+
+        scored.sort_by_key(|(rank, _)| *rank);
+        scored.into_iter().take(8).map(|(_, pkg)| pkg).collect()
+    }
+
+    /// Installs a local `.pkg.tar.zst` package file (such as a converted `.deb`) via ALPM,
+    /// streaming progress to the global transaction broadcaster and returning a receiver.
+    pub fn install_local_package(
+        &self,
+        pkg_path: std::path::PathBuf,
+        pkg_name: String,
+    ) -> Receiver<TransactionEvent> {
+        let (tx, rx): (Sender<TransactionEvent>, Receiver<TransactionEvent>) = mpsc::channel(100);
+        let id = PackageId::new(
+            pkg_name.clone(),
+            PackageSource::Arch("local".to_string()),
+        );
+        let alpm_opt = self.alpm_backend.clone();
+        let active_map = self.active_transactions.clone();
+        let broadcaster = self.tx_broadcaster.clone();
+
+        let initial_info = ActiveTransactionInfo {
+            package_id: id.clone(),
+            package_name: pkg_name.clone(),
+            progress_fraction: 0.05,
+            step: TransactionStep::ApplyingChanges {
+                package: pkg_name.clone(),
+                index: 1,
+                total: 1,
+            },
+            log_message: format!("Installing converted package {}...", pkg_name),
+        };
+        if let Ok(mut guard) = active_map.write() {
+            guard.insert(id.clone(), initial_info.clone());
+        }
+        let _ = broadcaster.send(ActiveTransactionEvent::Started(initial_info));
+
+        tokio::spawn(async move {
+            let Some(alpm) = alpm_opt else {
+                let msg = "ALPM backend unavailable for local package installation".to_string();
+                if let Ok(mut guard) = active_map.write() {
+                    guard.remove(&id);
+                }
+                let _ = broadcaster.send(ActiveTransactionEvent::Failed(id.clone(), msg.clone()));
+                let _ = tx
+                    .send(TransactionEvent {
+                        step: TransactionStep::Failed(msg.clone()),
+                        progress_fraction: 1.0,
+                        log_message: msg,
+                    })
+                    .await;
+                return;
+            };
+
+            let (b_tx, mut b_rx) = mpsc::channel::<TransactionEvent>(100);
+            let path_c = pkg_path.clone();
+            let join_h = tokio::spawn(async move { alpm.install_local_package(&path_c, b_tx).await });
+
+            let mut saw_terminal = false;
+            while let Some(evt) = b_rx.recv().await {
+                let is_done = matches!(evt.step, TransactionStep::Completed);
+                let is_err = matches!(evt.step, TransactionStep::Failed(_));
+
+                if let Ok(mut guard) = active_map.write() {
+                    if is_done || is_err {
+                        guard.remove(&id);
+                    } else if let Some(entry) = guard.get_mut(&id) {
+                        entry.progress_fraction = evt.progress_fraction;
+                        entry.step = evt.step.clone();
+                        entry.log_message = evt.log_message.clone();
+                        let _ = broadcaster.send(ActiveTransactionEvent::Progress(entry.clone()));
+                    }
+                }
+
+                if is_done {
+                    saw_terminal = true;
+                    let _ = broadcaster.send(ActiveTransactionEvent::Completed(id.clone()));
+                } else if let TransactionStep::Failed(ref err) = evt.step {
+                    saw_terminal = true;
+                    let _ = broadcaster.send(ActiveTransactionEvent::Failed(id.clone(), err.clone()));
+                }
+                let _ = tx.send(evt).await;
+            }
+
+            if let Ok(Err(e)) = join_h.await {
+                if !saw_terminal {
+                    let msg = e.to_string();
+                    if let Ok(mut guard) = active_map.write() {
+                        guard.remove(&id);
+                    }
+                    let _ = broadcaster.send(ActiveTransactionEvent::Failed(id.clone(), msg.clone()));
+                    let _ = tx
+                        .send(TransactionEvent {
+                            step: TransactionStep::Failed(msg.clone()),
+                            progress_fraction: 1.0,
+                            log_message: msg,
+                        })
+                        .await;
+                }
+            } else if !saw_terminal {
+                if let Ok(mut guard) = active_map.write() {
+                    guard.remove(&id);
+                }
+                let _ = broadcaster.send(ActiveTransactionEvent::Completed(id.clone()));
+                let _ = tx
+                    .send(TransactionEvent {
+                        step: TransactionStep::Completed,
+                        progress_fraction: 1.0,
+                        log_message: "Package installed successfully".to_string(),
+                    })
+                    .await;
+            }
+        });
+
+        rx
+    }
 }
 
 /// Module-config check usable from spawned tasks (mirrors `Store::is_backend_enabled`).

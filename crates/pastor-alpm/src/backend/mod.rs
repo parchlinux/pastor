@@ -228,6 +228,50 @@ impl AlpmBackend {
             message: format!("Remove package task error: {e}"),
         })?
     }
+
+    /// Resolves Debian `Depends` specifications into valid Arch Linux package names
+    /// verified against the live local and sync ALPM databases.
+    pub async fn resolve_deb_dependencies(
+        &self,
+        deb_depends: &[String],
+    ) -> (Vec<String>, Vec<String>) {
+        let pacman = self.pacman_config.clone();
+        let deps = deb_depends.to_vec();
+
+        tokio::task::spawn_blocking(move || {
+            let Ok(alpm) = crate::backend::privileged::create_alpm(&pacman) else {
+                return (pastor_core::map_debian_depends_offline(&deps), Vec::new());
+            };
+            let localdb = alpm.localdb();
+            let syncdbs = alpm.syncdbs();
+
+            let mut resolved = std::collections::BTreeSet::new();
+            let mut unresolved = Vec::new();
+
+            for spec in &deps {
+                let mut matched = false;
+                'alts: for alt in spec.split('|') {
+                    for candidate in pastor_core::map_debian_dep_candidates(alt) {
+                        let exists_local = localdb.pkg(candidate.as_str()).is_ok();
+                        let exists_sync = syncdbs.pkg(candidate.as_str()).is_ok()
+                            || syncdbs.find_satisfier(candidate.as_str()).is_some();
+                        if exists_local || exists_sync {
+                            resolved.insert(candidate);
+                            matched = true;
+                            break 'alts;
+                        }
+                    }
+                }
+                if !matched {
+                    unresolved.push(spec.clone());
+                }
+            }
+
+            (resolved.into_iter().collect(), unresolved)
+        })
+        .await
+        .unwrap_or_else(|_| (pastor_core::map_debian_depends_offline(deb_depends), Vec::new()))
+    }
 }
 
 #[async_trait]

@@ -1189,3 +1189,114 @@ msgstr "سيعيد هذا النظام إلى حالته في"
 
 msgid "Type"
 msgstr "النوع"
+
+msgid "Deb Installer"
+msgstr "مثبّت حزم Deb"
+
+msgid "Official Repository"
+msgstr "المستودع الرسمي"
+
+msgid "Debian Packages (*.deb)"
+msgstr "حزم ديبيان (*.deb)"
+
+msgid "Select Debian Package (.deb)"
+msgstr "اختر حزمة ديبيان (.deb)"
+
+msgid "Save Converted Arch Package"
+msgstr "حفظ حزمة آرتش المحوّلة"
+
+msgid "Debian Package (.deb) Installer"
+msgstr "مثبّت حزم ديبيان (.deb)"
+
+msgid "Open a .deb file to check for native Official, Flatpak, or AUR alternatives first, or convert and install it cleanly on ParchLinux."
+msgstr "افتح ملف .deb للتحقق أولاً من البدائل الأصلية في المستودعات الرسمية أو Flatpak أو AUR، أو قم بتحويله وتثبيته بسلاسة على ParchLinux."
+
+msgid "Choose .deb File..."
+msgstr "اختر ملف .deb..."
+
+msgid "Inspecting .deb package and searching Flatpak, AUR, and Official Repositories..."
+msgstr "جارٍ فحص حزمة .deb والبحث في Flatpak وAUR والمستودعات الرسمية..."
+
+msgid "Could Not Open .deb Package"
+msgstr "تعذّر فتح حزمة .deb"
+
+msgid "Choose Another .deb File..."
+msgstr "اختر ملف .deb آخر..."
+
+msgid "Open Another..."
+msgstr "فتح ملف آخر..."
+
+msgid "This application is available natively in Flatpak, AUR, or Official Repositories. Installing from those sources is recommended for automatic updates and better system integration."
+msgstr "هذا التطبيق متوفر بشكل أصلي في Flatpak أو AUR أو المستودعات الرسمية. يُنصح بالتثبيت من تلك المصادر للحصول على تحديثات تلقائية وتكامل أفضل مع النظام."
+
+msgid "Recommended Native & Community Alternatives"
+msgstr "البدائل الأصلية والمجتمعية الموصى بها"
+
+msgid "You can install directly from these sources instead of converting the .deb file."
+msgstr "يمكنك التثبيت مباشرة من هذه المصادر بدلاً من تحويل ملف .deb."
+
+msgid "View & Install"
+msgstr "عرض وتثبيت"
+
+msgid "Architecture mismatch"
+msgstr "عدم تطابق المعمارية"
+
+msgid "Debian Maintainer Scripts Detected"
+msgstr "تم اكتشاف نصوص صيانة ديبيان"
+
+msgid "Debian-specific postinst/prerm scripts are omitted for safety. Standard Arch ALPM hooks will handle desktop entries and icon caches automatically."
+msgstr "تم تخطي نصوص ديبيان الخاصة (postinst/prerm) للأمان. ستتولى خطافات ALPM القياسية تحديث ملفات سطح المكتب وذاكرة الأيقونات تلقائيًا."
+
+msgid "Debian Package Details"
+msgstr "تفاصيل حزمة ديبيان"
+
+msgid "Converted Arch Package"
+msgstr "حزمة آرتش المحوّلة"
+
+msgid "Mapped Arch Dependencies"
+msgstr "اعتماديات آرتش المحوّلة"
+
+msgid "Resolved"
+msgstr "تم حلّها"
+
+msgid "Skipped"
+msgstr "تم تخطّيها"
+
+msgid "No external dependencies declared"
+msgstr "لم يتم التصريح عن اعتماديات خارجية"
+
+msgid "Available in Arch/Parch repositories"
+msgstr "متوفرة في مستودعات آرتش وبارتش"
+
+msgid "Debian-specific or unavailable in sync databases (skipped)"
+msgstr "خاصة بديبيان أو غير متوفرة في قواعد بيانات المزامنة (تم تخطيها)"
+
+msgid "Save as .pkg.tar.zst"
+msgstr "حفظ بصيغة .pkg.tar.zst"
+
+msgid "Convert & Install"
+msgstr "تحويل وتثبيت"
+
+msgid "Convert & Install .deb Anyway"
+msgstr "تحويل وتثبيت .deb على أي حال"
+
+msgid "Converting .deb to .pkg.tar.zst..."
+msgstr "جارٍ تحويل .deb إلى .pkg.tar.zst..."
+
+msgid "Saved Arch package"
+msgstr "تم حفظ حزمة آرتش"
+
+msgid "Conversion failed"
+msgstr "فشل التحويل"
+
+msgid "Converting .deb package to Arch .pkg.tar.zst..."
+msgstr "جارٍ تحويل حزمة .deb إلى .pkg.tar.zst..."
+
+msgid "Installing converted package..."
+msgstr "جارٍ تثبيت الحزمة المحوّلة..."
+
+msgid "Package converted and installed successfully."
+msgstr "تم تحويل الحزمة وتثبيتها بنجاح."
+
+msgid "Installation failed"
+msgstr "فشل التثبيت"

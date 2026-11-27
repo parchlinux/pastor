@@ -36,6 +36,7 @@ pub struct MainWindow {
     show_downgrade_fn: Rc<dyn Fn()>,
     show_search_fn: Rc<dyn Fn(String)>,
     open_package_fn: Rc<dyn Fn(String)>,
+    open_deb_file_fn: Rc<dyn Fn(std::path::PathBuf)>,
 }
 
 impl MainWindow {
@@ -281,6 +282,7 @@ impl MainWindow {
                         "downgrade" => (pastor_core::tr("Downgrade Tool").to_string(), "".to_string()),
                         "settings" => (pastor_core::tr("Settings").to_string(), "".to_string()),
                         "doctor" => (pastor_core::tr("Parch Doctor").to_string(), "".to_string()),
+                        "deb" => (pastor_core::tr("Deb Installer").to_string(), "".to_string()),
                         _ => (prev.clone(), "".to_string()),
                     };
                     *cur_t.borrow_mut() = t;
@@ -384,7 +386,7 @@ impl MainWindow {
                     if name == "details" || name == "snapshots" || name == "downgrade" || name == "settings" {
                         history_rc.borrow_mut().push(cur);
                         back_btn.set_visible(true);
-                    } else if name == "explore" || name == "installed" || name == "updates" || name == "immutable" || name == "doctor" {
+                    } else if name == "explore" || name == "installed" || name == "updates" || name == "immutable" || name == "doctor" || name == "deb" {
                         history_rc.borrow_mut().clear();
                         back_btn.set_visible(false);
                     }
@@ -398,6 +400,7 @@ impl MainWindow {
                     "downgrade" => (pastor_core::tr("Downgrade Tool"), ""),
                     "settings" => (pastor_core::tr("Settings"), ""),
                     "doctor" => (pastor_core::tr("Parch Doctor"), ""),
+                    "deb" => (pastor_core::tr("Deb Installer"), ""),
                     _ => (name, ""),
                 };
                 *cur_t.borrow_mut() = t.to_string();
@@ -840,7 +843,17 @@ impl MainWindow {
             });
         }
 
-        // System list navigation (Parch Doctor, Snapshots)
+        let deb_view_handle = {
+            let on_sel_deb = on_select_pkg.clone();
+            crate::views::create_deb_view(
+                store_rc.clone(),
+                Rc::new(move |pkg| {
+                    on_sel_deb(pkg);
+                }),
+            )
+        };
+
+        // System list navigation (Parch Doctor, Snapshots, Deb Installer)
         {
             let split_for_sys = split_view.clone();
             let nav = navigate_to_view.clone();
@@ -850,6 +863,7 @@ impl MainWindow {
             let app_handle_sys = app.clone();
             let nav_list_for_sys = sidebar.nav_list.clone();
             let cat_list_for_sys = sidebar.cat_list.clone();
+            let deb_handle_sys = deb_view_handle.clone();
 
             sidebar.system_list.connect_row_activated(move |_, row| {
                 if split_for_sys.is_collapsed() {
@@ -874,10 +888,30 @@ impl MainWindow {
                     1 => {
                         app_handle_sys.activate_action("snapshots", None);
                     }
+                    2 => {
+                        nav("deb", Some(deb_handle_sys.root.clone().upcast()));
+                    }
                     _ => {}
                 }
             });
         }
+
+        let open_deb_file_fn: Rc<dyn Fn(std::path::PathBuf)> = {
+            let nav = navigate_to_view.clone();
+            let deb_handle = deb_view_handle;
+            let nav_list = sidebar.nav_list.clone();
+            let cat_list = sidebar.cat_list.clone();
+            let sys_list = sidebar.system_list.clone();
+            Rc::new(move |path: std::path::PathBuf| {
+                nav_list.select_row(Option::<&gtk4::ListBoxRow>::None);
+                cat_list.select_row(Option::<&gtk4::ListBoxRow>::None);
+                if let Some(row) = sys_list.row_at_index(2) {
+                    sys_list.select_row(Some(&row));
+                }
+                nav("deb", Some(deb_handle.root.clone().upcast()));
+                deb_handle.load_file(path);
+            })
+        };
 
         let app_handle = app.clone();
         let show_settings_fn: Rc<dyn Fn()> = {
@@ -991,6 +1025,7 @@ impl MainWindow {
             show_downgrade_fn,
             show_search_fn: search_controller.show_search_fn,
             open_package_fn: search_controller.open_package_fn,
+            open_deb_file_fn,
         }
     }
 
@@ -1038,12 +1073,29 @@ impl MainWindow {
         (self.open_package_fn)(pkg_name.to_string());
     }
 
+    pub fn open_deb_file(&self, path: std::path::PathBuf) {
+        self.window.present();
+        (self.open_deb_file_fn)(path);
+    }
+
     pub fn destroy(&self) {
         self.window.destroy();
     }
 
     pub fn handle_uri(&self, uri: &str) {
         self.window.present();
+        if uri.to_lowercase().ends_with(".deb") {
+            let file = gtk4::gio::File::for_uri(uri);
+            if let Some(path) = file.path() {
+                self.open_deb_file(path);
+                return;
+            }
+            let raw_path = std::path::PathBuf::from(uri);
+            if raw_path.is_file() {
+                self.open_deb_file(raw_path);
+                return;
+            }
+        }
         match crate::uri_handler::parse_uri(uri) {
             Some(crate::uri_handler::PastorRoute::Install(pkg)) => {
                 self.open_package(&pkg);

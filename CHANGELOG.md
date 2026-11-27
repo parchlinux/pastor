@@ -9,6 +9,10 @@ All notable changes to Pastor (Parch Store) are documented in this file.
   - Pacman database lock detector with running process diagnostics and safe unlock action.
   - Pacnew configuration file scanner with colorful side-by-side and mobile-friendly diff viewer highlighting additions and deletions.
   - Pacman package cache manager calculating disk reclamation and cleaning obsolete cached archives.
+- **Smart Debian (`.deb`) Package Installer & Converter**:
+  - Native Rust `.deb` to Arch `.pkg.tar.zst` converter with merged-`/usr` path normalization, `.PKGINFO`/`.MTREE` generation, and live ALPM dependency mapping.
+  - Smart alternative discovery that automatically checks Official Repositories, Flatpak, and AUR before converting and recommends native/community packages when available.
+  - File manager integration (`application/vnd.debian.binary-package`, `application/x-deb`), CLI file opening (`pastor app.deb`), and "Save as .pkg.tar.zst" export.
 - **Arabic Language Support**:
   - Full Arabic (`ar`) localization covering all 389 application strings.
   - Automatic right-to-left (RTL) layout mirroring and font handling for Arabic locales.
