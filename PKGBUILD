@@ -24,6 +24,7 @@ optdepends=(
     'snapper: for btrfs system snapshot protection and recovery'
     'btrfs-progs: for btrfs snapshot maintenance'
 )
+options=('!lto')
 source=("git+https://github.com/parchlinux/pastor.git#tag=v${pkgver}")
 sha256sums=('SKIP')
 
@@ -54,7 +55,7 @@ build() {
 check() {
     cd "${srcdir}/${pkgname}"
     export RUSTUP_TOOLCHAIN=stable
-    cargo test --frozen --workspace
+    cargo test --frozen --workspace -- --test-threads=1
 }
 
 package() {
