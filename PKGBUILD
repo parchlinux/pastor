@@ -23,6 +23,7 @@ makedepends=(
 optdepends=(
     'snapper: for btrfs system snapshot protection and recovery'
     'btrfs-progs: for btrfs snapshot maintenance'
+    'squashfs-tools: for fast AppImage metadata and icon extraction'
 )
 options=('!lto')
 source=("git+https://github.com/parchlinux/pastor.git#tag=v${pkgver}")

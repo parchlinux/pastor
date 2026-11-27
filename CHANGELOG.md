@@ -13,6 +13,10 @@ All notable changes to Pastor (Parch Store) are documented in this file.
   - Native Rust `.deb` to Arch `.pkg.tar.zst` converter with merged-`/usr` path normalization, `.PKGINFO`/`.MTREE` generation, and live ALPM dependency mapping.
   - Smart alternative discovery that automatically checks Official Repositories, Flatpak, and AUR before converting and recommends native/community packages when available.
   - File manager integration (`application/vnd.debian.binary-package`, `application/x-deb`), CLI file opening (`pastor app.deb`), and "Save as .pkg.tar.zst" export.
+- **AppImage Manager & Desktop Integration**:
+  - Inspect Type 1 (ISO) and Type 2 (SquashFS/DwarFS) `.AppImage` packages safely, extract `.desktop` metadata and icons, and check Official Repositories, Flatpak, and AUR for native alternatives.
+  - Manage installed AppImages in `~/Applications` and `~/.local/share/applications` (including AppImages installed by `AppManager`): launch, update/replace, and uninstall.
+  - Registered Parch Store as the default handler for `.deb` and `.AppImage` files.
 - **Arabic Language Support**:
   - Full Arabic (`ar`) localization covering all 389 application strings.
   - Automatic right-to-left (RTL) layout mirroring and font handling for Arabic locales.

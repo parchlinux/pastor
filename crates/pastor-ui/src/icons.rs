@@ -108,6 +108,15 @@ pub fn deb_icon() -> String {
     ])
 }
 
+pub fn appimage_icon() -> String {
+    resolve_icon(&[
+        "application-x-executable-symbolic",
+        "application-x-addon-symbolic",
+        "package-x-generic-symbolic",
+        "application-x-executable",
+    ])
+}
+
 #[allow(dead_code)]
 pub fn downgrade_icon() -> String {
     resolve_icon(&["edit-undo-symbolic", "edit-undo"])

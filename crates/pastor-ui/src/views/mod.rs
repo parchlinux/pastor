@@ -1,3 +1,4 @@
+pub mod appimage_view;
 pub mod circular_progress;
 pub mod deb_view;
 pub mod doctor_view;
@@ -11,6 +12,7 @@ pub mod snapshots_view;
 pub mod transaction_bar;
 pub mod updates_view;
 
+pub use appimage_view::create_appimage_view;
 pub use circular_progress::CircularProgress;
 pub use deb_view::create_deb_view;
 pub use doctor_view::create_doctor_view;

@@ -1297,3 +1297,120 @@ msgstr ""
 
 msgid "Installation failed"
 msgstr ""
+
+msgid "AppImages"
+msgstr ""
+
+msgid "AppImage Applications (*.AppImage)"
+msgstr ""
+
+msgid "AppImage Manager"
+msgstr ""
+
+msgid "Manage integrated AppImages (including those installed with AppManager), or open a new .AppImage file to inspect, run, or install it."
+msgstr ""
+
+msgid "Install or Run a New .AppImage"
+msgstr ""
+
+msgid "Checks Official Repositories, Flatpak, and AUR for native alternatives before integrating."
+msgstr ""
+
+msgid "Open .AppImage..."
+msgstr ""
+
+msgid "Select AppImage File"
+msgstr ""
+
+msgid "Installed AppImages"
+msgstr ""
+
+msgid "Found"
+msgstr ""
+
+msgid "No Installed AppImages Found"
+msgstr ""
+
+msgid "AppImages installed via Pastor or AppManager in ~/Applications will appear here."
+msgstr ""
+
+msgid "Pastor"
+msgstr ""
+
+msgid "AppManager"
+msgstr ""
+
+msgid "Local"
+msgstr ""
+
+msgid "Launch failed"
+msgstr ""
+
+msgid "Update with newer .AppImage..."
+msgstr ""
+
+msgid "Select Newer .AppImage"
+msgstr ""
+
+msgid "Updating AppImage..."
+msgstr ""
+
+msgid "Updated AppImage"
+msgstr ""
+
+msgid "Update failed"
+msgstr ""
+
+msgid "Uninstall AppImage?"
+msgstr ""
+
+msgid "This will remove the AppImage file and its desktop launcher for"
+msgstr ""
+
+msgid "Removed AppImage"
+msgstr ""
+
+msgid "Uninstall failed"
+msgstr ""
+
+msgid "All AppImages"
+msgstr ""
+
+msgid "This application is available natively in Flatpak, AUR, or Official Repositories. Installing from those sources provides automatic updates and better system integration."
+msgstr ""
+
+msgid "You can install directly from these sources instead of using the AppImage."
+msgstr ""
+
+msgid "AppImage Details"
+msgstr ""
+
+msgid "Source File"
+msgstr ""
+
+msgid "Install Location"
+msgstr ""
+
+msgid "Run Once"
+msgstr ""
+
+msgid "Application launched."
+msgstr ""
+
+msgid "Integrate & Install"
+msgstr ""
+
+msgid "Integrating AppImage into ~/Applications..."
+msgstr ""
+
+msgid "Inspecting AppImage and searching Flatpak, AUR, and Official Repositories..."
+msgstr ""
+
+msgid "Could Not Open AppImage"
+msgstr ""
+
+msgid "Choose Another .AppImage..."
+msgstr ""
+
+msgid "Filter packages by name or description..."
+msgstr ""

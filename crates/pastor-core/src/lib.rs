@@ -1,3 +1,4 @@
+pub mod appimage;
 pub mod backend;
 pub mod cache;
 pub mod deb;
@@ -7,6 +8,12 @@ pub mod locale;
 pub mod package;
 pub mod snapshot;
 pub mod transaction;
+
+pub use appimage::{
+    inspect_appimage, install_appimage, launch_appimage, list_installed_appimages,
+    search_candidates_for_appimage, uninstall_appimage, update_appimage, AppImageMetadata,
+    AppImageOwner, AppImageType, InstalledAppImage,
+};
 
 pub use backend::PackageBackend;
 pub use cache::{cleanup_stale_caches, pastor_cache_dir};

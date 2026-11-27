@@ -58,6 +58,7 @@ depends=('gtk4' 'libadwaita' 'flatpak' 'appstream' 'openssl')
 optdepends=(
     'snapper: for btrfs system snapshot protection and recovery'
     'btrfs-progs: for btrfs snapshot maintenance'
+    'squashfs-tools: for fast AppImage metadata and icon extraction'
 )
 options=(!debug)
 

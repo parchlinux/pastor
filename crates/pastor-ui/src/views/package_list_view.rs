@@ -367,6 +367,16 @@ pub fn create_package_list_view(
         .visible(false)
         .build();
 
+    let search_filter_entry = gtk4::SearchEntry::builder()
+        .placeholder_text(pastor_core::tr("Filter packages by name or description..."))
+        .hexpand(true)
+        .margin_bottom(4)
+        .build();
+    search_filter_entry.update_property(&[gtk4::accessible::Property::Label(
+        pastor_core::tr("Filter packages by name or description..."),
+    )]);
+
+    content_box.append(&search_filter_entry);
     content_box.append(&controls_bar);
     content_box.append(&count_lbl);
     content_box.append(&view_stack);
@@ -383,6 +393,7 @@ pub fn create_package_list_view(
     let current_filter: Rc<RefCell<SourceFilter>> = Rc::new(RefCell::new(SourceFilter::All));
     let apps_only: Rc<RefCell<bool>> = Rc::new(RefCell::new(default_apps_only));
     let current_sort: Rc<RefCell<SortMode>> = Rc::new(RefCell::new(SortMode::NameAsc));
+    let current_query: Rc<RefCell<String>> = Rc::new(RefCell::new(String::new()));
 
     let apply = {
         let model = model.clone();
@@ -390,21 +401,38 @@ pub fn create_package_list_view(
         let filter = current_filter.clone();
         let apps = apps_only.clone();
         let sort = current_sort.clone();
+        let query_cell = current_query.clone();
         let count_lbl = count_lbl.clone();
         let empty_status = empty_status.clone();
         let view_stack = view_stack.clone();
         let controls_bar = controls_bar.clone();
+        let search_filter_entry_c = search_filter_entry.clone();
 
         move || {
             let f = *filter.borrow();
             let apps_only = *apps.borrow();
             let s = *sort.borrow();
+            let q = query_cell.borrow().trim().to_lowercase();
 
             let total = all.borrow().len();
             let mut visible: Vec<Package> = all
                 .borrow()
                 .iter()
-                .filter(|p| matches_filter(p, f) && (!apps_only || is_app_like(p)))
+                .filter(|p| {
+                    if !matches_filter(p, f) || (apps_only && !is_app_like(p)) {
+                        return false;
+                    }
+                    if q.is_empty() {
+                        return true;
+                    }
+                    p.name.to_lowercase().contains(&q)
+                        || p.id.name.to_lowercase().contains(&q)
+                        || p.display_name
+                            .as_deref()
+                            .map(|d| d.to_lowercase().contains(&q))
+                            .unwrap_or(false)
+                        || p.summary.to_lowercase().contains(&q)
+                })
                 .cloned()
                 .collect();
             sort_packages(&mut visible, s);
@@ -428,12 +456,22 @@ pub fn create_package_list_view(
             };
             count_lbl.set_text(&text);
             let has_any = total > 0;
+            search_filter_entry_c.set_visible(has_any);
             controls_bar.set_visible(has_any);
             count_lbl.set_visible(has_any);
             view_stack.set_visible(has_any && shown > 0);
             empty_status.set_visible(!has_any || shown == 0);
         }
     };
+
+    {
+        let query_cell = current_query;
+        let apply = apply.clone();
+        search_filter_entry.connect_search_changed(move |entry| {
+            *query_cell.borrow_mut() = entry.text().to_string();
+            apply();
+        });
+    }
 
     let set_packages: Rc<dyn Fn(Vec<Package>)> = {
         let all = all_packages.clone();

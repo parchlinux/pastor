@@ -183,9 +183,9 @@ impl Application {
                     );
                 }
 
-                // Register Parch Store as the default opener for .deb packages when an
-                // archive manager or no handler is currently configured.
-                ensure_default_deb_handler();
+                // Register Parch Store as the default opener for .deb and .AppImage packages when
+                // an archive manager, generic runner, or no handler is currently configured.
+                ensure_default_package_handlers();
 
                 // Spawn StatusNotifierItem tray and background update checker on Tokio runtime
                 let store = store.clone();
@@ -331,9 +331,10 @@ impl Application {
                     let _ = manual_tx.try_send(());
                 }
 
-                // Check for .deb file argument
-                let deb_arg = args.iter().skip(1).find(|a| {
-                    !a.starts_with('-') && a.to_lowercase().ends_with(".deb")
+                // Check for .deb or .AppImage file argument
+                let pkg_file_arg = args.iter().skip(1).find(|a| {
+                    let lower = a.to_lowercase();
+                    !a.starts_with('-') && (lower.ends_with(".deb") || lower.ends_with(".appimage"))
                 });
 
                 // Check for URI or positional arguments
@@ -345,12 +346,14 @@ impl Application {
                         || a.starts_with("apps.parchlinux.com")
                 });
 
-                if let Some(deb_str) = deb_arg {
+                if let Some(file_str) = pkg_file_arg {
                     let w = get_window(app);
-                    if deb_str.starts_with("file://") {
-                        w.handle_uri(deb_str);
+                    if file_str.starts_with("file://") {
+                        w.handle_uri(file_str);
+                    } else if file_str.to_lowercase().ends_with(".deb") {
+                        w.open_deb_file(std::path::PathBuf::from(file_str));
                     } else {
-                        w.open_deb_file(std::path::PathBuf::from(deb_str));
+                        w.open_appimage_file(std::path::PathBuf::from(file_str));
                     }
                 } else if let Some(uri) = uri_arg {
                     let w = get_window(app);
@@ -384,7 +387,7 @@ impl Application {
     }
 }
 
-fn ensure_default_deb_handler() {
+fn ensure_default_package_handlers() {
     let Some(app_info) = gio::AppInfo::all()
         .into_iter()
         .find(|info| info.id().as_deref() == Some("com.parchlinux.pastor.desktop"))
@@ -392,13 +395,16 @@ fn ensure_default_deb_handler() {
         return;
     };
 
-    const DEB_MIMES: &[&str] = &[
+    const PACKAGE_MIMES: &[&str] = &[
         "application/vnd.debian.binary-package",
         "application/x-deb",
         "application/x-debian-package",
+        "application/vnd.appimage",
+        "application/x-iso9660-appimage",
+        "application/x-appimage",
     ];
 
-    for mime in DEB_MIMES {
+    for mime in PACKAGE_MIMES {
         let should_set = match gio::AppInfo::default_for_type(mime, false) {
             None => true,
             Some(current) => {
@@ -409,7 +415,8 @@ fn ensure_default_deb_handler() {
                 if id == "com.parchlinux.pastor.desktop" {
                     false
                 } else {
-                    // Override generic archive managers so .deb files open in Parch Store by default
+                    // Override generic archive managers or AppImageLauncher/AppManager defaults
+                    // so Parch Store is the primary handler unless explicitly switched elsewhere.
                     id.contains("ark")
                         || id.contains("fileroller")
                         || id.contains("file-roller")
@@ -417,6 +424,9 @@ fn ensure_default_deb_handler() {
                         || id.contains("xarchiver")
                         || id.contains("peazip")
                         || id.contains("lxqt-archiver")
+                        || id.contains("appimagelauncher")
+                        || id.contains("gearlever")
+                        || id.contains("appmanager")
                 }
             }
         };

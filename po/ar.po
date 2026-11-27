@@ -1300,3 +1300,120 @@ msgstr "تم تحويل الحزمة وتثبيتها بنجاح."
 
 msgid "Installation failed"
 msgstr "فشل التثبيت"
+
+msgid "AppImages"
+msgstr "تطبيقات AppImage"
+
+msgid "AppImage Applications (*.AppImage)"
+msgstr "تطبيقات AppImage (*.AppImage)"
+
+msgid "AppImage Manager"
+msgstr "مدير AppImage"
+
+msgid "Manage integrated AppImages (including those installed with AppManager), or open a new .AppImage file to inspect, run, or install it."
+msgstr "أدر تطبيقات AppImage المدمجة (بما في ذلك المثبتة عبر AppManager)، أو افتح ملف .AppImage جديدًا لفحصه أو تشغيله أو تثبيته."
+
+msgid "Install or Run a New .AppImage"
+msgstr "تثبيت أو تشغيل ملف .AppImage جديد"
+
+msgid "Checks Official Repositories, Flatpak, and AUR for native alternatives before integrating."
+msgstr "يتحقق من المستودعات الرسمية وFlatpak وAUR للعثور على بدائل أصلية قبل الدمج."
+
+msgid "Open .AppImage..."
+msgstr "فتح .AppImage..."
+
+msgid "Select AppImage File"
+msgstr "اختر ملف AppImage"
+
+msgid "Installed AppImages"
+msgstr "تطبيقات AppImage المثبتة"
+
+msgid "Found"
+msgstr "تم العثور على"
+
+msgid "No Installed AppImages Found"
+msgstr "لم يتم العثور على تطبيقات AppImage مثبتة"
+
+msgid "AppImages installed via Pastor or AppManager in ~/Applications will appear here."
+msgstr "ستظهر هنا تطبيقات AppImage المثبتة عبر Pastor أو AppManager في مجلد ~/Applications."
+
+msgid "Pastor"
+msgstr "باستور"
+
+msgid "AppManager"
+msgstr "AppManager"
+
+msgid "Local"
+msgstr "محلي"
+
+msgid "Launch failed"
+msgstr "فشل التشغيل"
+
+msgid "Update with newer .AppImage..."
+msgstr "التحديث بملف .AppImage أحدث..."
+
+msgid "Select Newer .AppImage"
+msgstr "اختر ملف .AppImage أحدث"
+
+msgid "Updating AppImage..."
+msgstr "جارٍ تحديث AppImage..."
+
+msgid "Updated AppImage"
+msgstr "تم تحديث AppImage"
+
+msgid "Update failed"
+msgstr "فشل التحديث"
+
+msgid "Uninstall AppImage?"
+msgstr "إزالة AppImage؟"
+
+msgid "This will remove the AppImage file and its desktop launcher for"
+msgstr "سيؤدي هذا إلى إزالة ملف AppImage ومشغّل سطح المكتب الخاص بـ"
+
+msgid "Removed AppImage"
+msgstr "تمت إزالة AppImage"
+
+msgid "Uninstall failed"
+msgstr "فشل الحذف"
+
+msgid "All AppImages"
+msgstr "جميع تطبيقات AppImage"
+
+msgid "This application is available natively in Flatpak, AUR, or Official Repositories. Installing from those sources provides automatic updates and better system integration."
+msgstr "هذا التطبيق متوفر بشكل أصلي في Flatpak أو AUR أو المستودعات الرسمية. التثبيت من تلك المصادر يوفّر تحديثات تلقائية وتكاملاً أفضل مع النظام."
+
+msgid "You can install directly from these sources instead of using the AppImage."
+msgstr "يمكنك التثبيت مباشرة من هذه المصادر بدلاً من استخدام ملف AppImage."
+
+msgid "AppImage Details"
+msgstr "تفاصيل AppImage"
+
+msgid "Source File"
+msgstr "ملف المصدر"
+
+msgid "Install Location"
+msgstr "مسار التثبيت"
+
+msgid "Run Once"
+msgstr "تشغيل لمرة واحدة"
+
+msgid "Application launched."
+msgstr "تم تشغيل التطبيق."
+
+msgid "Integrate & Install"
+msgstr "دمج وتثبيت"
+
+msgid "Integrating AppImage into ~/Applications..."
+msgstr "جارٍ دمج AppImage في مجلد ~/Applications..."
+
+msgid "Inspecting AppImage and searching Flatpak, AUR, and Official Repositories..."
+msgstr "جارٍ فحص AppImage والبحث في Flatpak وAUR والمستودعات الرسمية..."
+
+msgid "Could Not Open AppImage"
+msgstr "تعذّر فتح AppImage"
+
+msgid "Choose Another .AppImage..."
+msgstr "اختر ملف .AppImage آخر..."
+
+msgid "Filter packages by name or description..."
+msgstr "تصفية الحزم حسب الاسم أو الوصف..."

@@ -1287,6 +1287,20 @@ impl Store {
     /// Returns matching packages sorted by priority: Official Repos -> Flatpak -> AUR.
     pub async fn find_deb_alternatives(&self, deb: &DebMetadata) -> Vec<Package> {
         let candidates = search_candidates_for_deb(deb);
+        self.find_alternatives_for_candidates(&candidates).await
+    }
+
+    /// Searches Official Repositories, Flatpak, and AUR for native alternatives to an `.AppImage`.
+    pub async fn find_appimage_alternatives(
+        &self,
+        meta: &AppImageMetadata,
+        filename: Option<&str>,
+    ) -> Vec<Package> {
+        let candidates = search_candidates_for_appimage(meta, filename);
+        self.find_alternatives_for_candidates(&candidates).await
+    }
+
+    async fn find_alternatives_for_candidates(&self, candidates: &[String]) -> Vec<Package> {
         if candidates.is_empty() {
             return Vec::new();
         }

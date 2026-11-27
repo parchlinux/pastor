@@ -1300,3 +1300,120 @@ msgstr "بسته با موفقیت تبدیل و نصب شد."
 
 msgid "Installation failed"
 msgstr "نصب ناموفق بود"
+
+msgid "AppImages"
+msgstr "برنامه‌های AppImage"
+
+msgid "AppImage Applications (*.AppImage)"
+msgstr "برنامه‌های AppImage (*.AppImage)"
+
+msgid "AppImage Manager"
+msgstr "مدیریت AppImage"
+
+msgid "Manage integrated AppImages (including those installed with AppManager), or open a new .AppImage file to inspect, run, or install it."
+msgstr "برنامه‌های AppImage یکپارچه‌شده (شامل برنامه‌های نصب‌شده با AppManager) را مدیریت کنید، یا یک فایل .AppImage جدید را برای بررسی، اجرا یا نصب باز کنید."
+
+msgid "Install or Run a New .AppImage"
+msgstr "نصب یا اجرای یک .AppImage جدید"
+
+msgid "Checks Official Repositories, Flatpak, and AUR for native alternatives before integrating."
+msgstr "پیش از یکپارچه‌سازی، جایگزین‌های بومی را در مخازن رسمی، Flatpak و AUR بررسی می‌کند."
+
+msgid "Open .AppImage..."
+msgstr "باز کردن .AppImage..."
+
+msgid "Select AppImage File"
+msgstr "انتخاب فایل AppImage"
+
+msgid "Installed AppImages"
+msgstr "برنامه‌های AppImage نصب‌شده"
+
+msgid "Found"
+msgstr "یافت‌شده"
+
+msgid "No Installed AppImages Found"
+msgstr "هیچ برنامه AppImage نصب‌شده‌ای یافت نشد"
+
+msgid "AppImages installed via Pastor or AppManager in ~/Applications will appear here."
+msgstr "برنامه‌های AppImage نصب‌شده از طریق پاستور یا AppManager در پوشه ~/Applications اینجا نمایش داده می‌شوند."
+
+msgid "Pastor"
+msgstr "پاستور"
+
+msgid "AppManager"
+msgstr "AppManager"
+
+msgid "Local"
+msgstr "محلی"
+
+msgid "Launch failed"
+msgstr "اجرا ناموفق بود"
+
+msgid "Update with newer .AppImage..."
+msgstr "به‌روزرسانی با نسخه جدیدتر .AppImage..."
+
+msgid "Select Newer .AppImage"
+msgstr "انتخاب نسخه جدیدتر .AppImage"
+
+msgid "Updating AppImage..."
+msgstr "در حال به‌روزرسانی AppImage..."
+
+msgid "Updated AppImage"
+msgstr "AppImage به‌روزرسانی شد"
+
+msgid "Update failed"
+msgstr "به‌روزرسانی ناموفق بود"
+
+msgid "Uninstall AppImage?"
+msgstr "حذف AppImage؟"
+
+msgid "This will remove the AppImage file and its desktop launcher for"
+msgstr "این کار فایل AppImage و میانبر دسکتاپ آن را حذف می‌کند برای"
+
+msgid "Removed AppImage"
+msgstr "AppImage حذف شد"
+
+msgid "Uninstall failed"
+msgstr "حذف ناموفق بود"
+
+msgid "All AppImages"
+msgstr "همه AppImageها"
+
+msgid "This application is available natively in Flatpak, AUR, or Official Repositories. Installing from those sources provides automatic updates and better system integration."
+msgstr "این برنامه به صورت بومی در Flatpak، AUR یا مخازن رسمی موجود است. نصب از آن منابع به‌روزرسانی خودکار و یکپارچگی بهتر با سیستم را فراهم می‌کند."
+
+msgid "You can install directly from these sources instead of using the AppImage."
+msgstr "می‌توانید به جای استفاده از AppImage، برنامه را مستقیماً از این منابع نصب کنید."
+
+msgid "AppImage Details"
+msgstr "جزئیات AppImage"
+
+msgid "Source File"
+msgstr "فایل منبع"
+
+msgid "Install Location"
+msgstr "محل نصب"
+
+msgid "Run Once"
+msgstr "اجرای موقت"
+
+msgid "Application launched."
+msgstr "برنامه اجرا شد."
+
+msgid "Integrate & Install"
+msgstr "یکپارچه‌سازی و نصب"
+
+msgid "Integrating AppImage into ~/Applications..."
+msgstr "در حال یکپارچه‌سازی AppImage در پوشه ~/Applications..."
+
+msgid "Inspecting AppImage and searching Flatpak, AUR, and Official Repositories..."
+msgstr "در حال بررسی AppImage و جستجو در Flatpak، AUR و مخازن رسمی..."
+
+msgid "Could Not Open AppImage"
+msgstr "باز کردن AppImage ممکن نشد"
+
+msgid "Choose Another .AppImage..."
+msgstr "انتخاب فایل .AppImage دیگر..."
+
+msgid "Filter packages by name or description..."
+msgstr "فیلتر بسته‌ها بر اساس نام یا توضیحات..."
