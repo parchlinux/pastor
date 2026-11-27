@@ -1414,3 +1414,9 @@ msgstr ""
 
 msgid "Filter packages by name or description..."
 msgstr ""
+
+msgid "Drag the application onto the Applications folder to install"
+msgstr ""
+
+msgid "Drag to Applications"
+msgstr ""

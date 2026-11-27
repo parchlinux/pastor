@@ -1417,3 +1417,9 @@ msgstr "انتخاب فایل .AppImage دیگر..."
 
 msgid "Filter packages by name or description..."
 msgstr "فیلتر بسته‌ها بر اساس نام یا توضیحات..."
+
+msgid "Drag the application onto the Applications folder to install"
+msgstr "برنامه را بکشید و روی پوشه Applications رها کنید تا نصب شود"
+
+msgid "Drag to Applications"
+msgstr "به Applications بکشید"

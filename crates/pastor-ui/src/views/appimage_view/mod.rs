@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk4::glib;
+use gtk4::{gdk, gio, glib};
 use pastor_core::{inspect_appimage, tr, AppImageMetadata, Package};
 use pastor_store::Store;
 
@@ -268,6 +268,26 @@ pub fn create_appimage_view(
         error_retry_btn.connect_clicked(move |_| {
             open_appimage_file_dialog(&btn_c, tr("Select AppImage File"), trig_c.clone());
         });
+    }
+
+    {
+        let drop_target = gtk4::DropTarget::new(
+            gio::File::static_type(),
+            gdk::DragAction::COPY | gdk::DragAction::MOVE,
+        );
+        let trig_drop = trigger_load.clone();
+        drop_target.connect_drop(move |_, value, _, _| {
+            if let Ok(file) = value.get::<gio::File>() {
+                if let Some(p) = file.path() {
+                    if p.to_string_lossy().to_lowercase().ends_with(".appimage") {
+                        trig_drop(p);
+                        return true;
+                    }
+                }
+            }
+            false
+        });
+        manager_scrolled.add_controller(drop_target);
     }
 
     refresh_list_fn();

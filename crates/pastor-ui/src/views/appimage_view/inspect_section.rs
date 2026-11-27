@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use adw::prelude::*;
-use gtk4::glib;
+use gtk4::{gdk, gio, glib};
 use pastor_core::{
     format_size, install_appimage, launch_appimage, tr, AppImageMetadata, Package, PackageSource,
 };
@@ -161,6 +161,201 @@ pub fn populate_inspect_view(
         container.append(&alt_group);
     }
 
+    let status_label = gtk4::Label::builder()
+        .halign(gtk4::Align::Start)
+        .wrap(true)
+        .visible(false)
+        .css_classes(["dim-label"])
+        .build();
+
+    let run_btn = gtk4::Button::builder()
+        .label(tr("Run Once"))
+        .height_request(44)
+        .build();
+
+    let install_btn = gtk4::Button::builder()
+        .label(tr("Integrate & Install"))
+        .height_request(44)
+        .css_classes(["suggested-action"])
+        .build();
+
+    let trigger_install: Rc<dyn Fn(PathBuf)> = {
+        let st = status_label.clone();
+        let ib = install_btn.clone();
+        let rb = run_btn.clone();
+        let back = on_back_to_list;
+        Rc::new(move |src_path: PathBuf| {
+            ib.set_sensitive(false);
+            rb.set_sensitive(false);
+            st.set_label(tr("Integrating AppImage into ~/Applications..."));
+            st.set_visible(true);
+
+            let st_ui = st.clone();
+            let ib_ui = ib.clone();
+            let rb_ui = rb.clone();
+            let back_ui = back.clone();
+
+            glib::MainContext::default().spawn_local(async move {
+                let res = tokio::task::spawn_blocking(move || install_appimage(&src_path)).await;
+                ib_ui.set_sensitive(true);
+                rb_ui.set_sensitive(true);
+                match res {
+                    Ok(Ok(_installed)) => {
+                        back_ui();
+                    }
+                    Ok(Err(e)) => {
+                        st_ui.set_label(&format!("{}: {}", tr("Installation failed"), e));
+                    }
+                    Err(e) => {
+                        st_ui.set_label(&format!("{}: {}", tr("Installation failed"), e));
+                    }
+                }
+            });
+        })
+    };
+
+    // macOS .dmg-style Drag & Drop Installation Stage
+    let dmg_card = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(12)
+        .css_classes(["card"])
+        .build();
+    let dmg_inner = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(12)
+        .margin_top(16)
+        .margin_bottom(16)
+        .margin_start(16)
+        .margin_end(16)
+        .build();
+
+    let dmg_hint = gtk4::Label::builder()
+        .label(tr("Drag the application onto the Applications folder to install"))
+        .halign(gtk4::Align::Center)
+        .wrap(true)
+        .css_classes(["heading"])
+        .build();
+    dmg_inner.append(&dmg_hint);
+
+    let dmg_stage = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Horizontal)
+        .spacing(16)
+        .halign(gtk4::Align::Center)
+        .valign(gtk4::Align::Center)
+        .build();
+
+    // Left: Draggable App Tile
+    let app_tile = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(8)
+        .halign(gtk4::Align::Center)
+        .valign(gtk4::Align::Center)
+        .width_request(140)
+        .css_classes(["dmg-drag-tile"])
+        .tooltip_text(tr("Drag to Applications"))
+        .build();
+    let drag_app_icon = if let Some(ref ipath) = meta.icon_path {
+        gtk4::Image::builder()
+            .file(ipath.to_string_lossy().as_ref())
+            .pixel_size(56)
+            .build()
+    } else {
+        gtk4::Image::builder()
+            .icon_name(crate::icons::appimage_icon())
+            .pixel_size(56)
+            .build()
+    };
+    let drag_app_name = gtk4::Label::builder()
+        .label(&meta.name)
+        .ellipsize(gtk4::pango::EllipsizeMode::End)
+        .max_width_chars(16)
+        .css_classes(["title-4"])
+        .build();
+    app_tile.append(&drag_app_icon);
+    app_tile.append(&drag_app_name);
+
+    {
+        let drag_source = gtk4::DragSource::new();
+        drag_source.set_actions(gdk::DragAction::COPY | gdk::DragAction::MOVE);
+        let p_drag = appimage_path.clone();
+        drag_source.connect_prepare(move |_, _, _| {
+            let gfile = gio::File::for_path(&p_drag);
+            Some(gdk::ContentProvider::for_value(&gfile.to_value()))
+        });
+        let tile_icon = drag_app_icon.paintable();
+        drag_source.connect_drag_begin(move |src, _| {
+            if let Some(ref paintable) = tile_icon {
+                src.set_icon(Some(paintable), 28, 28);
+            }
+        });
+        app_tile.add_controller(drag_source);
+    }
+
+    // Center: Arrow
+    let arrow_icon = gtk4::Image::builder()
+        .icon_name("go-next-symbolic")
+        .pixel_size(28)
+        .css_classes(["dim-label"])
+        .build();
+
+    // Right: Applications Drop Target
+    let apps_tile = gtk4::Box::builder()
+        .orientation(gtk4::Orientation::Vertical)
+        .spacing(8)
+        .halign(gtk4::Align::Center)
+        .valign(gtk4::Align::Center)
+        .width_request(140)
+        .css_classes(["dmg-drop-zone"])
+        .build();
+    let folder_icon = gtk4::Image::builder()
+        .icon_name("folder-symbolic")
+        .pixel_size(56)
+        .build();
+    let folder_lbl = gtk4::Label::builder()
+        .label(tr("Applications"))
+        .css_classes(["title-4"])
+        .build();
+    apps_tile.append(&folder_icon);
+    apps_tile.append(&folder_lbl);
+
+    {
+        let drop_target = gtk4::DropTarget::new(gio::File::static_type(), gdk::DragAction::COPY | gdk::DragAction::MOVE);
+        let zone_enter = apps_tile.clone();
+        drop_target.connect_enter(move |_, _, _| {
+            zone_enter.remove_css_class("dmg-drop-zone");
+            zone_enter.add_css_class("dmg-drop-zone-active");
+            gdk::DragAction::COPY
+        });
+        let zone_leave = apps_tile.clone();
+        drop_target.connect_leave(move |_| {
+            zone_leave.remove_css_class("dmg-drop-zone-active");
+            zone_leave.add_css_class("dmg-drop-zone");
+        });
+        let zone_drop = apps_tile.clone();
+        let inst_cb = trigger_install.clone();
+        let fallback_path = appimage_path.clone();
+        drop_target.connect_drop(move |_, value, _, _| {
+            zone_drop.remove_css_class("dmg-drop-zone-active");
+            zone_drop.add_css_class("dmg-drop-zone");
+            if let Ok(file) = value.get::<gio::File>() {
+                if let Some(p) = file.path() {
+                    inst_cb(p);
+                    return true;
+                }
+            }
+            inst_cb(fallback_path.clone());
+            true
+        });
+        apps_tile.add_controller(drop_target);
+    }
+
+    dmg_stage.append(&app_tile);
+    dmg_stage.append(&arrow_icon);
+    dmg_stage.append(&apps_tile);
+    dmg_inner.append(&dmg_stage);
+    dmg_card.append(&dmg_inner);
+    container.append(&dmg_card);
+
     // AppImage Metadata Details
     let details_group = adw::PreferencesGroup::builder()
         .title(tr("AppImage Details"))
@@ -200,12 +395,6 @@ pub fn populate_inspect_view(
     }
     container.append(&details_group);
 
-    let status_label = gtk4::Label::builder()
-        .halign(gtk4::Align::Start)
-        .wrap(true)
-        .visible(false)
-        .css_classes(["dim-label"])
-        .build();
     container.append(&status_label);
 
     let actions_box = gtk4::Box::builder()
@@ -215,10 +404,6 @@ pub fn populate_inspect_view(
         .margin_top(6)
         .build();
 
-    let run_btn = gtk4::Button::builder()
-        .label(tr("Run Once"))
-        .height_request(44)
-        .build();
     {
         let p = appimage_path.clone();
         let st = status_label.clone();
@@ -233,45 +418,11 @@ pub fn populate_inspect_view(
         });
     }
 
-    let install_btn = gtk4::Button::builder()
-        .label(tr("Integrate & Install"))
-        .height_request(44)
-        .css_classes(["suggested-action"])
-        .build();
     {
         let p = appimage_path;
-        let st = status_label;
-        let ib = install_btn.clone();
-        let rb = run_btn.clone();
-        let back = on_back_to_list;
+        let inst_cb = trigger_install;
         install_btn.connect_clicked(move |_| {
-            ib.set_sensitive(false);
-            rb.set_sensitive(false);
-            st.set_label(tr("Integrating AppImage into ~/Applications..."));
-            st.set_visible(true);
-
-            let src_bg = p.clone();
-            let st_ui = st.clone();
-            let ib_ui = ib.clone();
-            let rb_ui = rb.clone();
-            let back_ui = back.clone();
-
-            glib::MainContext::default().spawn_local(async move {
-                let res = tokio::task::spawn_blocking(move || install_appimage(&src_bg)).await;
-                ib_ui.set_sensitive(true);
-                rb_ui.set_sensitive(true);
-                match res {
-                    Ok(Ok(_installed)) => {
-                        back_ui();
-                    }
-                    Ok(Err(e)) => {
-                        st_ui.set_label(&format!("{}: {}", tr("Installation failed"), e));
-                    }
-                    Err(e) => {
-                        st_ui.set_label(&format!("{}: {}", tr("Installation failed"), e));
-                    }
-                }
-            });
+            inst_cb(p.clone());
         });
     }
 

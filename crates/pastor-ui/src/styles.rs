@@ -628,6 +628,28 @@ flowboxchild {
     margin-bottom: 8px;
 }
 
+.dmg-drag-tile {
+    background: alpha(@card_bg_color, 0.85);
+    border: 1px solid alpha(@borders, 0.7);
+    border-radius: 14px;
+    padding: 18px 20px;
+}
+
+.dmg-drop-zone {
+    background: alpha(@card_bg_color, 0.55);
+    border: 2px dashed alpha(@borders, 0.9);
+    border-radius: 14px;
+    padding: 18px 20px;
+    transition: all 150ms ease-in-out;
+}
+
+.dmg-drop-zone-active {
+    background: alpha(@accent_color, 0.14);
+    border: 2px dashed @accent_color;
+    border-radius: 14px;
+    padding: 18px 20px;
+}
+
 "#;
 
 #[cfg(test)]
